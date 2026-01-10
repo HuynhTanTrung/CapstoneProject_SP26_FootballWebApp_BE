@@ -1,0 +1,118 @@
+﻿{
+   "CodeGenerationMode": 5,
+   "ContextClassName": "VNFootballLeaguesDBContext",
+   "ContextNamespace": null,
+   "FilterSchemas": false,
+   "IncludeConnectionString": false,
+   "MinimumProductVersion": "2.6.1166",
+   "ModelNamespace": null,
+   "OutputContextPath": null,
+   "OutputPath": "Models",
+   "PreserveCasingWithRegex": true,
+   "ProjectRootNamespace": "VNFootballLeagues.Repositories",
+   "Schemas": null,
+   "SelectedHandlebarsLanguage": 2,
+   "SelectedToBeGenerated": 0,
+   "T4TemplatePath": null,
+   "Tables": [
+      {
+         "Name": "[dbo].[analytics_article]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[article_reference]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[competition]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[league]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[match]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[match_player]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[match_statistic]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[player]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[player_rating]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[player_season]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[player_season_summary]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[position]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[position_metric_weight]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[rating_explanation]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[role]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[season]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[team]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[user]",
+         "ObjectType": 0
+      }
+   ],
+   "UiHint": null,
+   "UncountableWords": null,
+   "UseAsyncStoredProcedureCalls": true,
+   "UseBoolPropertiesWithoutDefaultSql": false,
+   "UseDatabaseNames": false,
+   "UseDatabaseNamesForRoutines": true,
+   "UseDateOnlyTimeOnly": true,
+   "UseDbContextSplitting": false,
+   "UseDecimalDataAnnotationForSprocResult": true,
+   "UseFluentApiOnly": true,
+   "UseHandleBars": false,
+   "UseHierarchyId": false,
+   "UseInflector": true,
+   "UseInternalAccessModifiersForSprocsAndFunctions": false,
+   "UseLegacyPluralizer": false,
+   "UseManyToManyEntity": false,
+   "UseNoDefaultConstructor": false,
+   "UseNoNavigations": false,
+   "UseNoObjectFilter": false,
+   "UseNodaTime": false,
+   "UseNullableReferences": false,
+   "UsePrefixNavigationNaming": false,
+   "UseSchemaFolders": false,
+   "UseSchemaNamespaces": false,
+   "UseSpatial": false,
+   "UseT4": false,
+   "UseT4Split": false
+}
