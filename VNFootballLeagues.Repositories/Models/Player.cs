@@ -7,25 +7,33 @@ namespace VNFootballLeagues.Repositories.Models;
 
 public partial class Player
 {
-    public Guid PlayerId { get; set; }
+    public int PlayerId { get; set; }
 
-    public string FullName { get; set; }
+    public string FirstName { get; set; }
+
+    public string LastName { get; set; }
 
     public DateOnly? DateOfBirth { get; set; }
 
     public string Nationality { get; set; }
 
-    public Guid PrimaryPositionId { get; set; }
+    public double? Height { get; set; }
 
-    public bool IsDeleted { get; set; }
+    public double? Weight { get; set; }
 
-    public virtual ICollection<ArticleReference> ArticleReferences { get; set; } = new List<ArticleReference>();
+    public string PreferredFoot { get; set; }
 
-    public virtual ICollection<MatchPlayer> MatchPlayers { get; set; } = new List<MatchPlayer>();
+    public double? MarketValue { get; set; }
 
-    public virtual ICollection<PlayerSeasonSummary> PlayerSeasonSummaries { get; set; } = new List<PlayerSeasonSummary>();
+    public int? TeamId { get; set; }
 
-    public virtual ICollection<PlayerSeason> PlayerSeasons { get; set; } = new List<PlayerSeason>();
+    public virtual ICollection<Contract> Contracts { get; set; } = new List<Contract>();
 
-    public virtual Position PrimaryPosition { get; set; }
+    public virtual ICollection<PlayerMatch> PlayerMatches { get; set; } = new List<PlayerMatch>();
+
+    public virtual ICollection<PlayerStatistic> PlayerStatistics { get; set; } = new List<PlayerStatistic>();
+
+    public virtual Team Team { get; set; }
+
+    public virtual ICollection<Position> Positions { get; set; } = new List<Position>();
 }

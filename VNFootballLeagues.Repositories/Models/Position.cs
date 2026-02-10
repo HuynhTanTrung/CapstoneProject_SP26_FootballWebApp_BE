@@ -7,19 +7,17 @@ namespace VNFootballLeagues.Repositories.Models;
 
 public partial class Position
 {
-    public Guid PositionId { get; set; }
+    public int PositionId { get; set; }
+
+    public string PositionName { get; set; }
+
+    public string PositionCategory { get; set; }
 
     public string PositionCode { get; set; }
 
-    public string PositionGroup { get; set; }
+    public virtual ICollection<ActionsPosition> ActionsPositions { get; set; } = new List<ActionsPosition>();
 
-    public string Description { get; set; }
-
-    public bool IsDeleted { get; set; }
-
-    public virtual ICollection<MatchPlayer> MatchPlayers { get; set; } = new List<MatchPlayer>();
+    public virtual ICollection<PlayerMatch> PlayerMatches { get; set; } = new List<PlayerMatch>();
 
     public virtual ICollection<Player> Players { get; set; } = new List<Player>();
-
-    public virtual ICollection<PositionMetricWeight> PositionMetricWeights { get; set; } = new List<PositionMetricWeight>();
 }

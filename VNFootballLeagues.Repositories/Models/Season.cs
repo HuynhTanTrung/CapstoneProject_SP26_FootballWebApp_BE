@@ -7,25 +7,19 @@ namespace VNFootballLeagues.Repositories.Models;
 
 public partial class Season
 {
-    public Guid SeasonId { get; set; }
+    public int SeasonId { get; set; }
 
-    public string SeasonName { get; set; }
+    public int LeagueId { get; set; }
 
     public int Year { get; set; }
 
-    public Guid LeagueId { get; set; }
+    public DateOnly? StartDate { get; set; }
 
-    public bool IsCurrent { get; set; }
-
-    public bool IsDeleted { get; set; }
-
-    public virtual ICollection<Competition> Competitions { get; set; } = new List<Competition>();
+    public DateOnly? EndDate { get; set; }
 
     public virtual League League { get; set; }
 
     public virtual ICollection<Match> Matches { get; set; } = new List<Match>();
 
-    public virtual ICollection<PlayerSeasonSummary> PlayerSeasonSummaries { get; set; } = new List<PlayerSeasonSummary>();
-
-    public virtual ICollection<PlayerSeason> PlayerSeasons { get; set; } = new List<PlayerSeason>();
+    public virtual ICollection<Team> Teams { get; set; } = new List<Team>();
 }

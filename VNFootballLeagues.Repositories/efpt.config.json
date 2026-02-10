@@ -16,75 +16,87 @@
    "T4TemplatePath": null,
    "Tables": [
       {
-         "Name": "[dbo].[analytics_article]",
+         "Name": "[dbo].[Actions]",
          "ObjectType": 0
       },
       {
-         "Name": "[dbo].[article_reference]",
+         "Name": "[dbo].[Actions_PlayerStatistics]",
          "ObjectType": 0
       },
       {
-         "Name": "[dbo].[competition]",
+         "Name": "[dbo].[Actions_Position]",
          "ObjectType": 0
       },
       {
-         "Name": "[dbo].[league]",
+         "Name": "[dbo].[AnalyticalPost]",
          "ObjectType": 0
       },
       {
-         "Name": "[dbo].[match]",
+         "Name": "[dbo].[Club]",
          "ObjectType": 0
       },
       {
-         "Name": "[dbo].[match_player]",
+         "Name": "[dbo].[Collaborators]",
          "ObjectType": 0
       },
       {
-         "Name": "[dbo].[match_statistic]",
+         "Name": "[dbo].[Contract]",
          "ObjectType": 0
       },
       {
-         "Name": "[dbo].[player]",
+         "Name": "[dbo].[League]",
          "ObjectType": 0
       },
       {
-         "Name": "[dbo].[player_rating]",
+         "Name": "[dbo].[Match]",
          "ObjectType": 0
       },
       {
-         "Name": "[dbo].[player_season]",
+         "Name": "[dbo].[Match_Result]",
          "ObjectType": 0
       },
       {
-         "Name": "[dbo].[player_season_summary]",
+         "Name": "[dbo].[Player]",
          "ObjectType": 0
       },
       {
-         "Name": "[dbo].[position]",
+         "Name": "[dbo].[Player_Match]",
          "ObjectType": 0
       },
       {
-         "Name": "[dbo].[position_metric_weight]",
+         "Name": "[dbo].[PlayerPosition]",
          "ObjectType": 0
       },
       {
-         "Name": "[dbo].[rating_explanation]",
+         "Name": "[dbo].[PlayerRating]",
          "ObjectType": 0
       },
       {
-         "Name": "[dbo].[role]",
+         "Name": "[dbo].[PlayerStatistics]",
          "ObjectType": 0
       },
       {
-         "Name": "[dbo].[season]",
+         "Name": "[dbo].[Position]",
          "ObjectType": 0
       },
       {
-         "Name": "[dbo].[team]",
+         "Name": "[dbo].[RatingPoints]",
          "ObjectType": 0
       },
       {
-         "Name": "[dbo].[user]",
+         "Name": "[dbo].[Season]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[Stadium]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[Team]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[Team_Season]",
          "ObjectType": 0
       }
    ],

@@ -7,37 +7,31 @@ namespace VNFootballLeagues.Repositories.Models;
 
 public partial class Match
 {
-    public Guid MatchId { get; set; }
+    public int MatchId { get; set; }
 
-    public DateTime MatchDatetime { get; set; }
+    public int SeasonId { get; set; }
 
-    public string Venue { get; set; }
+    public int StadiumId { get; set; }
 
-    public string MatchStatus { get; set; }
+    public int HomeTeamId { get; set; }
 
-    public Guid HomeTeamId { get; set; }
+    public int AwayTeamId { get; set; }
 
-    public Guid AwayTeamId { get; set; }
+    public DateOnly? MatchDate { get; set; }
 
-    public int? HomeScore { get; set; }
-
-    public int? AwayScore { get; set; }
-
-    public Guid SeasonId { get; set; }
-
-    public Guid CompetitionId { get; set; }
-
-    public bool IsDeleted { get; set; }
-
-    public virtual ICollection<ArticleReference> ArticleReferences { get; set; } = new List<ArticleReference>();
+    public string RefereeName { get; set; }
 
     public virtual Team AwayTeam { get; set; }
 
-    public virtual Competition Competition { get; set; }
-
     public virtual Team HomeTeam { get; set; }
 
-    public virtual ICollection<MatchPlayer> MatchPlayers { get; set; } = new List<MatchPlayer>();
+    public virtual ICollection<MatchResult> MatchResults { get; set; } = new List<MatchResult>();
+
+    public virtual ICollection<PlayerMatch> PlayerMatches { get; set; } = new List<PlayerMatch>();
+
+    public virtual ICollection<PlayerStatistic> PlayerStatistics { get; set; } = new List<PlayerStatistic>();
 
     public virtual Season Season { get; set; }
+
+    public virtual Stadium Stadium { get; set; }
 }

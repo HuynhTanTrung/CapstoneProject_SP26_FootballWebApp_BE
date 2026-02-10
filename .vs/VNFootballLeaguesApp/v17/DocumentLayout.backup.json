@@ -1,10 +1,14 @@
 {
   "Version": 1,
-  "WorkspaceRootPath": "C:\\Users\\Nghe\\Downloads\\VNFootballLeaguesApp\\",
+  "WorkspaceRootPath": "D:\\University\\VNFootballLeaguesApp\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{B6B20879-9B18-4FD8-BA95-D1748D0E1F05}|VNFootballLeagues.Repositories\\VNFootballLeagues.Repositories.csproj|c:\\users\\nghe\\downloads\\vnfootballleaguesapp\\vnfootballleagues.repositories\\basic\\genericrepository.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{B6B20879-9B18-4FD8-BA95-D1748D0E1F05}|VNFootballLeagues.Repositories\\VNFootballLeagues.Repositories.csproj|solutionrelative:vnfootballleagues.repositories\\basic\\genericrepository.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{CA24E47A-AFC9-43A7-9A53-F2E428E876B0}|VNFootballLeaguesApp\\VNFootballLeaguesApp.csproj|d:\\university\\vnfootballleaguesapp\\vnfootballleaguesapp\\vnfootballleaguesapp.csproj||{FA3CD31E-987B-443A-9B81-186104E8DAC1}|",
+      "RelativeMoniker": "D:0:0:{CA24E47A-AFC9-43A7-9A53-F2E428E876B0}|VNFootballLeaguesApp\\VNFootballLeaguesApp.csproj|solutionrelative:vnfootballleaguesapp\\vnfootballleaguesapp.csproj||{FA3CD31E-987B-443A-9B81-186104E8DAC1}|"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{CA24E47A-AFC9-43A7-9A53-F2E428E876B0}|VNFootballLeaguesApp\\VNFootballLeaguesApp.csproj|d:\\university\\vnfootballleaguesapp\\vnfootballleaguesapp\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{CA24E47A-AFC9-43A7-9A53-F2E428E876B0}|VNFootballLeaguesApp\\VNFootballLeaguesApp.csproj|solutionrelative:vnfootballleaguesapp\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     }
   ],
   "DocumentGroupContainers": [
@@ -59,14 +63,27 @@
             {
               "$type": "Document",
               "DocumentIndex": 0,
-              "Title": "GenericRepository.cs",
-              "DocumentMoniker": "C:\\Users\\Nghe\\Downloads\\VNFootballLeaguesApp\\VNFootballLeagues.Repositories\\Basic\\GenericRepository.cs",
-              "RelativeDocumentMoniker": "VNFootballLeagues.Repositories\\Basic\\GenericRepository.cs",
-              "ToolTip": "C:\\Users\\Nghe\\Downloads\\VNFootballLeaguesApp\\VNFootballLeagues.Repositories\\Basic\\GenericRepository.cs",
-              "RelativeToolTip": "VNFootballLeagues.Repositories\\Basic\\GenericRepository.cs",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAABIAAAAAAAAAAAAAAA==",
+              "Title": "VNFootballLeaguesApp",
+              "DocumentMoniker": "D:\\University\\VNFootballLeaguesApp\\VNFootballLeaguesApp\\VNFootballLeaguesApp.csproj",
+              "RelativeDocumentMoniker": "VNFootballLeaguesApp\\VNFootballLeaguesApp.csproj",
+              "ToolTip": "D:\\University\\VNFootballLeaguesApp\\VNFootballLeaguesApp\\VNFootballLeaguesApp.csproj",
+              "RelativeToolTip": "VNFootballLeaguesApp\\VNFootballLeaguesApp.csproj",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000758|",
+              "WhenOpened": "2026-02-10T11:19:05.277Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "Program.cs",
+              "DocumentMoniker": "D:\\University\\VNFootballLeaguesApp\\VNFootballLeaguesApp\\Program.cs",
+              "RelativeDocumentMoniker": "VNFootballLeaguesApp\\Program.cs",
+              "ToolTip": "D:\\University\\VNFootballLeaguesApp\\VNFootballLeaguesApp\\Program.cs",
+              "RelativeToolTip": "VNFootballLeaguesApp\\Program.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-01-10T12:50:34.549Z",
+              "WhenOpened": "2026-02-10T11:19:01.272Z",
               "EditorCaption": ""
             }
           ]

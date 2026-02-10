@@ -7,13 +7,9 @@ namespace VNFootballLeagues.Repositories.Models;
 
 public partial class League
 {
-    public Guid LeagueId { get; set; }
+    public int LeagueId { get; set; }
 
     public string LeagueName { get; set; }
 
-    public bool IsDeleted { get; set; }
-
     public virtual ICollection<Season> Seasons { get; set; } = new List<Season>();
-
-    public virtual ICollection<Team> Teams { get; set; } = new List<Team>();
 }

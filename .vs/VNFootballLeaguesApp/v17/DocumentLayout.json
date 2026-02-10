@@ -1,7 +1,16 @@
 {
   "Version": 1,
   "WorkspaceRootPath": "D:\\University\\VNFootballLeaguesApp\\",
-  "Documents": [],
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{CA24E47A-AFC9-43A7-9A53-F2E428E876B0}|VNFootballLeaguesApp\\VNFootballLeaguesApp.csproj|d:\\university\\vnfootballleaguesapp\\vnfootballleaguesapp\\vnfootballleaguesapp.csproj||{FA3CD31E-987B-443A-9B81-186104E8DAC1}|",
+      "RelativeMoniker": "D:0:0:{CA24E47A-AFC9-43A7-9A53-F2E428E876B0}|VNFootballLeaguesApp\\VNFootballLeaguesApp.csproj|solutionrelative:vnfootballleaguesapp\\vnfootballleaguesapp.csproj||{FA3CD31E-987B-443A-9B81-186104E8DAC1}|"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{CA24E47A-AFC9-43A7-9A53-F2E428E876B0}|VNFootballLeaguesApp\\VNFootballLeaguesApp.csproj|d:\\university\\vnfootballleaguesapp\\vnfootballleaguesapp\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{CA24E47A-AFC9-43A7-9A53-F2E428E876B0}|VNFootballLeaguesApp\\VNFootballLeaguesApp.csproj|solutionrelative:vnfootballleaguesapp\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    }
+  ],
   "DocumentGroupContainers": [
     {
       "Orientation": 0,
@@ -9,7 +18,7 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": -1,
+          "SelectedChildIndex": 10,
           "Children": [
             {
               "$type": "Bookmark",
@@ -50,6 +59,32 @@
             {
               "$type": "Bookmark",
               "Name": "ST:0:0:{e1b7d1f8-9b3c-49b1-8f4f-bfc63a88835d}"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "VNFootballLeaguesApp",
+              "DocumentMoniker": "D:\\University\\VNFootballLeaguesApp\\VNFootballLeaguesApp\\VNFootballLeaguesApp.csproj",
+              "RelativeDocumentMoniker": "VNFootballLeaguesApp\\VNFootballLeaguesApp.csproj",
+              "ToolTip": "D:\\University\\VNFootballLeaguesApp\\VNFootballLeaguesApp\\VNFootballLeaguesApp.csproj",
+              "RelativeToolTip": "VNFootballLeaguesApp\\VNFootballLeaguesApp.csproj",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000758|",
+              "WhenOpened": "2026-02-10T11:19:05.277Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "Program.cs",
+              "DocumentMoniker": "D:\\University\\VNFootballLeaguesApp\\VNFootballLeaguesApp\\Program.cs",
+              "RelativeDocumentMoniker": "VNFootballLeaguesApp\\Program.cs",
+              "ToolTip": "D:\\University\\VNFootballLeaguesApp\\VNFootballLeaguesApp\\Program.cs",
+              "RelativeToolTip": "VNFootballLeaguesApp\\Program.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-02-10T11:19:01.272Z",
+              "EditorCaption": ""
             }
           ]
         },

@@ -1,0 +1,7 @@
+D:\University\VNFootballLeaguesApp\VNFootballLeaguesApp\obj\Release\net9.0\PubTmp\Out\VNFootballLeaguesApp.exe
+D:\University\VNFootballLeaguesApp\VNFootballLeaguesApp\obj\Release\net9.0\PubTmp\Out\appsettings.Development.json
+D:\University\VNFootballLeaguesApp\VNFootballLeaguesApp\obj\Release\net9.0\PubTmp\Out\appsettings.json
+D:\University\VNFootballLeaguesApp\VNFootballLeaguesApp\obj\Release\net9.0\PubTmp\Out\VNFootballLeaguesApp.dll
+D:\University\VNFootballLeaguesApp\VNFootballLeaguesApp\obj\Release\net9.0\PubTmp\Out\VNFootballLeaguesApp.deps.json
+D:\University\VNFootballLeaguesApp\VNFootballLeaguesApp\obj\Release\net9.0\PubTmp\Out\VNFootballLeaguesApp.runtimeconfig.json
+D:\University\VNFootballLeaguesApp\VNFootballLeaguesApp\obj\Release\net9.0\PubTmp\Out\VNFootballLeaguesApp.pdb

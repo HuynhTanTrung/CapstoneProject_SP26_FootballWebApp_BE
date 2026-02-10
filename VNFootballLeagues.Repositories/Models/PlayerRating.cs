@@ -7,17 +7,15 @@ namespace VNFootballLeagues.Repositories.Models;
 
 public partial class PlayerRating
 {
-    public Guid RatingId { get; set; }
+    public int RatingId { get; set; }
 
-    public Guid MatchPlayerId { get; set; }
+    public int? TotalActionScore { get; set; }
 
-    public decimal RatingScore { get; set; }
+    public int? PlayerStatisticsId { get; set; }
 
-    public DateTime CalculatedAt { get; set; }
+    public int? RatingPointId { get; set; }
 
-    public bool IsDeleted { get; set; }
+    public virtual PlayerStatistic PlayerStatistics { get; set; }
 
-    public virtual MatchPlayer MatchPlayer { get; set; }
-
-    public virtual ICollection<RatingExplanation> RatingExplanations { get; set; } = new List<RatingExplanation>();
+    public virtual RatingPoint RatingPoint { get; set; }
 }
