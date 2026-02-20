@@ -9,6 +9,10 @@ namespace VNFootballLeagues.Repositories.Models;
 
 public partial class VNFootballLeaguesDBContext : DbContext
 {
+    public VNFootballLeaguesDBContext()
+    {
+    }
+
     public VNFootballLeaguesDBContext(DbContextOptions<VNFootballLeaguesDBContext> options)
         : base(options)
     {
@@ -24,11 +28,22 @@ public partial class VNFootballLeaguesDBContext : DbContext
 
     public virtual DbSet<Club> Clubs { get; set; }
 
-    public virtual DbSet<Collaborator> Collaborators { get; set; }
 
     public virtual DbSet<Contract> Contracts { get; set; }
 
     public virtual DbSet<League> Leagues { get; set; }
+
+    public virtual DbSet<User> Users { get; set; }
+
+    public virtual DbSet<Role> Roles { get; set; }
+
+    public virtual DbSet<UserRole> UserRoles { get; set; }
+
+    public virtual DbSet<RefreshToken> RefreshTokens { get; set; }
+
+    public virtual DbSet<EmailVerificationToken> EmailVerificationTokens { get; set; }
+
+    public virtual DbSet<PasswordResetToken> PasswordResetTokens { get; set; }
 
     public virtual DbSet<Match> Matches { get; set; }
 
@@ -143,23 +158,7 @@ public partial class VNFootballLeaguesDBContext : DbContext
                 .IsUnicode(false);
         });
 
-        modelBuilder.Entity<Collaborator>(entity =>
-        {
-            entity.HasKey(e => e.CollaboratorId).HasName("PK__Collabor__3AC201E370EDA551");
-
-            entity.Property(e => e.CollaboratorName)
-                .HasMaxLength(50)
-                .IsUnicode(false);
-            entity.Property(e => e.Email)
-                .HasMaxLength(50)
-                .IsUnicode(false);
-            entity.Property(e => e.Organization)
-                .HasMaxLength(50)
-                .IsUnicode(false);
-            entity.Property(e => e.PhoneNumber)
-                .HasMaxLength(50)
-                .IsUnicode(false);
-        });
+        
 
         modelBuilder.Entity<Contract>(entity =>
         {
@@ -196,6 +195,115 @@ public partial class VNFootballLeaguesDBContext : DbContext
                 .IsRequired()
                 .HasMaxLength(50)
                 .IsUnicode(false);
+        });
+
+        modelBuilder.Entity<User>(entity =>
+        {
+            entity.HasKey(e => e.UserId);
+
+            entity.ToTable("User");
+
+            entity.HasIndex(e => e.Username).IsUnique();
+            entity.HasIndex(e => e.Email).IsUnique();
+
+            entity.Property(e => e.Username).HasMaxLength(50).IsRequired();
+            entity.Property(e => e.Email).HasMaxLength(255).IsRequired();
+            entity.Property(e => e.PasswordHash).HasMaxLength(500).IsRequired();
+            entity.Property(e => e.FullName).HasMaxLength(150).IsRequired();
+            entity.Property(e => e.IsEmailVerified).HasDefaultValue(false);
+            entity.Property(e => e.IsActive).HasDefaultValue(true);
+            entity.Property(e => e.FailedLoginAttempts).HasDefaultValue(0);
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("GETUTCDATE()");
+            entity.Property(e => e.UpdatedAt).HasDefaultValueSql("GETUTCDATE()");
+        });
+
+        modelBuilder.Entity<Role>(entity =>
+        {
+            entity.HasKey(e => e.RoleId);
+
+            entity.ToTable("Role");
+
+            entity.HasIndex(e => e.RoleName).IsUnique();
+
+            entity.Property(e => e.RoleName).HasMaxLength(50).IsRequired();
+            entity.Property(e => e.Description).HasMaxLength(255);
+
+            entity.HasData(
+                new Role { RoleId = 1, RoleName = "User", Description = "Default user role" },
+                new Role { RoleId = 2, RoleName = "Admin", Description = "Administrator role" }
+            );
+        });
+
+        modelBuilder.Entity<UserRole>(entity =>
+        {
+            entity.HasKey(e => new { e.UserId, e.RoleId });
+
+            entity.ToTable("UserRole");
+
+            entity.Property(e => e.AssignedAt).HasDefaultValueSql("GETUTCDATE()");
+
+            entity.HasOne(d => d.User)
+                .WithMany(p => p.UserRoles)
+                .HasForeignKey(d => d.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(d => d.Role)
+                .WithMany(p => p.UserRoles)
+                .HasForeignKey(d => d.RoleId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<RefreshToken>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+
+            entity.ToTable("RefreshToken");
+
+            entity.HasIndex(e => e.Token).IsUnique();
+
+            entity.Property(e => e.Token).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("GETUTCDATE()");
+
+            entity.HasOne(d => d.User)
+                .WithMany(p => p.RefreshTokens)
+                .HasForeignKey(d => d.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<EmailVerificationToken>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+
+            entity.ToTable("EmailVerificationToken");
+
+            entity.HasIndex(e => e.Token).IsUnique();
+
+            entity.Property(e => e.Token).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("GETUTCDATE()");
+            entity.Property(e => e.IsUsed).HasDefaultValue(false);
+
+            entity.HasOne(d => d.User)
+                .WithMany(p => p.EmailVerificationTokens)
+                .HasForeignKey(d => d.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<PasswordResetToken>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+
+            entity.ToTable("PasswordResetToken");
+
+            entity.HasIndex(e => e.Token).IsUnique();
+
+            entity.Property(e => e.Token).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("GETUTCDATE()");
+            entity.Property(e => e.IsUsed).HasDefaultValue(false);
+
+            entity.HasOne(d => d.User)
+                .WithMany(p => p.PasswordResetTokens)
+                .HasForeignKey(d => d.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<Match>(entity =>
@@ -334,9 +442,6 @@ public partial class VNFootballLeaguesDBContext : DbContext
         {
             entity.HasKey(e => e.PlayerStatisticsId).HasName("PK__PlayerSt__D4A80B8917AD1855");
 
-            entity.HasOne(d => d.Collaborator).WithMany(p => p.PlayerStatistics)
-                .HasForeignKey(d => d.CollaboratorId)
-                .HasConstraintName("FK_PS_Collab");
 
             entity.HasOne(d => d.Match).WithMany(p => p.PlayerStatistics)
                 .HasForeignKey(d => d.MatchId)

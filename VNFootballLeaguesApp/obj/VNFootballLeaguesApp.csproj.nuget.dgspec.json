@@ -1,23 +1,23 @@
 {
   "format": 1,
   "restore": {
-    "D:\\University\\VNFootballLeaguesApp\\VNFootballLeaguesApp\\VNFootballLeaguesApp.csproj": {}
+    "D:\\DOANTOTNGHIEP\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeaguesApp\\VNFootballLeaguesApp.csproj": {}
   },
   "projects": {
-    "D:\\University\\VNFootballLeaguesApp\\VNFootballLeaguesApp\\VNFootballLeaguesApp.csproj": {
+    "D:\\DOANTOTNGHIEP\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeagues.Repositories\\VNFootballLeagues.Repositories.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "D:\\University\\VNFootballLeaguesApp\\VNFootballLeaguesApp\\VNFootballLeaguesApp.csproj",
-        "projectName": "VNFootballLeaguesApp",
-        "projectPath": "D:\\University\\VNFootballLeaguesApp\\VNFootballLeaguesApp\\VNFootballLeaguesApp.csproj",
-        "packagesPath": "C:\\Users\\Nghe\\.nuget\\packages\\",
-        "outputPath": "D:\\University\\VNFootballLeaguesApp\\VNFootballLeaguesApp\\obj\\",
+        "projectUniqueName": "D:\\DOANTOTNGHIEP\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeagues.Repositories\\VNFootballLeagues.Repositories.csproj",
+        "projectName": "VNFootballLeagues.Repositories",
+        "projectPath": "D:\\DOANTOTNGHIEP\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeagues.Repositories\\VNFootballLeagues.Repositories.csproj",
+        "packagesPath": "C:\\Users\\minh phuc\\.nuget\\packages\\",
+        "outputPath": "D:\\DOANTOTNGHIEP\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeagues.Repositories\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
         ],
         "configFilePaths": [
-          "C:\\Users\\Nghe\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Users\\minh phuc\\AppData\\Roaming\\NuGet\\NuGet.Config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
         ],
@@ -49,6 +49,199 @@
       "frameworks": {
         "net9.0": {
           "targetAlias": "net9.0",
+          "dependencies": {
+            "Microsoft.EntityFrameworkCore.SqlServer": {
+              "target": "Package",
+              "version": "[9.0.9, )"
+            },
+            "Microsoft.EntityFrameworkCore.Tools": {
+              "include": "Runtime, Build, Native, ContentFiles, Analyzers, BuildTransitive",
+              "suppressParent": "All",
+              "target": "Package",
+              "version": "[9.0.9, )"
+            },
+            "Microsoft.Extensions.Configuration": {
+              "target": "Package",
+              "version": "[9.0.9, )"
+            },
+            "Microsoft.Extensions.Configuration.Json": {
+              "target": "Package",
+              "version": "[9.0.9, )"
+            }
+          },
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "frameworkReferences": {
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.305/PortableRuntimeIdentifierGraph.json"
+        }
+      }
+    },
+    "D:\\DOANTOTNGHIEP\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeagues.Services\\VNFootballLeagues.Services.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "D:\\DOANTOTNGHIEP\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeagues.Services\\VNFootballLeagues.Services.csproj",
+        "projectName": "VNFootballLeagues.Services",
+        "projectPath": "D:\\DOANTOTNGHIEP\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeagues.Services\\VNFootballLeagues.Services.csproj",
+        "packagesPath": "C:\\Users\\minh phuc\\.nuget\\packages\\",
+        "outputPath": "D:\\DOANTOTNGHIEP\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeagues.Services\\obj\\",
+        "projectStyle": "PackageReference",
+        "fallbackFolders": [
+          "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
+        ],
+        "configFilePaths": [
+          "C:\\Users\\minh phuc\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
+        ],
+        "originalTargetFrameworks": [
+          "net9.0"
+        ],
+        "sources": {
+          "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net9.0": {
+            "targetAlias": "net9.0",
+            "projectReferences": {
+              "D:\\DOANTOTNGHIEP\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeagues.Repositories\\VNFootballLeagues.Repositories.csproj": {
+                "projectPath": "D:\\DOANTOTNGHIEP\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeagues.Repositories\\VNFootballLeagues.Repositories.csproj"
+              }
+            }
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        },
+        "SdkAnalysisLevel": "9.0.300"
+      },
+      "frameworks": {
+        "net9.0": {
+          "targetAlias": "net9.0",
+          "dependencies": {
+            "BCrypt.Net-Next": {
+              "target": "Package",
+              "version": "[4.0.3, )"
+            },
+            "MailKit": {
+              "target": "Package",
+              "version": "[4.8.0, )"
+            },
+            "Microsoft.Extensions.Options.ConfigurationExtensions": {
+              "target": "Package",
+              "version": "[9.0.9, )"
+            },
+            "System.IdentityModel.Tokens.Jwt": {
+              "target": "Package",
+              "version": "[8.14.0, )"
+            }
+          },
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "frameworkReferences": {
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.305/PortableRuntimeIdentifierGraph.json"
+        }
+      }
+    },
+    "D:\\DOANTOTNGHIEP\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeaguesApp\\VNFootballLeaguesApp.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "D:\\DOANTOTNGHIEP\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeaguesApp\\VNFootballLeaguesApp.csproj",
+        "projectName": "VNFootballLeaguesApp",
+        "projectPath": "D:\\DOANTOTNGHIEP\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeaguesApp\\VNFootballLeaguesApp.csproj",
+        "packagesPath": "C:\\Users\\minh phuc\\.nuget\\packages\\",
+        "outputPath": "D:\\DOANTOTNGHIEP\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeaguesApp\\obj\\",
+        "projectStyle": "PackageReference",
+        "fallbackFolders": [
+          "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
+        ],
+        "configFilePaths": [
+          "C:\\Users\\minh phuc\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
+        ],
+        "originalTargetFrameworks": [
+          "net9.0"
+        ],
+        "sources": {
+          "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net9.0": {
+            "targetAlias": "net9.0",
+            "projectReferences": {
+              "D:\\DOANTOTNGHIEP\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeagues.Repositories\\VNFootballLeagues.Repositories.csproj": {
+                "projectPath": "D:\\DOANTOTNGHIEP\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeagues.Repositories\\VNFootballLeagues.Repositories.csproj"
+              },
+              "D:\\DOANTOTNGHIEP\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeagues.Services\\VNFootballLeagues.Services.csproj": {
+                "projectPath": "D:\\DOANTOTNGHIEP\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeagues.Services\\VNFootballLeagues.Services.csproj"
+              }
+            }
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        },
+        "SdkAnalysisLevel": "9.0.300"
+      },
+      "frameworks": {
+        "net9.0": {
+          "targetAlias": "net9.0",
+          "dependencies": {
+            "FluentValidation.AspNetCore": {
+              "target": "Package",
+              "version": "[11.3.0, )"
+            },
+            "Microsoft.AspNetCore.Authentication.JwtBearer": {
+              "target": "Package",
+              "version": "[9.0.9, )"
+            },
+            "Swashbuckle.AspNetCore": {
+              "target": "Package",
+              "version": "[7.0.0, )"
+            }
+          },
           "imports": [
             "net461",
             "net462",
@@ -68,7 +261,7 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.309/PortableRuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.305/PortableRuntimeIdentifierGraph.json"
         }
       }
     }

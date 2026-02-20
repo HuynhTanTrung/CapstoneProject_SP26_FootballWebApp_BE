@@ -19,8 +19,6 @@ public partial class PlayerStatistic
 
     public virtual ICollection<ActionsPlayerStatistic> ActionsPlayerStatistics { get; set; } = new List<ActionsPlayerStatistic>();
 
-    public virtual Collaborator Collaborator { get; set; }
-
     public virtual Match Match { get; set; }
 
     public virtual Player Player { get; set; }
