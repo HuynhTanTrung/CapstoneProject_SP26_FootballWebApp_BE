@@ -21,6 +21,18 @@ public partial class Match
 
     public string RefereeName { get; set; }
 
+    public int? HomeScore { get; set; }
+
+    public int? AwayScore { get; set; }
+
+    public int? ApiFixtureId { get; set; }
+
+    public TimeOnly? KickOffTime { get; set; }
+
+    public string Status { get; set; }
+
+    public int? Attendance { get; set; }
+
     public virtual Team AwayTeam { get; set; }
 
     public virtual Team HomeTeam { get; set; }

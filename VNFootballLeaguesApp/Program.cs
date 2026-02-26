@@ -1,8 +1,10 @@
+using Microsoft.OpenApi.Models;
+using VNFootballLeagues.Services.IServices;
+using VNFootballLeagues.Services.Services;
 using VNFootballLeaguesApp.Extensions;
 using VNFootballLeaguesApp.Middleware;
 using VNFootballLeaguesApp.Services;
 using VNFootballLeaguesApp.Settings;
-using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -64,8 +66,23 @@ builder.Services
     .AddRepositories(builder.Configuration)
     .AddApplicationServices();
 
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.WriteIndented = true;
+    });
+
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.ReferenceHandler =
+            System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
+    });
+
 builder.Services.Configure<DatabaseAutoUpdateSettings>(builder.Configuration.GetSection("DatabaseAutoUpdate"));
 builder.Services.AddHostedService<DatabaseAutoUpdateHostedService>();
+builder.Services.AddHttpClient<IFootballApiService, FootballApiService>();
+
 
 var app = builder.Build();
 

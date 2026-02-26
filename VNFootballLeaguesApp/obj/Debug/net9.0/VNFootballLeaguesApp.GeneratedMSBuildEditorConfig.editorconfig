@@ -9,41 +9,41 @@ build_property.EnforceExtendedAnalyzerRules =
 build_property._SupportedPlatformList = Linux,macOS,Windows
 build_property.RootNamespace = VNFootballLeaguesApp
 build_property.RootNamespace = VNFootballLeaguesApp
-build_property.ProjectDir = D:\DOANTOTNGHIEP\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\
+build_property.ProjectDir = D:\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\
 build_property.EnableComHosting = 
 build_property.EnableGeneratedComInterfaceComImportInterop = 
 build_property.RazorLangVersion = 9.0
 build_property.SupportLocalizedComponentNames = 
 build_property.GenerateRazorMetadataSourceChecksumAttributes = 
-build_property.MSBuildProjectDirectory = D:\DOANTOTNGHIEP\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp
+build_property.MSBuildProjectDirectory = D:\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp
 build_property._RazorSourceGeneratorDebug = 
 build_property.EffectiveAnalysisLevelStyle = 9.0
 build_property.EnableCodeStyleSeverity = 
 
-[D:/DOANTOTNGHIEP/CapstoneProject_SP26_FootballWebApp_BE/VNFootballLeaguesApp/Pages/Error.cshtml]
+[D:/CapstoneProject_SP26_FootballWebApp_BE/VNFootballLeaguesApp/Pages/Error.cshtml]
 build_metadata.AdditionalFiles.TargetPath = UGFnZXNcRXJyb3IuY3NodG1s
 build_metadata.AdditionalFiles.CssScope = 
 
-[D:/DOANTOTNGHIEP/CapstoneProject_SP26_FootballWebApp_BE/VNFootballLeaguesApp/Pages/Index.cshtml]
+[D:/CapstoneProject_SP26_FootballWebApp_BE/VNFootballLeaguesApp/Pages/Index.cshtml]
 build_metadata.AdditionalFiles.TargetPath = UGFnZXNcSW5kZXguY3NodG1s
 build_metadata.AdditionalFiles.CssScope = 
 
-[D:/DOANTOTNGHIEP/CapstoneProject_SP26_FootballWebApp_BE/VNFootballLeaguesApp/Pages/Privacy.cshtml]
+[D:/CapstoneProject_SP26_FootballWebApp_BE/VNFootballLeaguesApp/Pages/Privacy.cshtml]
 build_metadata.AdditionalFiles.TargetPath = UGFnZXNcUHJpdmFjeS5jc2h0bWw=
 build_metadata.AdditionalFiles.CssScope = 
 
-[D:/DOANTOTNGHIEP/CapstoneProject_SP26_FootballWebApp_BE/VNFootballLeaguesApp/Pages/Shared/_ValidationScriptsPartial.cshtml]
+[D:/CapstoneProject_SP26_FootballWebApp_BE/VNFootballLeaguesApp/Pages/Shared/_ValidationScriptsPartial.cshtml]
 build_metadata.AdditionalFiles.TargetPath = UGFnZXNcU2hhcmVkXF9WYWxpZGF0aW9uU2NyaXB0c1BhcnRpYWwuY3NodG1s
 build_metadata.AdditionalFiles.CssScope = 
 
-[D:/DOANTOTNGHIEP/CapstoneProject_SP26_FootballWebApp_BE/VNFootballLeaguesApp/Pages/_ViewImports.cshtml]
+[D:/CapstoneProject_SP26_FootballWebApp_BE/VNFootballLeaguesApp/Pages/_ViewImports.cshtml]
 build_metadata.AdditionalFiles.TargetPath = UGFnZXNcX1ZpZXdJbXBvcnRzLmNzaHRtbA==
 build_metadata.AdditionalFiles.CssScope = 
 
-[D:/DOANTOTNGHIEP/CapstoneProject_SP26_FootballWebApp_BE/VNFootballLeaguesApp/Pages/_ViewStart.cshtml]
+[D:/CapstoneProject_SP26_FootballWebApp_BE/VNFootballLeaguesApp/Pages/_ViewStart.cshtml]
 build_metadata.AdditionalFiles.TargetPath = UGFnZXNcX1ZpZXdTdGFydC5jc2h0bWw=
 build_metadata.AdditionalFiles.CssScope = 
 
-[D:/DOANTOTNGHIEP/CapstoneProject_SP26_FootballWebApp_BE/VNFootballLeaguesApp/Pages/Shared/_Layout.cshtml]
+[D:/CapstoneProject_SP26_FootballWebApp_BE/VNFootballLeaguesApp/Pages/Shared/_Layout.cshtml]
 build_metadata.AdditionalFiles.TargetPath = UGFnZXNcU2hhcmVkXF9MYXlvdXQuY3NodG1s
 build_metadata.AdditionalFiles.CssScope = b-7jtzlc5khz

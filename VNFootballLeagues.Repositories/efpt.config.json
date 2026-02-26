@@ -7,7 +7,7 @@
    "MinimumProductVersion": "2.6.1166",
    "ModelNamespace": null,
    "OutputContextPath": null,
-   "OutputPath": "Models",
+   "OutputPath": "Models2",
    "PreserveCasingWithRegex": true,
    "ProjectRootNamespace": "VNFootballLeagues.Repositories",
    "Schemas": null,
@@ -33,10 +33,6 @@
       },
       {
          "Name": "[dbo].[Club]",
-         "ObjectType": 0
-      },
-      {
-         "Name": "[dbo].[Collaborators]",
          "ObjectType": 0
       },
       {

@@ -63,7 +63,7 @@ public partial class VNFootballLeaguesDBContext : DbContext
 
     public virtual DbSet<Season> Seasons { get; set; }
 
-    public virtual DbSet<Stadium> Stadia { get; set; }
+    public virtual DbSet<Stadium> Stadiums { get; set; }
 
     public virtual DbSet<Team> Teams { get; set; }
 
@@ -359,43 +359,50 @@ public partial class VNFootballLeaguesDBContext : DbContext
 
         modelBuilder.Entity<Player>(entity =>
         {
-            entity.HasKey(e => e.PlayerId).HasName("PK__Player__4A4E74C830B6D4EF");
+            entity.HasKey(e => e.PlayerId);
 
             entity.ToTable("Player");
 
             entity.Property(e => e.FirstName)
-                .HasMaxLength(50)
+                .HasMaxLength(100)
                 .IsUnicode(false);
+
             entity.Property(e => e.LastName)
-                .HasMaxLength(50)
+                .HasMaxLength(100)
                 .IsUnicode(false);
+
             entity.Property(e => e.Nationality)
-                .HasMaxLength(50)
+                .HasMaxLength(100)
                 .IsUnicode(false);
+
             entity.Property(e => e.PreferredFoot)
+                .HasMaxLength(20)
+                .IsUnicode(false);
+
+            entity.Property(e => e.PhotoUrl)
+                .HasMaxLength(500)
+                .IsUnicode(false);
+
+            entity.Property(e => e.CurrentPosition)
                 .HasMaxLength(50)
                 .IsUnicode(false);
 
-            entity.HasOne(d => d.Team).WithMany(p => p.Players)
-                .HasForeignKey(d => d.TeamId)
-                .HasConstraintName("FK_Player_Team");
+            entity.Property(e => e.Status)
+                .HasMaxLength(50)
+                .IsUnicode(false);
 
-            entity.HasMany(d => d.Positions).WithMany(p => p.Players)
-                .UsingEntity<Dictionary<string, object>>(
-                    "PlayerPosition",
-                    r => r.HasOne<Position>().WithMany()
-                        .HasForeignKey("PositionId")
-                        .OnDelete(DeleteBehavior.ClientSetNull)
-                        .HasConstraintName("FK_PP_Position"),
-                    l => l.HasOne<Player>().WithMany()
-                        .HasForeignKey("PlayerId")
-                        .OnDelete(DeleteBehavior.ClientSetNull)
-                        .HasConstraintName("FK_PP_Player"),
-                    j =>
-                    {
-                        j.HasKey("PlayerId", "PositionId").HasName("PK__PlayerPo__CC45CD6F240970F8");
-                        j.ToTable("PlayerPosition");
-                    });
+            entity.Property(e => e.MarketValue)
+                .HasColumnType("decimal(18,2)");
+
+            entity.HasIndex(e => e.ApiPlayerId)
+                .IsUnique();
+
+            entity.HasIndex(e => e.TeamId);
+
+            entity.HasOne(d => d.Team)
+                .WithMany(p => p.Players)
+                .HasForeignKey(d => d.TeamId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         modelBuilder.Entity<PlayerMatch>(entity =>
@@ -498,11 +505,24 @@ public partial class VNFootballLeaguesDBContext : DbContext
 
             entity.ToTable("Stadium");
 
+            entity.Property(e => e.StadiumName)
+                .HasMaxLength(100)
+                .IsUnicode(false);
+
             entity.Property(e => e.City)
+                .HasMaxLength(100)
+                .IsUnicode(false);
+
+            entity.Property(e => e.Address)
+                .HasMaxLength(255)
+                .IsUnicode(false);
+
+            entity.Property(e => e.Surface)
                 .HasMaxLength(50)
                 .IsUnicode(false);
-            entity.Property(e => e.StadiumName)
-                .HasMaxLength(50)
+
+            entity.Property(e => e.ImageUrl)
+                .HasMaxLength(500)
                 .IsUnicode(false);
         });
 
@@ -512,18 +532,31 @@ public partial class VNFootballLeaguesDBContext : DbContext
 
             entity.ToTable("Team");
 
+            entity.Property(e => e.TeamName)
+                .IsRequired()
+                .HasMaxLength(100)
+                .IsUnicode(false);
+
+            entity.Property(e => e.ShortName)
+                .HasMaxLength(20)
+                .IsUnicode(false);
+
             entity.Property(e => e.CoachName)
                 .HasMaxLength(50)
                 .IsUnicode(false);
-            entity.Property(e => e.TeamName)
-                .IsRequired()
-                .HasMaxLength(50)
+
+            entity.Property(e => e.LogoUrl)
+                .HasMaxLength(500)
                 .IsUnicode(false);
 
-            entity.HasOne(d => d.Club).WithMany(p => p.Teams)
-                .HasForeignKey(d => d.ClubId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK_Team_Club");
+            entity.HasIndex(e => e.ApiTeamId)
+                .IsUnique();
+
+            entity.HasOne(d => d.Stadium)
+                .WithMany(p => p.Teams)
+                .HasForeignKey(d => d.StadiumId)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("FK_Team_Stadium");
 
             entity.HasMany(d => d.Seasons).WithMany(p => p.Teams)
                 .UsingEntity<Dictionary<string, object>>(
@@ -538,7 +571,9 @@ public partial class VNFootballLeaguesDBContext : DbContext
                         .HasConstraintName("FK_TS_Team"),
                     j =>
                     {
-                        j.HasKey("TeamId", "SeasonId").HasName("PK__Team_Sea__8E22F37AF9DB580E");
+                        j.HasKey("TeamId", "SeasonId")
+                            .HasName("PK__Team_Sea__8E22F37AF9DB580E");
+
                         j.ToTable("Team_Season");
                     });
         });

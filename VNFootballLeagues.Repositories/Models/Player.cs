@@ -17,15 +17,23 @@ public partial class Player
 
     public string Nationality { get; set; }
 
-    public double? Height { get; set; }
+    public int? Height { get; set; }
 
-    public double? Weight { get; set; }
+    public int? Weight { get; set; }
 
     public string PreferredFoot { get; set; }
 
-    public double? MarketValue { get; set; }
+    public decimal? MarketValue { get; set; }
 
     public int? TeamId { get; set; }
+
+    public int? ApiPlayerId { get; set; }
+
+    public string PhotoUrl { get; set; }
+
+    public string CurrentPosition { get; set; }
+
+    public string Status { get; set; }
 
     public virtual ICollection<Contract> Contracts { get; set; } = new List<Contract>();
 

@@ -11,5 +11,13 @@ public partial class League
 
     public string LeagueName { get; set; }
 
+    public int? ApiLeagueId { get; set; }
+
+    public string Country { get; set; }
+
+    public string LogoUrl { get; set; }
+
+    public string LeagueType { get; set; }
+
     public virtual ICollection<Season> Seasons { get; set; } = new List<Season>();
 }

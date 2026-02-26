@@ -136,5 +136,21 @@
       }
     ],
     "ReturnTypes": []
+  },
+  {
+    "ContainingType": "VNFootballLeaguesApp.Controllers.FootballController",
+    "Method": "GetVietnamTeams",
+    "RelativePath": "api/Football/vietnam-teams",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "season",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
   }
 ]

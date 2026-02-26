@@ -1,23 +1,23 @@
 {
   "format": 1,
   "restore": {
-    "D:\\DOANTOTNGHIEP\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeagues.Repositories\\VNFootballLeagues.Repositories.csproj": {}
+    "D:\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeagues.Repositories\\VNFootballLeagues.Repositories.csproj": {}
   },
   "projects": {
-    "D:\\DOANTOTNGHIEP\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeagues.Repositories\\VNFootballLeagues.Repositories.csproj": {
+    "D:\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeagues.Repositories\\VNFootballLeagues.Repositories.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "D:\\DOANTOTNGHIEP\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeagues.Repositories\\VNFootballLeagues.Repositories.csproj",
+        "projectUniqueName": "D:\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeagues.Repositories\\VNFootballLeagues.Repositories.csproj",
         "projectName": "VNFootballLeagues.Repositories",
-        "projectPath": "D:\\DOANTOTNGHIEP\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeagues.Repositories\\VNFootballLeagues.Repositories.csproj",
-        "packagesPath": "C:\\Users\\minh phuc\\.nuget\\packages\\",
-        "outputPath": "D:\\DOANTOTNGHIEP\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeagues.Repositories\\obj\\",
+        "projectPath": "D:\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeagues.Repositories\\VNFootballLeagues.Repositories.csproj",
+        "packagesPath": "C:\\Users\\Nghe\\.nuget\\packages\\",
+        "outputPath": "D:\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeagues.Repositories\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
         ],
         "configFilePaths": [
-          "C:\\Users\\minh phuc\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Users\\Nghe\\AppData\\Roaming\\NuGet\\NuGet.Config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
         ],
@@ -85,7 +85,7 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.305/PortableRuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.311/PortableRuntimeIdentifierGraph.json"
         }
       }
     }

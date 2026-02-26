@@ -536,3 +536,4 @@ D:\DOANTOTNGHIEP\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\obj
 D:\DOANTOTNGHIEP\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\obj\Debug\net9.0\VNFootballLeaguesApp.pdb
 D:\DOANTOTNGHIEP\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\obj\Debug\net9.0\VNFootballLeaguesApp.genruntimeconfig.cache
 D:\DOANTOTNGHIEP\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\obj\Debug\net9.0\ref\VNFootballLeaguesApp.dll
+D:\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\bin\Debug\net9.0\appsettings.Development.json
