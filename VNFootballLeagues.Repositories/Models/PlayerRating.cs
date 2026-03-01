@@ -15,7 +15,5 @@ public partial class PlayerRating
 
     public int? RatingPointId { get; set; }
 
-    public virtual PlayerStatistic PlayerStatistics { get; set; }
-
     public virtual RatingPoint RatingPoint { get; set; }
 }

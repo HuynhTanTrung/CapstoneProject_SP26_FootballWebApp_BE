@@ -139,6 +139,43 @@
   },
   {
     "ContainingType": "VNFootballLeaguesApp.Controllers.FootballController",
+    "Method": "SyncPlayersByLeague",
+    "RelativePath": "api/Football/vietnam-players-by-league",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "season",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "VNFootballLeaguesApp.Controllers.FootballController",
+    "Method": "SyncPlayersByTeam",
+    "RelativePath": "api/Football/vietnam-players-by-team",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "teamApiId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "season",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "VNFootballLeaguesApp.Controllers.FootballController",
     "Method": "GetVietnamTeams",
     "RelativePath": "api/Football/vietnam-teams",
     "HttpMethod": "GET",

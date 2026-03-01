@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 
 namespace VNFootballLeagues.Repositories.Models;
 
@@ -55,8 +56,6 @@ public partial class VNFootballLeaguesDBContext : DbContext
 
     public virtual DbSet<PlayerRating> PlayerRatings { get; set; }
 
-    public virtual DbSet<PlayerStatistic> PlayerStatistics { get; set; }
-
     public virtual DbSet<Position> Positions { get; set; }
 
     public virtual DbSet<RatingPoint> RatingPoints { get; set; }
@@ -67,6 +66,8 @@ public partial class VNFootballLeaguesDBContext : DbContext
 
     public virtual DbSet<Team> Teams { get; set; }
 
+    public virtual DbSet<PlayerSeasonStatistic> PlayerSeasonStatistics { get; set; }
+    
     public static string GetConnectionString(string connectionStringName)
     {
         var config = new ConfigurationBuilder()
@@ -79,7 +80,8 @@ public partial class VNFootballLeaguesDBContext : DbContext
     }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-        => optionsBuilder.UseSqlServer(GetConnectionString("DefaultConnection")).UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking);
+        => optionsBuilder.UseSqlServer(GetConnectionString("DefaultConnection")).EnableSensitiveDataLogging()
+        .LogTo(Console.WriteLine, LogLevel.Information);
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -102,11 +104,6 @@ public partial class VNFootballLeaguesDBContext : DbContext
                 .HasForeignKey(d => d.ActionId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_APS_Action");
-
-            entity.HasOne(d => d.PlayerStatistics).WithMany(p => p.ActionsPlayerStatistics)
-                .HasForeignKey(d => d.PlayerStatisticsId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK_APS_Stats");
         });
 
         modelBuilder.Entity<ActionsPosition>(entity =>
@@ -158,31 +155,34 @@ public partial class VNFootballLeaguesDBContext : DbContext
                 .IsUnicode(false);
         });
 
-        
 
         modelBuilder.Entity<Contract>(entity =>
         {
-            entity.HasKey(e => e.ContractId).HasName("PK__Contract__C90D346989927418");
+            entity.HasKey(e => e.ContractId);
 
             entity.ToTable("Contract");
 
-            entity.Property(e => e.ContractType)
+            entity.Property(e => e.TransferType)
                 .HasMaxLength(50)
                 .IsUnicode(false);
 
-            entity.HasOne(d => d.Club).WithMany(p => p.Contracts)
-                .HasForeignKey(d => d.ClubId)
-                .HasConstraintName("FK_Contract_Club");
+            entity.Property(e => e.FromTeamName)
+                .HasMaxLength(100);
 
-            entity.HasOne(d => d.Player).WithMany(p => p.Contracts)
+            entity.Property(e => e.ToTeamName)
+                .HasMaxLength(100);
+
+            entity.HasIndex(e => new
+            {
+                e.PlayerId,
+                e.TransferDate,
+                e.ToTeamApiId
+            }).IsUnique();
+
+            entity.HasOne(d => d.Player)
+                .WithMany(p => p.Contracts)
                 .HasForeignKey(d => d.PlayerId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK_Contract_Player");
-
-            entity.HasOne(d => d.Team).WithMany(p => p.Contracts)
-                .HasForeignKey(d => d.TeamId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK_Contract_Team");
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<League>(entity =>
@@ -359,50 +359,73 @@ public partial class VNFootballLeaguesDBContext : DbContext
 
         modelBuilder.Entity<Player>(entity =>
         {
-            entity.HasKey(e => e.PlayerId);
-
             entity.ToTable("Player");
 
-            entity.Property(e => e.FirstName)
-                .HasMaxLength(100)
-                .IsUnicode(false);
-
-            entity.Property(e => e.LastName)
-                .HasMaxLength(100)
-                .IsUnicode(false);
-
-            entity.Property(e => e.Nationality)
-                .HasMaxLength(100)
-                .IsUnicode(false);
-
-            entity.Property(e => e.PreferredFoot)
-                .HasMaxLength(20)
-                .IsUnicode(false);
-
-            entity.Property(e => e.PhotoUrl)
-                .HasMaxLength(500)
-                .IsUnicode(false);
-
-            entity.Property(e => e.CurrentPosition)
-                .HasMaxLength(50)
-                .IsUnicode(false);
-
-            entity.Property(e => e.Status)
-                .HasMaxLength(50)
-                .IsUnicode(false);
-
-            entity.Property(e => e.MarketValue)
-                .HasColumnType("decimal(18,2)");
+            entity.HasKey(e => e.PlayerId);
 
             entity.HasIndex(e => e.ApiPlayerId)
                 .IsUnique();
 
-            entity.HasIndex(e => e.TeamId);
+            entity.Property(e => e.FirstName)
+                .HasMaxLength(100);
+
+            entity.Property(e => e.LastName)
+                .HasMaxLength(100);
+
+            entity.Property(e => e.FullName)
+                .HasMaxLength(200);
+
+            entity.Property(e => e.Nationality)
+                .HasMaxLength(100);
+
+            entity.Property(e => e.BirthPlace)
+                .HasMaxLength(150);
+
+            entity.Property(e => e.BirthCountry)
+                .HasMaxLength(100);
+
+            entity.Property(e => e.PhotoUrl)
+                .HasMaxLength(500);
+
+            entity.Property(e => e.HeightCm);
+
+            entity.Property(e => e.WeightKg);
 
             entity.HasOne(d => d.Team)
                 .WithMany(p => p.Players)
                 .HasForeignKey(d => d.TeamId)
                 .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<PlayerSeasonStatistic>(entity =>
+        {
+            entity.HasKey(e => e.PlayerSeasonStatisticsId);
+
+            entity.HasIndex(e => new
+            {
+                e.PlayerId,
+                e.Season,
+                e.LeagueId,
+                e.TeamId
+            }).IsUnique();
+
+            entity.Property(e => e.Rating)
+                .HasColumnType("decimal(18,2)");
+
+            entity.HasOne(d => d.Player)
+                .WithMany(p => p.PlayerSeasonStatistics)
+                .HasForeignKey(d => d.PlayerId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne<Team>()
+                .WithMany()
+                .HasForeignKey(d => d.TeamId)
+                .OnDelete(DeleteBehavior.ClientSetNull);
+
+            entity.HasOne<League>()
+                .WithMany()
+                .HasForeignKey(d => d.LeagueId)
+                .OnDelete(DeleteBehavior.ClientSetNull);
         });
 
         modelBuilder.Entity<PlayerMatch>(entity =>
@@ -416,15 +439,6 @@ public partial class VNFootballLeaguesDBContext : DbContext
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_PM_Match");
 
-            entity.HasOne(d => d.Player).WithMany(p => p.PlayerMatches)
-                .HasForeignKey(d => d.PlayerId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK_PM_Player");
-
-            entity.HasOne(d => d.PlayerStatistics).WithMany(p => p.PlayerMatches)
-                .HasForeignKey(d => d.PlayerStatisticsId)
-                .HasConstraintName("FK_PM_Stats");
-
             entity.HasOne(d => d.Position).WithMany(p => p.PlayerMatches)
                 .HasForeignKey(d => d.PositionId)
                 .HasConstraintName("FK_PM_Position");
@@ -436,29 +450,9 @@ public partial class VNFootballLeaguesDBContext : DbContext
 
             entity.ToTable("PlayerRating");
 
-            entity.HasOne(d => d.PlayerStatistics).WithMany(p => p.PlayerRatings)
-                .HasForeignKey(d => d.PlayerStatisticsId)
-                .HasConstraintName("FK_PR_Stats");
-
             entity.HasOne(d => d.RatingPoint).WithMany(p => p.PlayerRatings)
                 .HasForeignKey(d => d.RatingPointId)
                 .HasConstraintName("FK_PR_Point");
-        });
-
-        modelBuilder.Entity<PlayerStatistic>(entity =>
-        {
-            entity.HasKey(e => e.PlayerStatisticsId).HasName("PK__PlayerSt__D4A80B8917AD1855");
-
-
-            entity.HasOne(d => d.Match).WithMany(p => p.PlayerStatistics)
-                .HasForeignKey(d => d.MatchId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK_PS_Match");
-
-            entity.HasOne(d => d.Player).WithMany(p => p.PlayerStatistics)
-                .HasForeignKey(d => d.PlayerId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK_PS_Player");
         });
 
         modelBuilder.Entity<Position>(entity =>

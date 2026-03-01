@@ -19,7 +19,5 @@ public partial class PlayerMatch
 
     public virtual Player Player { get; set; }
 
-    public virtual PlayerStatistic PlayerStatistics { get; set; }
-
     public virtual Position Position { get; set; }
 }

@@ -16,6 +16,4 @@ public partial class Collaborator
     public string Email { get; set; }
 
     public string PhoneNumber { get; set; }
-
-    public virtual ICollection<PlayerStatistic> PlayerStatistics { get; set; } = new List<PlayerStatistic>();
 }

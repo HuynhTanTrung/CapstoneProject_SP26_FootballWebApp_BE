@@ -16,6 +16,4 @@ public partial class ActionsPlayerStatistic
     public int? TotalWeightScore { get; set; }
 
     public virtual Action Action { get; set; }
-
-    public virtual PlayerStatistic PlayerStatistics { get; set; }
 }

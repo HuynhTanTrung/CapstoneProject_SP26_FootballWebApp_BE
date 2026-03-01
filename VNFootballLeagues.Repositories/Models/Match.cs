@@ -41,8 +41,6 @@ public partial class Match
 
     public virtual ICollection<PlayerMatch> PlayerMatches { get; set; } = new List<PlayerMatch>();
 
-    public virtual ICollection<PlayerStatistic> PlayerStatistics { get; set; } = new List<PlayerStatistic>();
-
     public virtual Season Season { get; set; }
 
     public virtual Stadium Stadium { get; set; }
