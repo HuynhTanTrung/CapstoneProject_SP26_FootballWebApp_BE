@@ -6,10 +6,9 @@ using System.Threading.Tasks;
 
 namespace VNFootballLeagues.Services.Models.Api.GetPlayer
 {
-    public class ApiFootballPlayerResponse
+    public class ApiPaging
     {
-        public int results { get; set; }
-        public ApiPaging paging { get; set; }
-        public List<ApiPlayerWrapper> response { get; set; }
+        public int current { get; set; }
+        public int total { get; set; }
     }
 }

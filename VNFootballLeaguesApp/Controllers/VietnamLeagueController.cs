@@ -14,42 +14,34 @@ namespace VNFootballLeaguesApp.Controllers
             _service = service;
         }
 
-        [HttpGet("vietnam-teams")]
-        public async Task<IActionResult> GetVietnamTeams(int season)
+        [HttpPost("sync-leagues")]
+        public async Task<IActionResult> SyncLeagues()
         {
-            var data = await _service.GetVietnamTeamsAsync(season);
-            return Ok(data);
+            var leagues = await _service.SyncLeaguesAsync();
+            return Ok(leagues);
         }
 
-        [HttpPost("vietnam-players-by-team")]
-        public async Task<IActionResult> SyncPlayersByTeam(
-            [FromQuery] int teamApiId,
+        [HttpPost("sync-teams")]
+        public async Task<IActionResult> SyncTeams(
+            [FromQuery] int apiLeagueId,
             [FromQuery] int season)
         {
-            var players = await _service.SyncPlayersByTeamAsync(teamApiId, season);
+            var teams = await _service.SyncTeamsByLeagueAsync(apiLeagueId, season);
 
             return Ok(new
             {
                 success = true,
-                message = "Team players synced successfully.",
-                count = players.Count,
-                data = players
+                message = "Teams synced successfully",
+                count = teams.Count,
+                data = teams
             });
         }
 
-        [HttpPost("vietnam-players-by-league")]
-        public async Task<IActionResult> SyncPlayersByLeague(
-            [FromQuery] int season)
+        [HttpPost("sync-players")]
+        public async Task<IActionResult> SyncPlayers(int apiLeagueId, int season)
         {
-            var players = await _service.SyncPlayersByLeagueAsync(season);
-
-            return Ok(new
-            {
-                success = true,
-                message = "League players synced successfully",
-                count = players.Count,
-                data = players
-            });
+            var players = await _service.SyncPlayersByLeagueAsync(apiLeagueId, season);
+            return Ok(players);
         }
     }
 }

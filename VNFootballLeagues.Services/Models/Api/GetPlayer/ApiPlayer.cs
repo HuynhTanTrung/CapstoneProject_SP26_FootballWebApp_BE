@@ -23,7 +23,7 @@ namespace VNFootballLeagues.Services.Models.Api.GetPlayer
 
     public class ApiBirth
     {
-        public DateTime? date { get; set; }
+        public string? date { get; set; }
         public string place { get; set; }
         public string country { get; set; }
     }

@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using VNFootballLeagues.Repositories.Models;
 using VNFootballLeagues.Services.IServices;
 using VNFootballLeagues.Services.Models.Api;
+using VNFootballLeagues.Services.Models.Api.GetLeague;
 using VNFootballLeagues.Services.Models.Api.GetPlayer;
 using VNFootballLeagues.Services.Models.Api.GetTransfer;
 
@@ -20,7 +21,7 @@ namespace VNFootballLeagues.Services.Services
         private readonly VNFootballLeaguesDBContext _context;
         private const string ApiKey = "6eb9790bc76fca11467f05ff4386793a";
         private const string BaseUrl = "https://v3.football.api-sports.io/";
-        private const int LeagueId = 340;
+        private readonly int[] VietnamLeagueApiIds = { 340, 341, 637 };
 
         public FootballApiService(HttpClient httpClient, VNFootballLeaguesDBContext context)
         {
@@ -42,13 +43,19 @@ namespace VNFootballLeagues.Services.Services
             return int.TryParse(weight.Replace(" kg", ""), out var w) ? w : null;
         }
 
-        public async Task<List<Team>> GetVietnamTeamsAsync(int season)
+        public async Task<List<Team>> SyncTeamsByLeagueAsync(int apiLeagueId, int season)
         {
+            var league = await _context.Leagues
+                .FirstOrDefaultAsync(l => l.ApiLeagueId == apiLeagueId);
+
+            if (league == null)
+                throw new Exception("League must be synced before syncing teams.");
+
             var response = await _httpClient
                 .GetFromJsonAsync<ApiFootballTeamResponse>(
-                    $"teams?league={LeagueId}&season={season}");
+                    $"teams?league={apiLeagueId}&season={season}");
 
-            if (response?.response == null)
+            if (response?.response == null || !response.response.Any())
                 return new List<Team>();
 
             foreach (var item in response.response)
@@ -92,9 +99,12 @@ namespace VNFootballLeagues.Services.Services
                         TeamName = apiTeam.name,
                         ShortName = apiTeam.code,
                         LogoUrl = apiTeam.logo,
+                        Founded = apiTeam.founded,
+                        National = apiTeam.national,
                         CoachName = null,
-                        ClubId = 1,
-                        StadiumId = stadium?.StadiumId
+                        ClubId = 1, // adjust if you later separate Club properly
+                        StadiumId = stadium?.StadiumId,
+                        LeagueId = league.LeagueId
                     };
 
                     _context.Teams.Add(newTeam);
@@ -104,261 +114,200 @@ namespace VNFootballLeagues.Services.Services
                     existingTeam.TeamName = apiTeam.name;
                     existingTeam.ShortName = apiTeam.code;
                     existingTeam.LogoUrl = apiTeam.logo;
+                    existingTeam.Founded = apiTeam.founded;
+                    existingTeam.National = apiTeam.national;
                     existingTeam.StadiumId = stadium?.StadiumId;
+                    existingTeam.LeagueId = league.LeagueId;
                 }
             }
 
             await _context.SaveChangesAsync();
 
             return await _context.Teams
+                .Include(t => t.League)
                 .Include(t => t.Stadium)
-                .Where(t => t.ApiTeamId != null)
+                .Where(t => t.LeagueId == league.LeagueId)
                 .ToListAsync();
         }
 
-        public async Task<List<PlayerWithStatsDto>> SyncPlayersByTeamAsync(int teamApiId, int season)
+        public async Task<List<League>> SyncLeaguesAsync()
         {
-            var response = await _httpClient
-                .GetFromJsonAsync<ApiFootballPlayerResponse>(
-                    $"players?team={teamApiId}&season={season}");
+            var leagues = new List<League>();
 
-            if (response?.response == null || !response.response.Any())
-                return new List<PlayerWithStatsDto>();
-
-            var team = await _context.Teams
-                .FirstOrDefaultAsync(t => t.ApiTeamId == teamApiId);
-
-            if (team == null)
-                return new List<PlayerWithStatsDto>();
-
-            var apiPlayerIds = response.response
-                .Select(r => r.player.id)
-                .ToList();
-
-            var existingPlayers = await _context.Players
-                .Where(p => apiPlayerIds.Contains(p.ApiPlayerId))
-                .ToDictionaryAsync(p => p.ApiPlayerId);
-
-            var syncedPlayers = new List<Player>();
-
-            foreach (var item in response.response)
+            foreach (var apiLeagueId in VietnamLeagueApiIds)
             {
-                var apiPlayer = item.player;
+                var response = await _httpClient
+                    .GetFromJsonAsync<ApiFootballLeagueResponse>($"leagues?id={apiLeagueId}");
 
-                if (!existingPlayers.TryGetValue(apiPlayer.id, out var player))
+                if (response?.response == null || !response.response.Any())
+                    continue;
+
+                var apiLeague = response.response.First().league;
+
+                var existing = await _context.Leagues
+                    .FirstOrDefaultAsync(l => l.ApiLeagueId == apiLeague.id);
+
+                if (existing != null)
                 {
-                    player = new Player
+                    existing.LeagueName = apiLeague.name;
+                    existing.LeagueType = apiLeague.type;
+                    existing.LogoUrl = apiLeague.logo;
+                    leagues.Add(existing);
+                }
+                else
+                {
+                    var league = new League
                     {
-                        ApiPlayerId = apiPlayer.id
+                        ApiLeagueId = apiLeague.id,
+                        LeagueName = apiLeague.name,
+                        LeagueType = apiLeague.type,
+                        LogoUrl = apiLeague.logo
                     };
 
-                    _context.Players.Add(player);
+                    _context.Leagues.Add(league);
+                    leagues.Add(league);
+                }
+            }
+
+            await _context.SaveChangesAsync();
+            return leagues;
+        }
+
+        public async Task<List<PlayerWithStatsDto>> SyncPlayersByLeagueAsync(int apiLeagueId, int season)
+        {
+            var league = await _context.Leagues.FirstOrDefaultAsync(l => l.ApiLeagueId == apiLeagueId);
+
+            if (league == null)
+                throw new Exception("League must be synced first.");
+
+            var dbLeagueId = league.LeagueId;
+
+            var teamsExist = await _context.Teams.AnyAsync(t => t.ApiTeamId != null);
+            if (!teamsExist)
+                throw new Exception("Teams must be synced before syncing players.");
+
+            var page = 1;
+            var allApiPlayers = new List<ApiPlayerWrapper>();
+
+            while (true)
+            {
+                var response = await _httpClient
+                    .GetFromJsonAsync<ApiFootballPlayerResponse>(
+                        $"players?league={apiLeagueId}&season={season}&page={page}");
+
+                if (response?.response == null || !response.response.Any())
+                    break;
+
+                allApiPlayers.AddRange(response.response);
+
+                if (page >= response.paging.total)
+                    break;
+
+                page++;
+            }
+
+            return await SyncPlayersInternal(allApiPlayers, season, dbLeagueId);
+        }
+
+        private async Task<List<PlayerWithStatsDto>> SyncPlayersInternal(
+            List<ApiPlayerWrapper> apiPlayers,
+            int season,
+            int dbLeagueId)
+        {
+            var result = new List<PlayerWithStatsDto>();
+
+            foreach (var wrapper in apiPlayers)
+            {
+                var apiPlayer = wrapper.player;
+                var apiStats = wrapper.statistics?.FirstOrDefault();
+                if (apiStats == null)
+                    continue;
+
+                var team = await _context.Teams
+                    .FirstOrDefaultAsync(t => t.ApiTeamId == apiStats.team.id);
+
+                if (team == null)
+                    continue;
+
+                var existingPlayer = await _context.Players
+                    .FirstOrDefaultAsync(p => p.ApiPlayerId == apiPlayer.id);
+
+                if (existingPlayer == null)
+                {
+                    existingPlayer = new Player
+                    {
+                        ApiPlayerId = apiPlayer.id,
+                        FirstName = apiPlayer.firstname,
+                        LastName = apiPlayer.lastname,
+                        FullName = apiPlayer.name,
+                        DateOfBirth = DateTime.TryParse(apiPlayer.birth?.date, out var dob)
+                            ? DateOnly.FromDateTime(dob)
+                            : null,
+                        Nationality = apiPlayer.nationality,
+                        HeightCm = ParseHeight(apiPlayer.height),
+                        WeightKg = ParseWeight(apiPlayer.weight),
+                        PhotoUrl = apiPlayer.photo,
+                        TeamId = team.TeamId
+                    };
+
+                    _context.Players.Add(existingPlayer);
+                    await _context.SaveChangesAsync();
                 }
 
-                player.FirstName = apiPlayer.firstname;
-                player.LastName = apiPlayer.lastname;
-                player.FullName = apiPlayer.name;
-                player.Nationality = apiPlayer.nationality;
-                player.PhotoUrl = apiPlayer.photo;
-                player.HeightCm = ParseHeight(apiPlayer.height);
-                player.WeightKg = ParseWeight(apiPlayer.weight);
-                player.BirthPlace = apiPlayer.birth?.place;
-                player.BirthCountry = apiPlayer.birth?.country;
-                player.TeamId = team.TeamId;
-                player.Age = apiPlayer.age;
-                player.IsInjured = apiPlayer.injured;
+                var existingStat = await _context.PlayerSeasonStatistics
+                    .FirstOrDefaultAsync(s =>
+                        s.PlayerId == existingPlayer.PlayerId &&
+                        s.Season == season &&
+                        s.LeagueId == dbLeagueId);
 
-                player.DateOfBirth = apiPlayer.birth?.date != null
-                    ? DateOnly.FromDateTime(apiPlayer.birth.date.Value)
+                if (existingStat == null)
+                {
+                    existingStat = new PlayerSeasonStatistic
+                    {
+                        PlayerId = existingPlayer.PlayerId,
+                        Season = season,
+                        LeagueId = dbLeagueId,
+                        TeamId = team.TeamId
+                    };
+
+                    _context.PlayerSeasonStatistics.Add(existingStat);
+                }
+
+                existingStat.Appearances = apiStats.games.appearances ?? 0;
+                existingStat.Lineups = apiStats.games.lineups ?? 0;
+                existingStat.Minutes = apiStats.games.minutes ?? 0;
+                existingStat.Position = apiStats.games.position;
+                existingStat.Rating = decimal.TryParse(apiStats.games.rating, out var rating)
+                    ? rating
                     : null;
 
-                syncedPlayers.Add(player);
-            }
+                existingStat.Goals = apiStats.goals.total ?? 0;
+                existingStat.Assists = apiStats.goals.assists ?? 0;
+                existingStat.YellowCards = apiStats.cards.yellow ?? 0;
+                existingStat.RedCards = apiStats.cards.red ?? 0;
 
-            foreach (var entry in _context.ChangeTracker.Entries())
-            {
-                if (entry.State == EntityState.Added || entry.State == EntityState.Modified)
+                result.Add(new PlayerWithStatsDto
                 {
-                    Console.WriteLine($"Entity: {entry.Entity.GetType().Name}");
-
-                    foreach (var prop in entry.Properties)
+                    PlayerId = existingPlayer.PlayerId,
+                    FullName = existingPlayer.FullName,
+                    Statistics = new List<PlayerSeasonStatDto>
                     {
-                        Console.WriteLine($"  {prop.Metadata.Name} = {prop.CurrentValue}");
+                        new PlayerSeasonStatDto
+                        {
+                            Season = season,
+                            LeagueId = dbLeagueId,
+                            TeamId = team.TeamId,
+                            Appearances = existingStat.Appearances,
+                            Goals = existingStat.Goals,
+                            Assists = existingStat.Assists,
+                            Rating = existingStat.Rating
+                        }
                     }
-                }
+                });
             }
 
             await _context.SaveChangesAsync();
-
-            var playerIds = syncedPlayers.Select(p => p.PlayerId).ToList();
-
-            var existingStats = await _context.PlayerSeasonStatistics
-                .Where(s => playerIds.Contains(s.PlayerId))
-                .ToListAsync();
-
-            var teamsDict = await _context.Teams
-                .ToDictionaryAsync(t => t.ApiTeamId!.Value, t => t.TeamId);
-
-            foreach (var item in response.response)
-            {
-                var apiPlayer = item.player;
-                var player = syncedPlayers.First(p => p.ApiPlayerId == apiPlayer.id);
-
-                if (item.statistics == null)
-                    continue;
-
-                foreach (var stat in item.statistics)
-                {
-                    if (!teamsDict.TryGetValue(stat.team.id, out var localTeamId))
-                        continue;
-
-                    var seasonStat = existingStats.FirstOrDefault(s =>
-                        s.PlayerId == player.PlayerId &&
-                        s.Season == stat.league.season &&
-                        s.LeagueId == 1 &&  //PLEASE FIX THIS LATER
-                        s.TeamId == localTeamId);
-
-                    if (seasonStat == null)
-                    {
-                        seasonStat = new PlayerSeasonStatistic
-                        {
-                            PlayerId = player.PlayerId,
-                            Season = stat.league.season,
-                            LeagueId = 1,
-                            TeamId = localTeamId
-                        };
-
-                        _context.PlayerSeasonStatistics.Add(seasonStat);
-                        existingStats.Add(seasonStat);
-                    }
-
-                    seasonStat.Appearances = stat.games?.appearances;
-                    seasonStat.Lineups = stat.games?.lineups;
-                    seasonStat.Minutes = stat.games?.minutes;
-
-                    if (decimal.TryParse(stat.games?.rating, out var rating))
-                        seasonStat.Rating = rating;
-                    else
-                        seasonStat.Rating = null;
-
-                    seasonStat.Goals = stat.goals?.total;
-                    seasonStat.Assists = stat.goals?.assists;
-                    seasonStat.YellowCards = stat.cards?.yellow;
-                    seasonStat.RedCards = stat.cards?.red;
-                }
-            }
-
-            var result = await _context.Players
-                .Where(p => p.TeamId == team.TeamId)
-                .Include(p => p.PlayerSeasonStatistics)
-                .Select(p => new PlayerWithStatsDto
-                {
-                    PlayerId = p.PlayerId,
-                    FullName = p.FullName,
-                    Nationality = p.Nationality,
-                    HeightCm = p.HeightCm,
-                    WeightKg = p.WeightKg,
-                    PhotoUrl = p.PhotoUrl,
-
-                    Statistics = p.PlayerSeasonStatistics
-                        .Where(s => s.Season == season)
-                        .Select(s => new PlayerSeasonStatDto
-                        {
-                            Season = s.Season,
-                            LeagueId = s.LeagueId,
-                            TeamId = s.TeamId,
-                            Appearances = s.Appearances,
-                            Lineups = s.Lineups,
-                            Minutes = s.Minutes,
-                            Goals = s.Goals,
-                            Assists = s.Assists,
-                            YellowCards = s.YellowCards,
-                            RedCards = s.RedCards,
-                            Rating = s.Rating
-                        })
-                        .ToList()
-                })
-                .ToListAsync();
-
             return result;
-        }
-
-        public async Task<List<PlayerWithStatsDto>> SyncPlayersByLeagueAsync(int season)
-        {
-            var teams = await _context.Teams
-                .Where(t => t.ApiTeamId != null)
-                .ToListAsync();
-
-            var allPlayers = new List<PlayerWithStatsDto>();
-
-            foreach (var team in teams)
-            {
-                var players = await SyncPlayersByTeamAsync(team.ApiTeamId!.Value, season);
-
-                if (players != null && players.Any())
-                    allPlayers.AddRange(players);
-
-                await Task.Delay(800);
-            }
-
-            return allPlayers;
-        }
-
-        public async Task SyncPlayerTransfersAsync(Player player)
-        {
-            var response = await _httpClient
-                .GetFromJsonAsync<ApiFootballTransferResponse>(
-                    $"transfers?player={player.ApiPlayerId}");
-
-            if (response?.response == null || !response.response.Any())
-                return;
-
-            var existingContracts = await _context.Contracts
-                .Where(c => c.PlayerId == player.PlayerId)
-                .ToListAsync();
-
-            foreach (var wrapper in response.response)
-            {
-                if (wrapper.transfers == null || !wrapper.transfers.Any())
-                    continue;
-
-                foreach (var transfer in wrapper.transfers)
-                {
-                    if (transfer?.teams == null)
-                        continue;
-
-                    var transferDate = transfer.date;
-
-                    var fromTeamId = transfer.teams.@out?.id;
-                    var toTeamId = transfer.teams.@in?.id;
-
-                    var alreadyExists = existingContracts.Any(c =>
-                        c.TransferDate == transferDate &&
-                        c.FromTeamApiId == fromTeamId &&
-                        c.ToTeamApiId == toTeamId);
-
-                    if (alreadyExists)
-                        continue;
-
-                    var contract = new Contract
-                    {
-                        PlayerId = player.PlayerId,
-                        TransferDate = transferDate,
-
-                        FromTeamApiId = fromTeamId,
-                        ToTeamApiId = toTeamId,
-
-                        FromTeamName = transfer.teams.@out?.name,
-                        ToTeamName = transfer.teams.@in?.name,
-
-                        TransferType = transfer.type
-                    };
-
-                    _context.Contracts.Add(contract);
-                }
-            }
-
-            await _context.SaveChangesAsync();
         }
     }
 }

@@ -14,6 +14,7 @@ namespace VNFootballLeagues.Repositories.Models
         public int Season { get; set; }
         public int LeagueId { get; set; }
         public int TeamId { get; set; }
+        public string? Position { get; set; }
 
         public int? Appearances { get; set; }
         public int? Lineups { get; set; }

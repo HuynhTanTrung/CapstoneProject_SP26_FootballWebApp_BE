@@ -139,30 +139,24 @@
   },
   {
     "ContainingType": "VNFootballLeaguesApp.Controllers.FootballController",
-    "Method": "SyncPlayersByLeague",
-    "RelativePath": "api/Football/vietnam-players-by-league",
+    "Method": "SyncLeagues",
+    "RelativePath": "api/Football/sync-leagues",
     "HttpMethod": "POST",
     "IsController": true,
     "Order": 0,
-    "Parameters": [
-      {
-        "Name": "season",
-        "Type": "System.Int32",
-        "IsRequired": false
-      }
-    ],
+    "Parameters": [],
     "ReturnTypes": []
   },
   {
     "ContainingType": "VNFootballLeaguesApp.Controllers.FootballController",
-    "Method": "SyncPlayersByTeam",
-    "RelativePath": "api/Football/vietnam-players-by-team",
+    "Method": "SyncPlayers",
+    "RelativePath": "api/Football/sync-players",
     "HttpMethod": "POST",
     "IsController": true,
     "Order": 0,
     "Parameters": [
       {
-        "Name": "teamApiId",
+        "Name": "apiLeagueId",
         "Type": "System.Int32",
         "IsRequired": false
       },
@@ -176,12 +170,17 @@
   },
   {
     "ContainingType": "VNFootballLeaguesApp.Controllers.FootballController",
-    "Method": "GetVietnamTeams",
-    "RelativePath": "api/Football/vietnam-teams",
-    "HttpMethod": "GET",
+    "Method": "SyncTeams",
+    "RelativePath": "api/Football/sync-teams",
+    "HttpMethod": "POST",
     "IsController": true,
     "Order": 0,
     "Parameters": [
+      {
+        "Name": "apiLeagueId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
       {
         "Name": "season",
         "Type": "System.Int32",

@@ -27,6 +27,9 @@ public partial class Team
     public int? StadiumId { get; set; }
     public virtual Stadium Stadium { get; set; }
 
+    public int LeagueId { get; set; }
+    public virtual League League { get; set; }
+
     public virtual ICollection<Contract> Contracts { get; set; } = new List<Contract>();
     public virtual ICollection<Match> MatchAwayTeams { get; set; } = new List<Match>();
     public virtual ICollection<Match> MatchHomeTeams { get; set; } = new List<Match>();

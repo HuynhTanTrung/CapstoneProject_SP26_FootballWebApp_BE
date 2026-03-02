@@ -11,7 +11,7 @@ public partial class League
 
     public string LeagueName { get; set; }
 
-    public int? ApiLeagueId { get; set; }
+    public int ApiLeagueId { get; set; }
 
     public string Country { get; set; }
 
@@ -20,4 +20,5 @@ public partial class League
     public string LeagueType { get; set; }
 
     public virtual ICollection<Season> Seasons { get; set; } = new List<Season>();
+    public virtual ICollection<Team> Teams { get; set; } = new List<Team>();
 }

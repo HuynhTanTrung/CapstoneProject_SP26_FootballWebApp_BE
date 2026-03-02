@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("VNFootballLeagues.Repositories")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+4359d36307f14a56d9a6a4e3a3010b558d4fccf8")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+1ee34371ff60a851c6f647de79c2d07318626623")]
 [assembly: System.Reflection.AssemblyProductAttribute("VNFootballLeagues.Repositories")]
 [assembly: System.Reflection.AssemblyTitleAttribute("VNFootballLeagues.Repositories")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
