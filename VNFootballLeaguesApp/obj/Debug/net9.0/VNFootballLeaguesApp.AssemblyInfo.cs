@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("VNFootballLeaguesApp")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+1ee34371ff60a851c6f647de79c2d07318626623")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+1b169f43529b8b478f75772087886c3a88eee506")]
 [assembly: System.Reflection.AssemblyProductAttribute("VNFootballLeaguesApp")]
 [assembly: System.Reflection.AssemblyTitleAttribute("VNFootballLeaguesApp")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

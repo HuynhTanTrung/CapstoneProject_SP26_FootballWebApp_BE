@@ -175,7 +175,8 @@ namespace VNFootballLeagues.Services.Services
 
         public async Task<List<PlayerWithStatsDto>> SyncPlayersByLeagueAsync(int apiLeagueId, int season)
         {
-            var league = await _context.Leagues.FirstOrDefaultAsync(l => l.ApiLeagueId == apiLeagueId);
+            var league = await _context.Leagues
+                .FirstOrDefaultAsync(l => l.ApiLeagueId == apiLeagueId);
 
             if (league == null)
                 throw new Exception("League must be synced first.");
@@ -210,9 +211,9 @@ namespace VNFootballLeagues.Services.Services
         }
 
         private async Task<List<PlayerWithStatsDto>> SyncPlayersInternal(
-            List<ApiPlayerWrapper> apiPlayers,
-            int season,
-            int dbLeagueId)
+    List<ApiPlayerWrapper> apiPlayers,
+    int season,
+    int dbLeagueId)
         {
             var result = new List<PlayerWithStatsDto>();
 
@@ -243,6 +244,10 @@ namespace VNFootballLeagues.Services.Services
                         DateOfBirth = DateTime.TryParse(apiPlayer.birth?.date, out var dob)
                             ? DateOnly.FromDateTime(dob)
                             : null,
+                        BirthPlace = apiPlayer.birth?.place,
+                        BirthCountry = apiPlayer.birth?.country,
+                        Age = apiPlayer.age,
+                        IsInjured = apiPlayer.injured ?? false,
                         Nationality = apiPlayer.nationality,
                         HeightCm = ParseHeight(apiPlayer.height),
                         WeightKg = ParseWeight(apiPlayer.weight),
@@ -252,6 +257,13 @@ namespace VNFootballLeagues.Services.Services
 
                     _context.Players.Add(existingPlayer);
                     await _context.SaveChangesAsync();
+                }
+                else
+                {
+                    existingPlayer.BirthPlace = apiPlayer.birth?.place;
+                    existingPlayer.BirthCountry = apiPlayer.birth?.country;
+                    existingPlayer.Age = apiPlayer.age;
+                    existingPlayer.IsInjured = apiPlayer.injured ?? false;
                 }
 
                 var existingStat = await _context.PlayerSeasonStatistics
@@ -273,36 +285,37 @@ namespace VNFootballLeagues.Services.Services
                     _context.PlayerSeasonStatistics.Add(existingStat);
                 }
 
-                existingStat.Appearances = apiStats.games.appearances ?? 0;
-                existingStat.Lineups = apiStats.games.lineups ?? 0;
-                existingStat.Minutes = apiStats.games.minutes ?? 0;
-                existingStat.Position = apiStats.games.position;
-                existingStat.Rating = decimal.TryParse(apiStats.games.rating, out var rating)
-                    ? rating
-                    : null;
-
-                existingStat.Goals = apiStats.goals.total ?? 0;
-                existingStat.Assists = apiStats.goals.assists ?? 0;
-                existingStat.YellowCards = apiStats.cards.yellow ?? 0;
-                existingStat.RedCards = apiStats.cards.red ?? 0;
+                existingStat.Appearances = apiStats.games?.appearances ?? 0;
+                existingStat.Lineups = apiStats.games?.lineups ?? 0;
+                existingStat.Minutes = apiStats.games?.minutes ?? 0;
+                existingStat.Position = apiStats.games?.position;
+                existingStat.Rating = decimal.TryParse(apiStats.games?.rating, out var rating) ? rating : null;
+                existingStat.Goals = apiStats.goals?.total ?? 0;
+                existingStat.Assists = apiStats.goals?.assists ?? 0;
+                existingStat.YellowCards = apiStats.cards?.yellow ?? 0;
+                existingStat.RedCards = apiStats.cards?.red ?? 0;
 
                 result.Add(new PlayerWithStatsDto
                 {
                     PlayerId = existingPlayer.PlayerId,
                     FullName = existingPlayer.FullName,
                     Statistics = new List<PlayerSeasonStatDto>
-                    {
-                        new PlayerSeasonStatDto
-                        {
-                            Season = season,
-                            LeagueId = dbLeagueId,
-                            TeamId = team.TeamId,
-                            Appearances = existingStat.Appearances,
-                            Goals = existingStat.Goals,
-                            Assists = existingStat.Assists,
-                            Rating = existingStat.Rating
-                        }
-                    }
+            {
+                new PlayerSeasonStatDto
+                {
+                    Season = season,
+                    LeagueId = dbLeagueId,
+                    TeamId = team.TeamId,
+                    Appearances = existingStat.Appearances,
+                    Lineups = existingStat.Lineups,
+                    Minutes = existingStat.Minutes,
+                    Goals = existingStat.Goals,
+                    Assists = existingStat.Assists,
+                    YellowCards = existingStat.YellowCards,
+                    RedCards = existingStat.RedCards,
+                    Rating = existingStat.Rating
+                }
+            }
                 });
             }
 
