@@ -1,6 +1,0 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
-<parameters>
-  <parameter name="IIS Web Application Name" description="" value="VNFootballLeagues" tags="IisApp">
-    <parameterEntry kind="ProviderPath" scope="IisApp" match="^D:\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeaguesApp\\obj\\Release\\net9\.0\\PubTmp\\Out\\$" />
-  </parameter>
-</parameters>
