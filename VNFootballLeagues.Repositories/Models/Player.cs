@@ -9,7 +9,7 @@ public partial class Player
 {
     public int PlayerId { get; set; }
 
-    public int ApiPlayerId { get; set; }
+    public int? ApiPlayerId { get; set; }
 
     public string FirstName { get; set; }
 
@@ -18,6 +18,7 @@ public partial class Player
     public string FullName { get; set; }
 
     public DateOnly? DateOfBirth { get; set; }
+
     public int? Age { get; set; }
 
     public string Nationality { get; set; }
@@ -35,9 +36,22 @@ public partial class Player
     public bool? IsInjured { get; set; }
 
     public int? TeamId { get; set; }
+
+    public string Position { get; set; }
+
+    public int? Number { get; set; }
+
+    public virtual ICollection<Contract> Contracts { get; set; } = new List<Contract>();
+
+    public virtual ICollection<MatchEvent> MatchEvents { get; set; } = new List<MatchEvent>();
+
+    public virtual ICollection<PlayerMatchStatistic> PlayerMatchStatistics { get; set; } = new List<PlayerMatchStatistic>();
+
+    public virtual ICollection<PlayerSeasonStatistic> PlayerSeasonStatistics { get; set; } = new List<PlayerSeasonStatistic>();
+
+    public virtual ICollection<Sidelined> Sidelineds { get; set; } = new List<Sidelined>();
+
     public virtual Team Team { get; set; }
 
-    public virtual ICollection<PlayerSeasonStatistic> PlayerSeasonStatistics { get; set; }
-    public virtual ICollection<PlayerMatchStatistic> PlayerMatchStatistics { get; set; }
-    public virtual ICollection<Contract> Contracts { get; set; }
+    public virtual ICollection<Transfer> Transfers { get; set; } = new List<Transfer>();
 }

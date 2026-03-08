@@ -5,37 +5,35 @@ using System.Collections.Generic;
 
 namespace VNFootballLeagues.Repositories.Models;
 
-public partial class PlayerMatchStatistic
+public partial class MatchStatistic
 {
-    public int PlayerMatchStatId { get; set; }
+    public int StatId { get; set; }
 
     public int? MatchId { get; set; }
 
-    public int? PlayerId { get; set; }
-
     public int? TeamId { get; set; }
 
-    public int? Minutes { get; set; }
-
-    public int? Goals { get; set; }
-
-    public int? Assists { get; set; }
+    public int? Possession { get; set; }
 
     public int? Shots { get; set; }
 
     public int? ShotsOnTarget { get; set; }
 
-    public int? Passes { get; set; }
+    public int? Corners { get; set; }
 
-    public int? Tackles { get; set; }
+    public int? Fouls { get; set; }
 
     public int? YellowCards { get; set; }
 
     public int? RedCards { get; set; }
 
-    public decimal? Rating { get; set; }
-
     public int? Offsides { get; set; }
+
+    public int? ShotsBlocked { get; set; }
+
+    public int? ShotsInsideBox { get; set; }
+
+    public int? ShotsOutsideBox { get; set; }
 
     public int? PassesAccuracy { get; set; }
 
@@ -51,29 +49,15 @@ public partial class PlayerMatchStatistic
 
     public int? TacklesWon { get; set; }
 
-    public int? Blocks { get; set; }
+    public int? Saves { get; set; }
 
     public int? Interceptions { get; set; }
 
     public int? Clearances { get; set; }
 
-    public int? FoulsDrawn { get; set; }
-
-    public int? FoulsCommitted { get; set; }
-
-    public int? PenaltiesWon { get; set; }
-
-    public int? PenaltiesCommitted { get; set; }
-
-    public int? PenaltiesScored { get; set; }
-
-    public int? PenaltiesMissed { get; set; }
-
     public decimal? ExpectedGoals { get; set; }
 
     public virtual Match Match { get; set; }
-
-    public virtual Player Player { get; set; }
 
     public virtual Team Team { get; set; }
 }

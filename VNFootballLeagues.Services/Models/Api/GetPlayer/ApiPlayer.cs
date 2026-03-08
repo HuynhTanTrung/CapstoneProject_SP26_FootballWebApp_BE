@@ -18,6 +18,8 @@ namespace VNFootballLeagues.Services.Models.Api.GetPlayer
         public string weight { get; set; }
         public bool? injured { get; set; }
         public string photo { get; set; }
+        public string? position { get; set; }
+        public int? number { get; set; }
         public ApiBirth birth { get; set; }
     }
 
