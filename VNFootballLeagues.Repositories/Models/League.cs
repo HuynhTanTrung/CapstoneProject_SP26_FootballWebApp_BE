@@ -9,16 +9,23 @@ public partial class League
 {
     public int LeagueId { get; set; }
 
+    public int? ApiLeagueId { get; set; }
+
     public string LeagueName { get; set; }
-
-    public int ApiLeagueId { get; set; }
-
-    public string Country { get; set; }
-
-    public string LogoUrl { get; set; }
 
     public string LeagueType { get; set; }
 
+    public string LogoUrl { get; set; }
+
+    public virtual ICollection<Match> Matches { get; set; } = new List<Match>();
+
+    public virtual ICollection<PlayerSeasonStatistic> PlayerSeasonStatistics { get; set; } = new List<PlayerSeasonStatistic>();
+
     public virtual ICollection<Season> Seasons { get; set; } = new List<Season>();
+
+    public virtual ICollection<Standing> Standings { get; set; } = new List<Standing>();
+
+    public virtual ICollection<TeamStatistic> TeamStatistics { get; set; } = new List<TeamStatistic>();
+
     public virtual ICollection<Team> Teams { get; set; } = new List<Team>();
 }

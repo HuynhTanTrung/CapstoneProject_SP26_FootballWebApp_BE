@@ -3,11 +3,11 @@
    "ContextClassName": "VNFootballLeaguesDBContext",
    "ContextNamespace": null,
    "FilterSchemas": false,
-   "IncludeConnectionString": false,
+   "IncludeConnectionString": true,
    "MinimumProductVersion": "2.6.1166",
    "ModelNamespace": null,
    "OutputContextPath": null,
-   "OutputPath": "Models2",
+   "OutputPath": "Models",
    "PreserveCasingWithRegex": true,
    "ProjectRootNamespace": "VNFootballLeagues.Repositories",
    "Schemas": null,
@@ -16,23 +16,11 @@
    "T4TemplatePath": null,
    "Tables": [
       {
-         "Name": "[dbo].[Actions]",
-         "ObjectType": 0
-      },
-      {
-         "Name": "[dbo].[Actions_PlayerStatistics]",
-         "ObjectType": 0
-      },
-      {
-         "Name": "[dbo].[Actions_Position]",
-         "ObjectType": 0
-      },
-      {
-         "Name": "[dbo].[AnalyticalPost]",
-         "ObjectType": 0
-      },
-      {
          "Name": "[dbo].[Club]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[Coach]",
          "ObjectType": 0
       },
       {
@@ -44,11 +32,19 @@
          "ObjectType": 0
       },
       {
+         "Name": "[dbo].[Lineups]",
+         "ObjectType": 0
+      },
+      {
          "Name": "[dbo].[Match]",
          "ObjectType": 0
       },
       {
-         "Name": "[dbo].[Match_Result]",
+         "Name": "[dbo].[MatchEvents]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[MatchStatistics]",
          "ObjectType": 0
       },
       {
@@ -56,27 +52,11 @@
          "ObjectType": 0
       },
       {
-         "Name": "[dbo].[Player_Match]",
+         "Name": "[dbo].[PlayerMatchStatistics]",
          "ObjectType": 0
       },
       {
-         "Name": "[dbo].[PlayerPosition]",
-         "ObjectType": 0
-      },
-      {
-         "Name": "[dbo].[PlayerRating]",
-         "ObjectType": 0
-      },
-      {
-         "Name": "[dbo].[PlayerStatistics]",
-         "ObjectType": 0
-      },
-      {
-         "Name": "[dbo].[Position]",
-         "ObjectType": 0
-      },
-      {
-         "Name": "[dbo].[RatingPoints]",
+         "Name": "[dbo].[PlayerSeasonStatistics]",
          "ObjectType": 0
       },
       {
@@ -84,7 +64,15 @@
          "ObjectType": 0
       },
       {
+         "Name": "[dbo].[Sidelined]",
+         "ObjectType": 0
+      },
+      {
          "Name": "[dbo].[Stadium]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[Standings]",
          "ObjectType": 0
       },
       {
@@ -92,7 +80,11 @@
          "ObjectType": 0
       },
       {
-         "Name": "[dbo].[Team_Season]",
+         "Name": "[dbo].[TeamStatistics]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[Transfers]",
          "ObjectType": 0
       }
    ],

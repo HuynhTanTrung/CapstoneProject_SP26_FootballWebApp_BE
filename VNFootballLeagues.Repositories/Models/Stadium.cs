@@ -9,15 +9,21 @@ public partial class Stadium
 {
     public int StadiumId { get; set; }
 
-    public int? ApiVenueId { get; set; } 
+    public int? ApiVenueId { get; set; }
 
     public string StadiumName { get; set; }
+
     public string City { get; set; }
+
     public int? Capacity { get; set; }
-    public string Address { get; set; }
+
     public string Surface { get; set; }
+
     public string ImageUrl { get; set; }
 
-    public virtual ICollection<Match> Matches { get; set; } = new List<Match>();
+    public string Address { get; set; }
+
+    public bool? IsNationalStadium { get; set; }
+
     public virtual ICollection<Team> Teams { get; set; } = new List<Team>();
 }

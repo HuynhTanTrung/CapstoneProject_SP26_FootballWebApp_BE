@@ -19,7 +19,5 @@ public partial class Club
 
     public double? Budget { get; set; }
 
-    public virtual ICollection<Contract> Contracts { get; set; } = new List<Contract>();
-
     public virtual ICollection<Team> Teams { get; set; } = new List<Team>();
 }

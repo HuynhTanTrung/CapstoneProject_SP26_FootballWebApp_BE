@@ -9,39 +9,57 @@ public partial class Match
 {
     public int MatchId { get; set; }
 
-    public int SeasonId { get; set; }
-
-    public int StadiumId { get; set; }
-
-    public int HomeTeamId { get; set; }
-
-    public int AwayTeamId { get; set; }
-
-    public DateOnly? MatchDate { get; set; }
-
-    public string RefereeName { get; set; }
-
-    public int? HomeScore { get; set; }
-
-    public int? AwayScore { get; set; }
-
     public int? ApiFixtureId { get; set; }
+
+    public int? LeagueId { get; set; }
+
+    public int? SeasonId { get; set; }
+
+    public DateTime? MatchDate { get; set; }
 
     public TimeOnly? KickOffTime { get; set; }
 
     public string Status { get; set; }
 
+    public int? HomeTeamId { get; set; }
+
+    public int? AwayTeamId { get; set; }
+
+    public int? HomeGoals { get; set; }
+
+    public int? AwayGoals { get; set; }
+
+    public string Venue { get; set; }
+
+    public string RefereeName { get; set; }
+
     public int? Attendance { get; set; }
+
+    public int? ApiTimestamp { get; set; }
+
+    public string Timezone { get; set; }
+
+    public int? PeriodFirstHalf { get; set; }
+
+    public int? PeriodSecondHalf { get; set; }
+
+    public string Round { get; set; }
+
+    public int? ApiVenueId { get; set; }
 
     public virtual Team AwayTeam { get; set; }
 
     public virtual Team HomeTeam { get; set; }
 
-    public virtual ICollection<MatchResult> MatchResults { get; set; } = new List<MatchResult>();
+    public virtual League League { get; set; }
 
-    public virtual ICollection<PlayerMatch> PlayerMatches { get; set; } = new List<PlayerMatch>();
+    public virtual ICollection<Lineup> Lineups { get; set; } = new List<Lineup>();
+
+    public virtual ICollection<MatchEvent> MatchEvents { get; set; } = new List<MatchEvent>();
+
+    public virtual ICollection<MatchStatistic> MatchStatistics { get; set; } = new List<MatchStatistic>();
+
+    public virtual ICollection<PlayerMatchStatistic> PlayerMatchStatistics { get; set; } = new List<PlayerMatchStatistic>();
 
     public virtual Season Season { get; set; }
-
-    public virtual Stadium Stadium { get; set; }
 }

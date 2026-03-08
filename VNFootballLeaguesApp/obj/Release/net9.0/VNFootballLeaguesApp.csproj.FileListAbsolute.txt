@@ -269,3 +269,12 @@ D:\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\obj\Release\net9.
 D:\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\obj\Release\net9.0\VNFootballLeaguesApp.pdb
 D:\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\obj\Release\net9.0\VNFootballLeaguesApp.genruntimeconfig.cache
 D:\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\obj\Release\net9.0\ref\VNFootballLeaguesApp.dll
+D:\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\bin\Release\net9.0\Microsoft.Azure.Documents.ServiceInterop.dll
+D:\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\bin\Release\net9.0\Cosmos.CRTCompat.dll
+D:\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\bin\Release\net9.0\Microsoft.Azure.DocumentDB.Core.dll
+D:\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\bin\Release\net9.0\Newtonsoft.Json.dll
+D:\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\bin\Release\net9.0\runtimes\win7-x64\native\Cosmos.CRTCompat.dll
+D:\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\bin\Release\net9.0\runtimes\win7-x64\native\Microsoft.Azure.Documents.ServiceInterop.dll
+D:\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\bin\Release\net9.0\runtimes\win7-x64\native\msvcp140.dll
+D:\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\bin\Release\net9.0\runtimes\win7-x64\native\vcruntime140.dll
+D:\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\bin\Release\net9.0\runtimes\win7-x64\native\vcruntime140_1.dll

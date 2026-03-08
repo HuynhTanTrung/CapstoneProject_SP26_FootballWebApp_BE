@@ -11,29 +11,57 @@ public partial class Team
 
     public string TeamName { get; set; }
 
-    public string ShortName { get; set; }
+    public string CoachName { get; set; }
 
-    public string CoachName { get; set; }  
-
-    public int ClubId { get; set; }       
+    public int ClubId { get; set; }
 
     public int? ApiTeamId { get; set; }
- 
-    public int? Founded { get; set; }       
-    public bool National { get; set; }     
 
     public string LogoUrl { get; set; }
 
+    public string ShortName { get; set; }
+
+    public int? Founded { get; set; }
+
+    public bool National { get; set; }
+
     public int? StadiumId { get; set; }
-    public virtual Stadium Stadium { get; set; }
 
     public int LeagueId { get; set; }
-    public virtual League League { get; set; }
+
+    public virtual Club Club { get; set; }
+
+    public virtual ICollection<Coach> Coaches { get; set; } = new List<Coach>();
 
     public virtual ICollection<Contract> Contracts { get; set; } = new List<Contract>();
+
+    public virtual League League { get; set; }
+
+    public virtual ICollection<Lineup> Lineups { get; set; } = new List<Lineup>();
+
     public virtual ICollection<Match> MatchAwayTeams { get; set; } = new List<Match>();
+
+    public virtual ICollection<MatchEvent> MatchEvents { get; set; } = new List<MatchEvent>();
+
     public virtual ICollection<Match> MatchHomeTeams { get; set; } = new List<Match>();
-    public virtual ICollection<MatchResult> MatchResults { get; set; } = new List<MatchResult>();
+
+    public virtual ICollection<MatchStatistic> MatchStatistics { get; set; } = new List<MatchStatistic>();
+
+    public virtual ICollection<PlayerMatchStatistic> PlayerMatchStatistics { get; set; } = new List<PlayerMatchStatistic>();
+
+    public virtual ICollection<PlayerSeasonStatistic> PlayerSeasonStatistics { get; set; } = new List<PlayerSeasonStatistic>();
+
     public virtual ICollection<Player> Players { get; set; } = new List<Player>();
-    public virtual ICollection<Season> Seasons { get; set; } = new List<Season>();
+
+    public virtual ICollection<Sidelined> Sidelineds { get; set; } = new List<Sidelined>();
+
+    public virtual Stadium Stadium { get; set; }
+
+    public virtual ICollection<Standing> Standings { get; set; } = new List<Standing>();
+
+    public virtual ICollection<TeamStatistic> TeamStatistics { get; set; } = new List<TeamStatistic>();
+
+    public virtual ICollection<Transfer> TransferFromTeams { get; set; } = new List<Transfer>();
+
+    public virtual ICollection<Transfer> TransferToTeams { get; set; } = new List<Transfer>();
 }
