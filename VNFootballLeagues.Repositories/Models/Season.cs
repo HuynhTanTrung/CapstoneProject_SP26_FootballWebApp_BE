@@ -9,17 +9,29 @@ public partial class Season
 {
     public int SeasonId { get; set; }
 
-    public int LeagueId { get; set; }
+    public int? LeagueId { get; set; }
 
-    public int Year { get; set; }
+    public int? Year { get; set; }
 
     public DateOnly? StartDate { get; set; }
 
     public DateOnly? EndDate { get; set; }
 
+    public bool? IsCurrent { get; set; }
+
+    public bool? IsCurrentSeason { get; set; }
+
+    public string ApiCoverage { get; set; }
+
     public virtual League League { get; set; }
 
     public virtual ICollection<Match> Matches { get; set; } = new List<Match>();
 
-    public virtual ICollection<Team> Teams { get; set; } = new List<Team>();
+    public virtual ICollection<PlayerSeasonStatistic> PlayerSeasonStatistics { get; set; } = new List<PlayerSeasonStatistic>();
+
+    public virtual ICollection<Sidelined> Sidelineds { get; set; } = new List<Sidelined>();
+
+    public virtual ICollection<Standing> Standings { get; set; } = new List<Standing>();
+
+    public virtual ICollection<TeamStatistic> TeamStatistics { get; set; } = new List<TeamStatistic>();
 }

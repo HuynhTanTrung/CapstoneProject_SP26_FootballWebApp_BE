@@ -101,7 +101,6 @@ namespace VNFootballLeagues.Services.Services
                         LogoUrl = apiTeam.logo,
                         Founded = apiTeam.founded,
                         National = apiTeam.national,
-                        CoachName = null,
                         ClubId = 1, // adjust if you later separate Club properly
                         StadiumId = stadium?.StadiumId,
                         LeagueId = league.LeagueId
@@ -211,11 +210,25 @@ namespace VNFootballLeagues.Services.Services
         }
 
         private async Task<List<PlayerWithStatsDto>> SyncPlayersInternal(
-    List<ApiPlayerWrapper> apiPlayers,
-    int season,
-    int dbLeagueId)
+            List<ApiPlayerWrapper> apiPlayers,
+            int seasonYear,
+            int dbLeagueId)
         {
             var result = new List<PlayerWithStatsDto>();
+
+            var season = await _context.Seasons
+                .FirstOrDefaultAsync(s => s.Year == seasonYear);
+
+            if (season == null)
+            {
+                season = new Season
+                {
+                    Year = seasonYear,
+                    LeagueId = dbLeagueId
+                };
+                _context.Seasons.Add(season);
+                await _context.SaveChangesAsync();
+            }
 
             foreach (var wrapper in apiPlayers)
             {
@@ -225,7 +238,7 @@ namespace VNFootballLeagues.Services.Services
                     continue;
 
                 var team = await _context.Teams
-                    .FirstOrDefaultAsync(t => t.ApiTeamId == apiStats.team.id);
+                    .FirstOrDefaultAsync(t => t.ApiTeamId == (int?)apiStats.team.id);
 
                 if (team == null)
                     continue;
@@ -252,7 +265,9 @@ namespace VNFootballLeagues.Services.Services
                         HeightCm = ParseHeight(apiPlayer.height),
                         WeightKg = ParseWeight(apiPlayer.weight),
                         PhotoUrl = apiPlayer.photo,
-                        TeamId = team.TeamId
+                        TeamId = team.TeamId,
+                        Position = apiPlayer.position,
+                        Number = apiPlayer.number
                     };
 
                     _context.Players.Add(existingPlayer);
@@ -269,7 +284,7 @@ namespace VNFootballLeagues.Services.Services
                 var existingStat = await _context.PlayerSeasonStatistics
                     .FirstOrDefaultAsync(s =>
                         s.PlayerId == existingPlayer.PlayerId &&
-                        s.Season == season &&
+                        s.SeasonId == season.SeasonId &&
                         s.LeagueId == dbLeagueId);
 
                 if (existingStat == null)
@@ -277,7 +292,7 @@ namespace VNFootballLeagues.Services.Services
                     existingStat = new PlayerSeasonStatistic
                     {
                         PlayerId = existingPlayer.PlayerId,
-                        Season = season,
+                        SeasonId = season.SeasonId,
                         LeagueId = dbLeagueId,
                         TeamId = team.TeamId
                     };
@@ -288,7 +303,6 @@ namespace VNFootballLeagues.Services.Services
                 existingStat.Appearances = apiStats.games?.appearances ?? 0;
                 existingStat.Lineups = apiStats.games?.lineups ?? 0;
                 existingStat.Minutes = apiStats.games?.minutes ?? 0;
-                existingStat.Position = apiStats.games?.position;
                 existingStat.Rating = decimal.TryParse(apiStats.games?.rating, out var rating) ? rating : null;
                 existingStat.Goals = apiStats.goals?.total ?? 0;
                 existingStat.Assists = apiStats.goals?.assists ?? 0;
@@ -303,7 +317,7 @@ namespace VNFootballLeagues.Services.Services
             {
                 new PlayerSeasonStatDto
                 {
-                    Season = season,
+                    Season = seasonYear,
                     LeagueId = dbLeagueId,
                     TeamId = team.TeamId,
                     Appearances = existingStat.Appearances,

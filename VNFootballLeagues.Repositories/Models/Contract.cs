@@ -11,15 +11,19 @@ public partial class Contract
 
     public int PlayerId { get; set; }
 
-    public int? FromTeamApiId { get; set; }
-    public int? ToTeamApiId { get; set; }
+    public int TeamId { get; set; }
 
-    public string FromTeamName { get; set; }
-    public string ToTeamName { get; set; }
+    public DateOnly? StartDate { get; set; }
 
-    public DateTime? TransferDate { get; set; }
+    public DateOnly? EndDate { get; set; }
 
-    public string TransferType { get; set; }
+    public string ContractType { get; set; }
+
+    public decimal? Salary { get; set; }
+
+    public bool? IsActive { get; set; }
 
     public virtual Player Player { get; set; }
+
+    public virtual Team Team { get; set; }
 }
