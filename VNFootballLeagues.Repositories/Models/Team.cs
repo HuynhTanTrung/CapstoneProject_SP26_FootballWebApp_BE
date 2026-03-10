@@ -11,8 +11,6 @@ public partial class Team
 
     public string TeamName { get; set; }
 
-    public string CoachName { get; set; }
-
     public int ClubId { get; set; }
 
     public int? ApiTeamId { get; set; }
@@ -30,8 +28,6 @@ public partial class Team
     public int LeagueId { get; set; }
 
     public virtual Club Club { get; set; }
-
-    public virtual ICollection<Coach> Coaches { get; set; } = new List<Coach>();
 
     public virtual ICollection<Contract> Contracts { get; set; } = new List<Contract>();
 

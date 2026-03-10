@@ -23,8 +23,6 @@ public partial class VNFootballLeaguesDBContext : DbContext
 
     public virtual DbSet<Club> Clubs { get; set; }
 
-    public virtual DbSet<Coach> Coaches { get; set; }
-
     public virtual DbSet<Contract> Contracts { get; set; }
 
     public virtual DbSet<League> Leagues { get; set; }
@@ -102,41 +100,6 @@ public partial class VNFootballLeaguesDBContext : DbContext
             entity.Property(e => e.Owner)
                 .HasMaxLength(50)
                 .IsUnicode(false);
-        });
-
-        modelBuilder.Entity<Coach>(entity =>
-        {
-            entity.HasKey(e => e.CoachId).HasName("PK__Coach__F411D94175F7E22A");
-
-            entity.ToTable("Coach");
-
-            entity.HasIndex(e => e.ApiCoachId, "UQ__Coach__171D34D50E3EBB2B").IsUnique();
-
-            entity.Property(e => e.BirthCountry)
-                .HasMaxLength(100)
-                .IsUnicode(false);
-            entity.Property(e => e.BirthPlace)
-                .HasMaxLength(255)
-                .IsUnicode(false);
-            entity.Property(e => e.FirstName)
-                .HasMaxLength(255)
-                .IsUnicode(false);
-            entity.Property(e => e.LastName)
-                .HasMaxLength(255)
-                .IsUnicode(false);
-            entity.Property(e => e.Name)
-                .HasMaxLength(255)
-                .IsUnicode(false);
-            entity.Property(e => e.Nationality)
-                .HasMaxLength(100)
-                .IsUnicode(false);
-            entity.Property(e => e.PhotoUrl)
-                .HasMaxLength(255)
-                .IsUnicode(false);
-
-            entity.HasOne(d => d.Team).WithMany(p => p.Coaches)
-                .HasForeignKey(d => d.TeamId)
-                .HasConstraintName("FK__Coach__TeamId__4AB81AF0");
         });
 
         modelBuilder.Entity<Contract>(entity =>
@@ -369,7 +332,7 @@ public partial class VNFootballLeaguesDBContext : DbContext
 
         modelBuilder.Entity<PlayerSeasonStatistic>(entity =>
         {
-            entity.HasKey(e => e.StatId).HasName("PK__PlayerSe__3A162D3E73339DF6");
+            entity.HasKey(e => e.PlayerStatisticsId).HasName("PK__PlayerSe__3A162D3E73339DF6");
 
             entity.HasIndex(e => e.PlayerId, "IX_PlayerSeasonStatistics_PlayerId");
 
@@ -422,10 +385,6 @@ public partial class VNFootballLeaguesDBContext : DbContext
             entity.Property(e => e.SidelinedType)
                 .HasMaxLength(50)
                 .IsUnicode(false);
-
-            entity.HasOne(d => d.Coach).WithMany(p => p.Sidelineds)
-                .HasForeignKey(d => d.CoachId)
-                .HasConstraintName("FK__Sidelined__Coach__04E4BC85");
 
             entity.HasOne(d => d.Player).WithMany(p => p.Sidelineds)
                 .HasForeignKey(d => d.PlayerId)
@@ -504,9 +463,6 @@ public partial class VNFootballLeaguesDBContext : DbContext
 
             entity.ToTable("Team");
 
-            entity.Property(e => e.CoachName)
-                .HasMaxLength(50)
-                .IsUnicode(false);
             entity.Property(e => e.LogoUrl)
                 .HasMaxLength(255)
                 .IsUnicode(false);
@@ -685,6 +641,17 @@ public partial class VNFootballLeaguesDBContext : DbContext
                 .HasForeignKey(d => d.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
+
+        foreach (var entityType in modelBuilder.Model.GetEntityTypes())
+        {
+            foreach (var property in entityType.GetProperties())
+            {
+                if (property.ClrType == typeof(string))
+                {
+                    property.SetIsUnicode(true);
+                }
+            }
+        }
 
         OnModelCreatingPartial(modelBuilder);
     }

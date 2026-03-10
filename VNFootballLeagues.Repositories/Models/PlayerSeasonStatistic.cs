@@ -7,7 +7,7 @@ namespace VNFootballLeagues.Repositories.Models;
 
 public partial class PlayerSeasonStatistic
 {
-    public int StatId { get; set; }
+    public int PlayerStatisticsId { get; set; }
 
     public int? PlayerId { get; set; }
 

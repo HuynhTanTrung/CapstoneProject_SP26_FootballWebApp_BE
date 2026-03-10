@@ -11,8 +11,6 @@ public partial class Sidelined
 
     public int? PlayerId { get; set; }
 
-    public int? CoachId { get; set; }
-
     public int? TeamId { get; set; }
 
     public int? SeasonId { get; set; }
@@ -26,8 +24,6 @@ public partial class Sidelined
     public int? GamesMissed { get; set; }
 
     public bool? IsCompleted { get; set; }
-
-    public virtual Coach Coach { get; set; }
 
     public virtual Player Player { get; set; }
 

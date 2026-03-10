@@ -20,10 +20,6 @@
          "ObjectType": 0
       },
       {
-         "Name": "[dbo].[Coach]",
-         "ObjectType": 0
-      },
-      {
          "Name": "[dbo].[Contract]",
          "ObjectType": 0
       },
