@@ -11,8 +11,12 @@ namespace VNFootballLeagues.Services.IServices
     public interface IFootballApiService
     {
         Task<List<Team>> SyncTeamsByLeagueAsync(int apiLeagueId, int season);
+        Task<List<Season>> SyncSeasonsAsync();
         Task<List<League>> SyncLeaguesAsync();
-        Task<List<PlayerWithStatsDto>> SyncPlayersByLeagueAsync(int apiLeagueId, int season);
+        Task<List<Player>> SyncPlayersByLeagueAsync(int apiLeagueId, int seasonYear);
+        Task<List<PlayerSeasonStatistic>> SyncPlayerSeasonStatisticsAsync(int apiLeagueId, int seasonYear);
+        Task<List<Match>> SyncMatchesByLeagueAsync(int apiLeagueId, int season);
+        Task<List<Standing>> SyncStandingsAsync(int apiLeagueId, int seasonYear);
 
     }
 }

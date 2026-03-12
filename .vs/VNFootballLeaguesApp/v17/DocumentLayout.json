@@ -3,36 +3,20 @@
   "WorkspaceRootPath": "D:\\CapstoneProject_SP26_FootballWebApp_BE\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{B6B20879-9B18-4FD8-BA95-D1748D0E1F05}|VNFootballLeagues.Repositories\\VNFootballLeagues.Repositories.csproj|d:\\capstoneproject_sp26_footballwebapp_be\\vnfootballleagues.repositories\\dbcontext\\vnfootballleaguesdbcontext.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{B6B20879-9B18-4FD8-BA95-D1748D0E1F05}|VNFootballLeagues.Repositories\\VNFootballLeagues.Repositories.csproj|solutionrelative:vnfootballleagues.repositories\\dbcontext\\vnfootballleaguesdbcontext.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{CA24E47A-AFC9-43A7-9A53-F2E428E876B0}|VNFootballLeaguesApp\\VNFootballLeaguesApp.csproj|d:\\capstoneproject_sp26_footballwebapp_be\\vnfootballleaguesapp\\controllers\\vietnamleaguecontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{CA24E47A-AFC9-43A7-9A53-F2E428E876B0}|VNFootballLeaguesApp\\VNFootballLeaguesApp.csproj|solutionrelative:vnfootballleaguesapp\\controllers\\vietnamleaguecontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{CA24E47A-AFC9-43A7-9A53-F2E428E876B0}|VNFootballLeaguesApp\\VNFootballLeaguesApp.csproj|d:\\capstoneproject_sp26_footballwebapp_be\\vnfootballleaguesapp\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{CA24E47A-AFC9-43A7-9A53-F2E428E876B0}|VNFootballLeaguesApp\\VNFootballLeaguesApp.csproj|solutionrelative:vnfootballleaguesapp\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{507A813A-3797-4F13-B951-A4CBE6F9C215}|VNFootballLeagues.Services\\VNFootballLeagues.Services.csproj|d:\\capstoneproject_sp26_footballwebapp_be\\vnfootballleagues.services\\iservices\\ifootballapiservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{507A813A-3797-4F13-B951-A4CBE6F9C215}|VNFootballLeagues.Services\\VNFootballLeagues.Services.csproj|solutionrelative:vnfootballleagues.services\\iservices\\ifootballapiservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{507A813A-3797-4F13-B951-A4CBE6F9C215}|VNFootballLeagues.Services\\VNFootballLeagues.Services.csproj|d:\\capstoneproject_sp26_footballwebapp_be\\vnfootballleagues.services\\services\\footballapiservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{507A813A-3797-4F13-B951-A4CBE6F9C215}|VNFootballLeagues.Services\\VNFootballLeagues.Services.csproj|solutionrelative:vnfootballleagues.services\\services\\footballapiservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{CA24E47A-AFC9-43A7-9A53-F2E428E876B0}|VNFootballLeaguesApp\\VNFootballLeaguesApp.csproj|d:\\capstoneproject_sp26_footballwebapp_be\\vnfootballleaguesapp\\services\\databaseautoupdatehostedservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{CA24E47A-AFC9-43A7-9A53-F2E428E876B0}|VNFootballLeaguesApp\\VNFootballLeaguesApp.csproj|solutionrelative:vnfootballleaguesapp\\services\\databaseautoupdatehostedservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{B6B20879-9B18-4FD8-BA95-D1748D0E1F05}|VNFootballLeagues.Repositories\\VNFootballLeagues.Repositories.csproj|d:\\capstoneproject_sp26_footballwebapp_be\\vnfootballleagues.repositories\\models\\team.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{B6B20879-9B18-4FD8-BA95-D1748D0E1F05}|VNFootballLeagues.Repositories\\VNFootballLeagues.Repositories.csproj|solutionrelative:vnfootballleagues.repositories\\models\\team.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{B6B20879-9B18-4FD8-BA95-D1748D0E1F05}|VNFootballLeagues.Repositories\\VNFootballLeagues.Repositories.csproj|d:\\capstoneproject_sp26_footballwebapp_be\\vnfootballleagues.repositories\\models\\playerseasonstatistic.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{B6B20879-9B18-4FD8-BA95-D1748D0E1F05}|VNFootballLeagues.Repositories\\VNFootballLeagues.Repositories.csproj|solutionrelative:vnfootballleagues.repositories\\models\\playerseasonstatistic.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{B6B20879-9B18-4FD8-BA95-D1748D0E1F05}|VNFootballLeagues.Repositories\\VNFootballLeagues.Repositories.csproj|d:\\capstoneproject_sp26_footballwebapp_be\\vnfootballleagues.repositories\\efpt.config.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}",
-      "RelativeMoniker": "D:0:0:{B6B20879-9B18-4FD8-BA95-D1748D0E1F05}|VNFootballLeagues.Repositories\\VNFootballLeagues.Repositories.csproj|solutionrelative:vnfootballleagues.repositories\\efpt.config.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{B6B20879-9B18-4FD8-BA95-D1748D0E1F05}|VNFootballLeagues.Repositories\\VNFootballLeagues.Repositories.csproj|d:\\capstoneproject_sp26_footballwebapp_be\\vnfootballleagues.repositories\\models\\sidelined.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{B6B20879-9B18-4FD8-BA95-D1748D0E1F05}|VNFootballLeagues.Repositories\\VNFootballLeagues.Repositories.csproj|solutionrelative:vnfootballleagues.repositories\\models\\sidelined.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{B6B20879-9B18-4FD8-BA95-D1748D0E1F05}|VNFootballLeagues.Repositories\\VNFootballLeagues.Repositories.csproj|d:\\capstoneproject_sp26_footballwebapp_be\\vnfootballleagues.repositories\\models\\standing.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{B6B20879-9B18-4FD8-BA95-D1748D0E1F05}|VNFootballLeagues.Repositories\\VNFootballLeagues.Repositories.csproj|solutionrelative:vnfootballleagues.repositories\\models\\standing.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     }
   ],
   "DocumentGroupContainers": [
@@ -42,7 +26,7 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 12,
+          "SelectedChildIndex": 11,
           "Children": [
             {
               "$type": "Bookmark",
@@ -87,38 +71,27 @@
             {
               "$type": "Document",
               "DocumentIndex": 3,
-              "Title": "DatabaseAutoUpdateHostedService.cs",
-              "DocumentMoniker": "D:\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeaguesApp\\Services\\DatabaseAutoUpdateHostedService.cs",
-              "RelativeDocumentMoniker": "VNFootballLeaguesApp\\Services\\DatabaseAutoUpdateHostedService.cs",
-              "ToolTip": "D:\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeaguesApp\\Services\\DatabaseAutoUpdateHostedService.cs",
-              "RelativeToolTip": "VNFootballLeaguesApp\\Services\\DatabaseAutoUpdateHostedService.cs",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Title": "Standing.cs",
+              "DocumentMoniker": "D:\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeagues.Repositories\\Models\\Standing.cs",
+              "RelativeDocumentMoniker": "VNFootballLeagues.Repositories\\Models\\Standing.cs",
+              "ToolTip": "D:\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeagues.Repositories\\Models\\Standing.cs",
+              "RelativeToolTip": "VNFootballLeagues.Repositories\\Models\\Standing.cs",
+              "ViewState": "AgIAACIAAAAAAAAAAAAUwDQAAAABAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-03-10T06:26:33.312Z"
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 5,
-              "Title": "PlayerSeasonStatistic.cs",
-              "DocumentMoniker": "D:\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeagues.Repositories\\Models\\PlayerSeasonStatistic.cs",
-              "RelativeDocumentMoniker": "VNFootballLeagues.Repositories\\Models\\PlayerSeasonStatistic.cs",
-              "ToolTip": "D:\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeagues.Repositories\\Models\\PlayerSeasonStatistic.cs",
-              "RelativeToolTip": "VNFootballLeagues.Repositories\\Models\\PlayerSeasonStatistic.cs",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAgAAAABAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-03-10T06:20:43.233Z"
+              "WhenOpened": "2026-03-12T12:33:12.101Z",
+              "EditorCaption": ""
             },
             {
               "$type": "Document",
               "DocumentIndex": 0,
-              "Title": "VNFootballLeaguesDBContext.cs",
-              "DocumentMoniker": "D:\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeagues.Repositories\\DBContext\\VNFootballLeaguesDBContext.cs",
-              "RelativeDocumentMoniker": "VNFootballLeagues.Repositories\\DBContext\\VNFootballLeaguesDBContext.cs",
-              "ToolTip": "D:\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeagues.Repositories\\DBContext\\VNFootballLeaguesDBContext.cs",
-              "RelativeToolTip": "VNFootballLeagues.Repositories\\DBContext\\VNFootballLeaguesDBContext.cs",
-              "ViewState": "AgIAAGwCAAAAAAAAAAAAAIYCAABAAAAAAAAAAA==",
+              "Title": "VietnamLeagueController.cs",
+              "DocumentMoniker": "D:\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeaguesApp\\Controllers\\VietnamLeagueController.cs",
+              "RelativeDocumentMoniker": "VNFootballLeaguesApp\\Controllers\\VietnamLeagueController.cs",
+              "ToolTip": "D:\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeaguesApp\\Controllers\\VietnamLeagueController.cs",
+              "RelativeToolTip": "VNFootballLeaguesApp\\Controllers\\VietnamLeagueController.cs",
+              "ViewState": "AgIAAEgAAAAAAAAAAADwv1QAAAAJAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-03-10T06:16:49.141Z",
+              "WhenOpened": "2026-03-12T09:40:06.433Z",
               "EditorCaption": ""
             },
             {
@@ -129,57 +102,23 @@
               "RelativeDocumentMoniker": "VNFootballLeagues.Services\\Services\\FootballApiService.cs",
               "ToolTip": "D:\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeagues.Services\\Services\\FootballApiService.cs",
               "RelativeToolTip": "VNFootballLeagues.Services\\Services\\FootballApiService.cs",
-              "ViewState": "AgIAADYBAAAAAAAAAAAmwD0BAAAnAAAAAAAAAA==",
+              "ViewState": "AgIAAAoCAAAAAAAAAADwvxUCAABdAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-03-10T06:15:43.494Z"
+              "WhenOpened": "2026-03-12T09:38:33.551Z",
+              "EditorCaption": ""
             },
             {
               "$type": "Document",
               "DocumentIndex": 1,
-              "Title": "Program.cs",
-              "DocumentMoniker": "D:\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeaguesApp\\Program.cs",
-              "RelativeDocumentMoniker": "VNFootballLeaguesApp\\Program.cs",
-              "ToolTip": "D:\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeaguesApp\\Program.cs",
-              "RelativeToolTip": "VNFootballLeaguesApp\\Program.cs",
-              "ViewState": "AgIAAFcAAAAAAAAAAAAAAGwAAAAAAAAAAAAAAA==",
+              "Title": "IFootballApiService.cs",
+              "DocumentMoniker": "D:\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeagues.Services\\IServices\\IFootballApiService.cs",
+              "RelativeDocumentMoniker": "VNFootballLeagues.Services\\IServices\\IFootballApiService.cs",
+              "ToolTip": "D:\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeagues.Services\\IServices\\IFootballApiService.cs",
+              "RelativeToolTip": "VNFootballLeagues.Services\\IServices\\IFootballApiService.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABIAAABRAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-03-10T06:28:29.22Z"
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 4,
-              "Title": "Team.cs",
-              "DocumentMoniker": "D:\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeagues.Repositories\\Models\\Team.cs",
-              "RelativeDocumentMoniker": "VNFootballLeagues.Repositories\\Models\\Team.cs",
-              "ToolTip": "D:\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeagues.Repositories\\Models\\Team.cs",
-              "RelativeToolTip": "VNFootballLeagues.Repositories\\Models\\Team.cs",
-              "ViewState": "AgIAAB4AAAAAAAAAAAAuwAsAAAAoAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-03-10T06:16:41.556Z"
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 7,
-              "Title": "Sidelined.cs",
-              "DocumentMoniker": "D:\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeagues.Repositories\\Models\\Sidelined.cs",
-              "RelativeDocumentMoniker": "VNFootballLeagues.Repositories\\Models\\Sidelined.cs",
-              "ToolTip": "D:\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeagues.Repositories\\Models\\Sidelined.cs",
-              "RelativeToolTip": "VNFootballLeagues.Repositories\\Models\\Sidelined.cs",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAABkAAAAqAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-03-10T06:16:32.129Z"
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 6,
-              "Title": "efpt.config.json",
-              "DocumentMoniker": "D:\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeagues.Repositories\\efpt.config.json",
-              "RelativeDocumentMoniker": "VNFootballLeagues.Repositories\\efpt.config.json",
-              "ToolTip": "D:\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeagues.Repositories\\efpt.config.json",
-              "RelativeToolTip": "VNFootballLeagues.Repositories\\efpt.config.json",
-              "ViewState": "AgIAAAMAAAAAAAAAAAAAAA4AAAAeAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001642|",
-              "WhenOpened": "2026-03-10T06:16:16.389Z"
+              "WhenOpened": "2026-03-12T09:38:19.535Z",
+              "EditorCaption": ""
             }
           ]
         },

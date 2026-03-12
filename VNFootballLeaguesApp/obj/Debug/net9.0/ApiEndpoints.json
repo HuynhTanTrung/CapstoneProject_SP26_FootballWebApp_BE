@@ -149,8 +149,81 @@
   },
   {
     "ContainingType": "VNFootballLeaguesApp.Controllers.FootballController",
+    "Method": "SyncMatches",
+    "RelativePath": "api/Football/sync-matches",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "apiLeagueId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "season",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "VNFootballLeaguesApp.Controllers.FootballController",
+    "Method": "SyncPlayerStats",
+    "RelativePath": "api/Football/sync-player-stats",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "apiLeagueId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "season",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "VNFootballLeaguesApp.Controllers.FootballController",
     "Method": "SyncPlayers",
     "RelativePath": "api/Football/sync-players",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "apiLeagueId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "season",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "VNFootballLeaguesApp.Controllers.FootballController",
+    "Method": "SyncSeasons",
+    "RelativePath": "api/Football/sync-seasons",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "VNFootballLeaguesApp.Controllers.FootballController",
+    "Method": "SyncStandings",
+    "RelativePath": "api/Football/sync-standings",
     "HttpMethod": "POST",
     "IsController": true,
     "Order": 0,
