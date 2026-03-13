@@ -7,7 +7,7 @@
    "MinimumProductVersion": "2.6.1166",
    "ModelNamespace": null,
    "OutputContextPath": null,
-   "OutputPath": "Models",
+   "OutputPath": "TEST",
    "PreserveCasingWithRegex": true,
    "ProjectRootNamespace": "VNFootballLeagues.Repositories",
    "Schemas": null,
