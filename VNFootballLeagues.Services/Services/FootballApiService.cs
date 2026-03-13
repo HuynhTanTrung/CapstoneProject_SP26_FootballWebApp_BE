@@ -622,5 +622,116 @@ namespace VNFootballLeagues.Services.Services
                 .OrderBy(s => s.Rank)
                 .ToListAsync();
         }
+
+        // GET methods - retrieve synced data from database
+        public async Task<List<League>> GetLeaguesAsync()
+        {
+            return await _context.Leagues
+                .OrderBy(l => l.LeagueName)
+                .ToListAsync();
+        }
+
+        public async Task<List<Season>> GetSeasonsAsync(int? leagueId = null)
+        {
+            var query = _context.Seasons
+                .Include(s => s.League)
+                .AsQueryable();
+
+            if (leagueId.HasValue)
+                query = query.Where(s => s.LeagueId == leagueId.Value);
+
+            return await query
+                .OrderByDescending(s => s.Year)
+                .ToListAsync();
+        }
+
+        public async Task<List<Team>> GetTeamsAsync(int? leagueId = null)
+        {
+            var query = _context.Teams
+                .Include(t => t.League)
+                .Include(t => t.Stadium)
+                .AsQueryable();
+
+            if (leagueId.HasValue)
+                query = query.Where(t => t.LeagueId == leagueId.Value);
+
+            return await query
+                .OrderBy(t => t.TeamName)
+                .ToListAsync();
+        }
+
+        public async Task<List<Player>> GetPlayersAsync(int? teamId = null)
+        {
+            var query = _context.Players
+                .Include(p => p.Team)
+                .AsQueryable();
+
+            if (teamId.HasValue)
+                query = query.Where(p => p.TeamId == teamId.Value);
+
+            return await query
+                .OrderBy(p => p.LastName)
+                .ThenBy(p => p.FirstName)
+                .ToListAsync();
+        }
+
+        public async Task<List<PlayerSeasonStatistic>> GetPlayerStatsAsync(int? playerId = null, int? seasonId = null)
+        {
+            var query = _context.PlayerSeasonStatistics
+                .Include(s => s.Player)
+                .Include(s => s.Season)
+                .Include(s => s.Team)
+                .Include(s => s.League)
+                .AsQueryable();
+
+            if (playerId.HasValue)
+                query = query.Where(s => s.PlayerId == playerId.Value);
+
+            if (seasonId.HasValue)
+                query = query.Where(s => s.SeasonId == seasonId.Value);
+
+            return await query
+                .OrderByDescending(s => s.Goals)
+                .ToListAsync();
+        }
+
+        public async Task<List<Match>> GetMatchesAsync(int? leagueId = null, int? seasonId = null)
+        {
+            var query = _context.Matches
+                .Include(m => m.HomeTeam)
+                .Include(m => m.AwayTeam)
+                .Include(m => m.League)
+                .Include(m => m.Season)
+                .AsQueryable();
+
+            if (leagueId.HasValue)
+                query = query.Where(m => m.LeagueId == leagueId.Value);
+
+            if (seasonId.HasValue)
+                query = query.Where(m => m.SeasonId == seasonId.Value);
+
+            return await query
+                .OrderByDescending(m => m.MatchDate)
+                .ToListAsync();
+        }
+
+        public async Task<List<Standing>> GetStandingsAsync(int? leagueId = null, int? seasonId = null)
+        {
+            var query = _context.Standings
+                .Include(s => s.Team)
+                .Include(s => s.League)
+                .Include(s => s.Season)
+                .AsQueryable();
+
+            if (leagueId.HasValue)
+                query = query.Where(s => s.LeagueId == leagueId.Value);
+
+            if (seasonId.HasValue)
+                query = query.Where(s => s.SeasonId == seasonId.Value);
+
+            return await query
+                .OrderBy(s => s.Rank)
+                .ToListAsync();
+        }
     }
 }
