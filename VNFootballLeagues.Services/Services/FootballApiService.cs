@@ -5,6 +5,7 @@ using System.Linq;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text;
+using System.Text.Json;
 using System.Threading.Tasks;
 using VNFootballLeagues.Repositories.Models;
 using VNFootballLeagues.Services.IServices;
@@ -15,6 +16,7 @@ using VNFootballLeagues.Services.Models.Api.GetLineup;
 using VNFootballLeagues.Services.Models.Api.GetMatches;
 using VNFootballLeagues.Services.Models.Api.GetPlayer;
 using VNFootballLeagues.Services.Models.Api.GetStanding;
+using VNFootballLeagues.Services.Models.Api.GetTeam;
 using VNFootballLeagues.Services.Models.Api.GetTransfer;
 
 namespace VNFootballLeagues.Services.Services
@@ -47,6 +49,56 @@ namespace VNFootballLeagues.Services.Services
                 System.Globalization.CultureInfo.InvariantCulture,
                 out var result))
                 return result;
+
+            return null;
+        }
+
+        private decimal? ParseDecimal(dynamic value)
+        {
+            if (value == null)
+                return null;
+
+            if (value is decimal decimalValue)
+                return decimalValue;
+
+            if (value is int intValue)
+                return intValue;
+
+            if (value is string stringValue)
+            {
+                stringValue = stringValue.Replace("%", "").Trim();
+
+                return ParseDecimal(stringValue);
+            }
+
+            return null;
+        }
+        private int? ParseInt(dynamic value)
+        {
+            if (value == null) return null;
+
+            if (value is int intValue)
+                return intValue;
+
+            if (value is string stringValue && int.TryParse(stringValue, out int result))
+                return result;
+
+            return null;
+        }
+
+        private int? ParsePossession(dynamic value)
+        {
+            if (value == null) return null;
+
+            if (value is string stringValue)
+            {
+                stringValue = stringValue.Replace("%", "").Trim();
+                if (int.TryParse(stringValue, out int result))
+                    return result;
+            }
+
+            if (value is int intValue)
+                return intValue;
 
             return null;
         }
@@ -756,6 +808,140 @@ namespace VNFootballLeagues.Services.Services
 
             await _context.SaveChangesAsync();
             return syncedTransfers;
+        }
+
+        public async Task<TeamStatistic> SyncTeamStatisticsAsync(int apiLeagueId, int seasonYear, int apiTeamId)
+        {
+            var league = await _context.Leagues
+                .FirstOrDefaultAsync(l => l.ApiLeagueId == apiLeagueId);
+
+            if (league == null)
+                throw new Exception("League must be synced first.");
+
+            var season = await _context.Seasons
+                .FirstOrDefaultAsync(s =>
+                    s.LeagueId == league.LeagueId &&
+                    s.Year == seasonYear);
+
+            if (season == null)
+                throw new Exception("Season must be synced first.");
+
+            var team = await _context.Teams
+                .FirstOrDefaultAsync(t => t.ApiTeamId == apiTeamId);
+
+            if (team == null)
+                throw new Exception("Team must be synced first.");
+
+            var response = await _httpClient
+                .GetFromJsonAsync<ApiFootballTeamStatisticsResponse>(
+                    $"teams/statistics?league={apiLeagueId}&season={seasonYear}&team={apiTeamId}");
+
+            if (response?.response == null)
+                return null;
+
+            var item = response.response;
+
+            var existing = await _context.TeamStatistics
+                .FirstOrDefaultAsync(ts =>
+                    ts.TeamId == team.TeamId &&
+                    ts.SeasonId == season.SeasonId);
+
+            TeamStatistic teamStat;
+
+            if (existing == null)
+            {
+                teamStat = new TeamStatistic();
+                _context.TeamStatistics.Add(teamStat);
+            }
+            else
+            {
+                teamStat = existing;
+            }
+
+            teamStat.TeamId = team.TeamId;
+            teamStat.LeagueId = league.LeagueId;
+            teamStat.SeasonId = season.SeasonId;
+
+            teamStat.Form = item.form;
+
+            teamStat.Played = item.fixtures?.played?.total;
+            teamStat.Wins = item.fixtures?.wins?.total;
+            teamStat.Draws = item.fixtures?.draws?.total;
+            teamStat.Losses = item.fixtures?.loses?.total;
+
+            teamStat.HomePlayed = item.fixtures?.played?.home;
+            teamStat.HomeWins = item.fixtures?.wins?.home;
+            teamStat.HomeDraws = item.fixtures?.draws?.home;
+            teamStat.HomeLosses = item.fixtures?.loses?.home;
+
+            teamStat.AwayPlayed = item.fixtures?.played?.away;
+            teamStat.AwayWins = item.fixtures?.wins?.away;
+            teamStat.AwayDraws = item.fixtures?.draws?.away;
+            teamStat.AwayLosses = item.fixtures?.loses?.away;
+
+            teamStat.GoalsFor = item.goals?.@for?.total?.total;
+            teamStat.GoalsAgainst = item.goals?.against?.total?.total;
+
+            teamStat.HomeGoalsFor = item.goals?.@for?.total?.home;
+            teamStat.AwayGoalsFor = item.goals?.@for?.total?.away;
+            teamStat.HomeGoalsAgainst = item.goals?.against?.total?.home;
+            teamStat.AwayGoalsAgainst = item.goals?.against?.total?.away;
+
+            teamStat.GoalsForAvgHome = item.goals?.@for?.average?.home;
+            teamStat.GoalsForAvgAway = item.goals?.@for?.average?.away;
+            teamStat.GoalsForAvgTotal = item.goals?.@for?.average?.total;
+            teamStat.GoalsAgainstAvgHome = item.goals?.against?.average?.home;
+            teamStat.GoalsAgainstAvgAway = item.goals?.against?.average?.away;
+            teamStat.GoalsAgainstAvgTotal = item.goals?.against?.average?.total;
+
+
+            if (item.goals?.@for?.minute != null)
+                teamStat.GoalsForMinute = JsonSerializer.Serialize(item.goals.@for.minute) ;
+
+            if (item.goals?.against?.minute != null)
+                teamStat.GoalsAgainstMinute = JsonSerializer.Serialize(item.goals.against.minute);
+
+            if (item.goals?.@for?.under_over != null)
+                teamStat.UnderOverFor = JsonSerializer.Serialize(item.goals.@for.under_over) ;
+
+            if (item.goals?.against?.under_over != null)
+                teamStat.UnderOverAgainst = JsonSerializer.Serialize(item.goals.against.under_over);
+
+            teamStat.BiggestStreakWins = item.biggest?.streak?.wins;
+            teamStat.BiggestStreakDraws = item.biggest?.streak?.draws;
+            teamStat.BiggestStreakLosses = item.biggest?.streak?.loses;
+
+            teamStat.BiggestWinHome = item.biggest?.wins?.home;
+            teamStat.BiggestWinAway = item.biggest?.wins?.away;
+            teamStat.BiggestLossHome = item.biggest?.loses?.home;
+            teamStat.BiggestLossAway = item.biggest?.loses?.away;
+
+            teamStat.BiggestGoalsForHome = item.biggest?.goals?.@for?.home;
+            teamStat.BiggestGoalsForAway = item.biggest?.goals?.@for?.away;
+            teamStat.BiggestGoalsAgainstHome = item.biggest?.goals?.against?.home;
+            teamStat.BiggestGoalsAgainstAway = item.biggest?.goals?.against?.away;
+
+            teamStat.PenaltiesScored = item.penalty?.scored?.total;
+            teamStat.PenaltiesMissed = item.penalty?.missed?.total;
+            teamStat.PenaltiesTotal = item.penalty?.total;
+            teamStat.PenaltyPercentage = item.penalty?.scored?.percentage;
+
+            if (item.cards?.yellow != null)
+                teamStat.YellowCardsMinute = JsonSerializer.Serialize(item.cards.yellow);
+
+            if (item.cards?.red != null)
+                teamStat.RedCardsMinute = JsonSerializer.Serialize(item.cards.red);
+
+            teamStat.CleanSheets = item.clean_sheet?.total;
+            teamStat.CleanSheetsHome = item.clean_sheet?.home;
+            teamStat.CleanSheetsAway = item.clean_sheet?.away;
+
+            teamStat.FailedToScore = item.failed_to_score?.total;
+            teamStat.FailedToScoreHome = item.failed_to_score?.home;
+            teamStat.FailedToScoreAway = item.failed_to_score?.away;
+
+            await _context.SaveChangesAsync();
+            return teamStat;
         }
 
         //public async Task<List<Lineup>> SyncLineupsAsync(int apiFixtureId)

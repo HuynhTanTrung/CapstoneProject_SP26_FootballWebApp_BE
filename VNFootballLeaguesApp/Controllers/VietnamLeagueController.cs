@@ -153,6 +153,81 @@ namespace VNFootballLeaguesApp.Controllers
                 count = transfers.Count
             });
         }
+
+        [HttpPost("sync-team-statistics")]
+        public async Task<IActionResult> SyncTeamStatistics(
+        [FromQuery] int apiLeagueId,
+        [FromQuery] int season,
+        [FromQuery] int apiTeamId)
+        {
+            try
+            {
+                var stat = await _service.SyncTeamStatisticsAsync(apiLeagueId, season, apiTeamId);
+
+                if (stat == null)
+                {
+                    return Ok(new
+                    {
+                        success = false,
+                        message = "No team statistics found"
+                    });
+                }
+
+                return Ok(new
+                {
+                    success = true,
+                    message = "Team statistics synced successfully",
+                    data = new
+                    {
+                        stat.TeamStatId,
+                        stat.TeamId,
+                        stat.LeagueId,
+                        stat.SeasonId,
+                        stat.Form,
+                        stat.Played,
+                        stat.Wins,
+                        stat.Draws,
+                        stat.Losses,
+                        stat.HomePlayed,
+                        stat.HomeWins,
+                        stat.HomeDraws,
+                        stat.HomeLosses,
+                        stat.AwayPlayed,
+                        stat.AwayWins,
+                        stat.AwayDraws,
+                        stat.AwayLosses,
+                        stat.GoalsFor,
+                        stat.GoalsAgainst,
+                        stat.HomeGoalsFor,
+                        stat.AwayGoalsFor,
+                        stat.HomeGoalsAgainst,
+                        stat.AwayGoalsAgainst,
+                        stat.CleanSheets,
+                        stat.CleanSheetsHome,
+                        stat.CleanSheetsAway,
+                        stat.FailedToScore,
+                        stat.FailedToScoreHome,
+                        stat.FailedToScoreAway,
+                        stat.PenaltiesScored,
+                        stat.PenaltiesMissed,
+                        stat.PenaltiesTotal,
+                        stat.PenaltyPercentage,
+                        stat.BiggestStreakWins,
+                        stat.BiggestStreakDraws,
+                        stat.BiggestStreakLosses
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new
+                {
+                    success = false,
+                    message = ex.Message
+                });
+            }
+        }
+
         //[HttpPost("sync-lineups")]
         //public async Task<IActionResult> SyncLineups([FromQuery] int apiFixtureId)
         //{
