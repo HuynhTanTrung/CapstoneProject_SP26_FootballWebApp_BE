@@ -9,7 +9,9 @@ using System.Threading.Tasks;
 using VNFootballLeagues.Repositories.Models;
 using VNFootballLeagues.Services.IServices;
 using VNFootballLeagues.Services.Models.Api;
+using VNFootballLeagues.Services.Models.Api.GetEvent;
 using VNFootballLeagues.Services.Models.Api.GetLeague;
+using VNFootballLeagues.Services.Models.Api.GetLineup;
 using VNFootballLeagues.Services.Models.Api.GetMatches;
 using VNFootballLeagues.Services.Models.Api.GetPlayer;
 using VNFootballLeagues.Services.Models.Api.GetStanding;
@@ -621,5 +623,193 @@ namespace VNFootballLeagues.Services.Services
                 .OrderBy(s => s.Rank)
                 .ToListAsync();
         }
+
+        public async Task<List<MatchEvent>> SyncMatchEventsAsync(int apiFixtureId)
+        {
+            var match = await _context.Matches
+                .FirstOrDefaultAsync(m => m.ApiFixtureId == apiFixtureId);
+
+            if (match == null)
+                throw new Exception("Match must be synced first.");
+
+            var response = await _httpClient
+                .GetFromJsonAsync<ApiFootballEventResponse>(
+                    $"fixtures/events?fixture={apiFixtureId}");
+
+            if (response?.response == null)
+                return new List<MatchEvent>();
+
+            var players = await _context.Players
+                .ToDictionaryAsync(p => p.ApiPlayerId);
+
+            var teams = await _context.Teams
+                .ToDictionaryAsync(t => t.ApiTeamId);
+
+            var events = new List<MatchEvent>();
+
+            foreach (var item in response.response)
+            {
+                if (!teams.TryGetValue(item.team.id, out var team))
+                    continue;
+
+                Player player = null;
+                Player assist = null;
+
+                if (item.player?.id != null)
+                    players.TryGetValue(item.player.id.Value, out player);
+
+                if (item.assist?.id != null)
+                    players.TryGetValue(item.assist.id.Value, out assist);
+
+                var matchEvent = new MatchEvent
+                {
+                    MatchId = match.MatchId,
+                    TeamId = team.TeamId,
+                    PlayerId = player?.PlayerId,
+                    AssistPlayerId = assist?.PlayerId,
+                    EventType = item.type,
+                    Detail = item.detail,
+                    EventTime = item.time?.elapsed ?? 0,
+                    ExtraTime = item.time?.extra,
+                    Period = "Regular",
+                    Comments = item.comments
+                };
+
+                _context.MatchEvents.Add(matchEvent);
+                events.Add(matchEvent);
+            }
+
+            await _context.SaveChangesAsync();
+
+            return events;
+        }
+
+        public async Task<List<Transfer>> SyncTransfersAsync(int apiTeamId)
+        {
+            var team = await _context.Teams
+                .FirstOrDefaultAsync(t => t.ApiTeamId == apiTeamId);
+
+            if (team == null)
+                throw new Exception("Team must be synced first.");
+
+            var response = await _httpClient
+                .GetFromJsonAsync<ApiFootballTransferResponse>(
+                    $"transfers?team={apiTeamId}");
+
+            if (response?.response == null)
+                return new List<Transfer>();
+
+            var players = await _context.Players
+                .ToDictionaryAsync(p => p.ApiPlayerId);
+
+            var syncedTransfers = new List<Transfer>();
+
+            foreach (var item in response.response)
+            {
+                if (!players.TryGetValue(item.player.id, out var player))
+                    continue;
+
+                if (item.transfers == null)
+                    continue;
+
+                foreach (var transferDetail in item.transfers)
+                {
+                    if (transferDetail.teams?.@in?.id == null || transferDetail.teams?.@out?.id == null)
+                        continue;
+
+                    var fromTeam = await _context.Teams
+                        .FirstOrDefaultAsync(t => t.ApiTeamId == transferDetail.teams.@out.id.Value);
+
+                    var toTeam = await _context.Teams
+                        .FirstOrDefaultAsync(t => t.ApiTeamId == transferDetail.teams.@in.id.Value);
+
+                    if (fromTeam == null || toTeam == null)
+                        continue;
+
+                    DateTime? transferDate = null;
+                    if (DateTime.TryParse(transferDetail.date, out var parsedDate))
+                        transferDate = parsedDate;
+
+                    var existing = await _context.Transfers
+                        .FirstOrDefaultAsync(t =>
+                            t.PlayerId == player.PlayerId &&
+                            t.FromTeamId == fromTeam.TeamId &&
+                            t.ToTeamId == toTeam.TeamId &&
+                            t.TransferDate == transferDate);
+
+                    if (existing == null)
+                    {
+                        var transfer = new Transfer
+                        {
+                            PlayerId = player.PlayerId,
+                            FromTeamId = fromTeam.TeamId,
+                            ToTeamId = toTeam.TeamId,
+                            TransferDate = transferDate,
+                            TransferType = transferDetail.type,
+                        };
+
+                        _context.Transfers.Add(transfer);
+                        syncedTransfers.Add(transfer);
+                    }
+                }
+            }
+
+            await _context.SaveChangesAsync();
+            return syncedTransfers;
+        }
+
+        //public async Task<List<Lineup>> SyncLineupsAsync(int apiFixtureId)
+        //{
+        //    var match = await _context.Matches
+        //        .FirstOrDefaultAsync(m => m.ApiFixtureId == apiFixtureId);
+
+        //    if (match == null)
+        //        throw new Exception("Match must be synced first.");
+
+        //    var response = await _httpClient
+        //        .GetFromJsonAsync<ApiFootballLineupResponse>(
+        //            $"fixtures/lineups?fixture={apiFixtureId}");
+
+        //    if (response?.response == null)
+        //        return new List<Lineup>();
+
+        //    var teams = await _context.Teams
+        //        .ToDictionaryAsync(t => t.ApiTeamId);
+
+        //    var lineups = new List<Lineup>();
+
+        //    foreach (var item in response.response)
+        //    {
+        //        if (!teams.TryGetValue(item.team.id, out var team))
+        //            continue;
+
+        //        var existing = await _context.Lineups
+        //            .FirstOrDefaultAsync(l =>
+        //                l.MatchId == match.MatchId &&
+        //                l.TeamId == team.TeamId);
+
+        //        if (existing == null)
+        //        {
+        //            existing = new Lineup
+        //            {
+        //                MatchId = match.MatchId,
+        //                TeamId = team.TeamId,
+        //                Formation = item.formation
+        //            };
+
+        //            _context.Lineups.Add(existing);
+        //        }
+        //        else
+        //        {
+        //            existing.Formation = item.formation;
+        //        }
+
+        //        lineups.Add(existing);
+        //    }
+
+        //    await _context.SaveChangesAsync();
+
+        //    return lineups;
+        //}
     }
 }

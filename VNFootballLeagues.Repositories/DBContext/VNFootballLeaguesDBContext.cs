@@ -510,12 +510,6 @@ public partial class VNFootballLeaguesDBContext : DbContext
         {
             entity.HasKey(e => e.TransferId).HasName("PK__Transfer__9549009130B11A7E");
 
-            entity.Property(e => e.ContractUntil)
-                .HasMaxLength(50)
-                .IsUnicode(false);
-            entity.Property(e => e.TransferFee)
-                .HasMaxLength(50)
-                .IsUnicode(false);
             entity.Property(e => e.TransferType)
                 .HasMaxLength(50)
                 .IsUnicode(false);

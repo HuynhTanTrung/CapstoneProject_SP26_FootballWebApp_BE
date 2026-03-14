@@ -149,6 +149,22 @@
   },
   {
     "ContainingType": "VNFootballLeaguesApp.Controllers.FootballController",
+    "Method": "SyncMatchEvents",
+    "RelativePath": "api/Football/sync-match-events",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "apiFixtureId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "VNFootballLeaguesApp.Controllers.FootballController",
     "Method": "SyncMatches",
     "RelativePath": "api/Football/sync-matches",
     "HttpMethod": "POST",
@@ -256,6 +272,22 @@
       },
       {
         "Name": "season",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "VNFootballLeaguesApp.Controllers.FootballController",
+    "Method": "SyncTransfers",
+    "RelativePath": "api/Football/sync-transfers",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "apiTeamId",
         "Type": "System.Int32",
         "IsRequired": false
       }

@@ -126,5 +126,44 @@ namespace VNFootballLeaguesApp.Controllers
                 count = standings.Count
             });
         }
+
+        [HttpPost("sync-match-events")]
+        public async Task<IActionResult> SyncMatchEvents([FromQuery] int apiFixtureId)
+        {
+            var events = await _service.SyncMatchEventsAsync(apiFixtureId);
+
+            return Ok(new
+            {
+                success = true,
+                message = "Match events synced successfully",
+                count = events.Count,
+            });
+        }
+
+        [HttpPost("sync-transfers")]
+        public async Task<IActionResult> SyncTransfers(
+        [FromQuery] int apiTeamId)
+        {
+            var transfers = await _service.SyncTransfersAsync(apiTeamId);
+
+            return Ok(new
+            {
+                success = true,
+                message = "Transfers synced successfully",
+                count = transfers.Count
+            });
+        }
+        //[HttpPost("sync-lineups")]
+        //public async Task<IActionResult> SyncLineups([FromQuery] int apiFixtureId)
+        //{
+        //    var lineups = await _service.SyncLineupsAsync(apiFixtureId);
+
+        //    return Ok(new
+        //    {
+        //        success = true,
+        //        message = "Lineups synced successfully",
+        //        count = lineups.Count
+        //    });
+        //}
     }
 }
