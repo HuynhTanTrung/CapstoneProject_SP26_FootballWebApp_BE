@@ -21,8 +21,7 @@ namespace VNFootballLeagues.Services.Services
     {
         private readonly HttpClient _httpClient;
         private readonly VNFootballLeaguesDBContext _context;
-        //private const string ApiKey = "6eb9790bc76fca11467f05ff4386793a";
-        private const string ApiKey = "a62490994cdd84b4c3ed053a5425321b";
+        private const string ApiKey = "b5926dbd1c11e00072a6332f8c311ac3";
         private const string BaseUrl = "https://v3.football.api-sports.io/";
         private readonly int[] VietnamLeagueApiIds = { 340, 341, 637 };
 
