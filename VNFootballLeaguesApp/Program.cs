@@ -83,6 +83,9 @@ builder.Services.Configure<DatabaseAutoUpdateSettings>(builder.Configuration.Get
 builder.Services.AddHostedService<DatabaseAutoUpdateHostedService>();
 builder.Services.AddHttpClient<IFootballApiService, FootballApiService>();
 
+// Register SofaScore scraper service
+builder.Services.AddScoped<ISofascoreScraperService, SofascoreScraperService>();
+
 
 var app = builder.Build();
 

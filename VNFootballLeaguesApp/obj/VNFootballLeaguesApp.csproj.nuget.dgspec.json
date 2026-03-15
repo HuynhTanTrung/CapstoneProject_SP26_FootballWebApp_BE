@@ -1,31 +1,25 @@
 {
   "format": 1,
   "restore": {
-    "D:\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeaguesApp\\VNFootballLeaguesApp.csproj": {}
+    "D:\\FPT University\\YEAR 2026\\SEP490\\Hệ Thống Đánh Giá Cầu Thủ\\SEP490_BE\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeaguesApp\\VNFootballLeaguesApp.csproj": {}
   },
   "projects": {
-    "D:\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeagues.Repositories\\VNFootballLeagues.Repositories.csproj": {
+    "D:\\FPT University\\YEAR 2026\\SEP490\\Hệ Thống Đánh Giá Cầu Thủ\\SEP490_BE\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeagues.Repositories\\VNFootballLeagues.Repositories.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "D:\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeagues.Repositories\\VNFootballLeagues.Repositories.csproj",
+        "projectUniqueName": "D:\\FPT University\\YEAR 2026\\SEP490\\Hệ Thống Đánh Giá Cầu Thủ\\SEP490_BE\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeagues.Repositories\\VNFootballLeagues.Repositories.csproj",
         "projectName": "VNFootballLeagues.Repositories",
-        "projectPath": "D:\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeagues.Repositories\\VNFootballLeagues.Repositories.csproj",
-        "packagesPath": "C:\\Users\\Nghe\\.nuget\\packages\\",
-        "outputPath": "D:\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeagues.Repositories\\obj\\",
+        "projectPath": "D:\\FPT University\\YEAR 2026\\SEP490\\Hệ Thống Đánh Giá Cầu Thủ\\SEP490_BE\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeagues.Repositories\\VNFootballLeagues.Repositories.csproj",
+        "packagesPath": "C:\\Users\\ASUS\\.nuget\\packages\\",
+        "outputPath": "D:\\FPT University\\YEAR 2026\\SEP490\\Hệ Thống Đánh Giá Cầu Thủ\\SEP490_BE\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeagues.Repositories\\obj\\",
         "projectStyle": "PackageReference",
-        "fallbackFolders": [
-          "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
-        ],
         "configFilePaths": [
-          "C:\\Users\\Nghe\\AppData\\Roaming\\NuGet\\NuGet.Config",
-          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
-          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
+          "C:\\Users\\ASUS\\AppData\\Roaming\\NuGet\\NuGet.Config"
         ],
         "originalTargetFrameworks": [
           "net9.0"
         ],
         "sources": {
-          "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
           "https://api.nuget.org/v3/index.json": {}
         },
         "frameworks": {
@@ -89,40 +83,34 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.312/PortableRuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.311/PortableRuntimeIdentifierGraph.json"
         }
       }
     },
-    "D:\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeagues.Services\\VNFootballLeagues.Services.csproj": {
+    "D:\\FPT University\\YEAR 2026\\SEP490\\Hệ Thống Đánh Giá Cầu Thủ\\SEP490_BE\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeagues.Services\\VNFootballLeagues.Services.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "D:\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeagues.Services\\VNFootballLeagues.Services.csproj",
+        "projectUniqueName": "D:\\FPT University\\YEAR 2026\\SEP490\\Hệ Thống Đánh Giá Cầu Thủ\\SEP490_BE\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeagues.Services\\VNFootballLeagues.Services.csproj",
         "projectName": "VNFootballLeagues.Services",
-        "projectPath": "D:\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeagues.Services\\VNFootballLeagues.Services.csproj",
-        "packagesPath": "C:\\Users\\Nghe\\.nuget\\packages\\",
-        "outputPath": "D:\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeagues.Services\\obj\\",
+        "projectPath": "D:\\FPT University\\YEAR 2026\\SEP490\\Hệ Thống Đánh Giá Cầu Thủ\\SEP490_BE\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeagues.Services\\VNFootballLeagues.Services.csproj",
+        "packagesPath": "C:\\Users\\ASUS\\.nuget\\packages\\",
+        "outputPath": "D:\\FPT University\\YEAR 2026\\SEP490\\Hệ Thống Đánh Giá Cầu Thủ\\SEP490_BE\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeagues.Services\\obj\\",
         "projectStyle": "PackageReference",
-        "fallbackFolders": [
-          "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
-        ],
         "configFilePaths": [
-          "C:\\Users\\Nghe\\AppData\\Roaming\\NuGet\\NuGet.Config",
-          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
-          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
+          "C:\\Users\\ASUS\\AppData\\Roaming\\NuGet\\NuGet.Config"
         ],
         "originalTargetFrameworks": [
           "net9.0"
         ],
         "sources": {
-          "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
           "https://api.nuget.org/v3/index.json": {}
         },
         "frameworks": {
           "net9.0": {
             "targetAlias": "net9.0",
             "projectReferences": {
-              "D:\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeagues.Repositories\\VNFootballLeagues.Repositories.csproj": {
-                "projectPath": "D:\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeagues.Repositories\\VNFootballLeagues.Repositories.csproj"
+              "D:\\FPT University\\YEAR 2026\\SEP490\\Hệ Thống Đánh Giá Cầu Thủ\\SEP490_BE\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeagues.Repositories\\VNFootballLeagues.Repositories.csproj": {
+                "projectPath": "D:\\FPT University\\YEAR 2026\\SEP490\\Hệ Thống Đánh Giá Cầu Thủ\\SEP490_BE\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeagues.Repositories\\VNFootballLeagues.Repositories.csproj"
               }
             }
           }
@@ -155,6 +143,10 @@
               "target": "Package",
               "version": "[9.0.9, )"
             },
+            "PuppeteerSharp": {
+              "target": "Package",
+              "version": "[24.39.0, )"
+            },
             "System.IdentityModel.Tokens.Jwt": {
               "target": "Package",
               "version": "[8.14.0, )"
@@ -176,43 +168,37 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.312/PortableRuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.311/PortableRuntimeIdentifierGraph.json"
         }
       }
     },
-    "D:\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeaguesApp\\VNFootballLeaguesApp.csproj": {
+    "D:\\FPT University\\YEAR 2026\\SEP490\\Hệ Thống Đánh Giá Cầu Thủ\\SEP490_BE\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeaguesApp\\VNFootballLeaguesApp.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "D:\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeaguesApp\\VNFootballLeaguesApp.csproj",
+        "projectUniqueName": "D:\\FPT University\\YEAR 2026\\SEP490\\Hệ Thống Đánh Giá Cầu Thủ\\SEP490_BE\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeaguesApp\\VNFootballLeaguesApp.csproj",
         "projectName": "VNFootballLeaguesApp",
-        "projectPath": "D:\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeaguesApp\\VNFootballLeaguesApp.csproj",
-        "packagesPath": "C:\\Users\\Nghe\\.nuget\\packages\\",
-        "outputPath": "D:\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeaguesApp\\obj\\",
+        "projectPath": "D:\\FPT University\\YEAR 2026\\SEP490\\Hệ Thống Đánh Giá Cầu Thủ\\SEP490_BE\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeaguesApp\\VNFootballLeaguesApp.csproj",
+        "packagesPath": "C:\\Users\\ASUS\\.nuget\\packages\\",
+        "outputPath": "D:\\FPT University\\YEAR 2026\\SEP490\\Hệ Thống Đánh Giá Cầu Thủ\\SEP490_BE\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeaguesApp\\obj\\",
         "projectStyle": "PackageReference",
-        "fallbackFolders": [
-          "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
-        ],
         "configFilePaths": [
-          "C:\\Users\\Nghe\\AppData\\Roaming\\NuGet\\NuGet.Config",
-          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
-          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
+          "C:\\Users\\ASUS\\AppData\\Roaming\\NuGet\\NuGet.Config"
         ],
         "originalTargetFrameworks": [
           "net9.0"
         ],
         "sources": {
-          "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
           "https://api.nuget.org/v3/index.json": {}
         },
         "frameworks": {
           "net9.0": {
             "targetAlias": "net9.0",
             "projectReferences": {
-              "D:\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeagues.Repositories\\VNFootballLeagues.Repositories.csproj": {
-                "projectPath": "D:\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeagues.Repositories\\VNFootballLeagues.Repositories.csproj"
+              "D:\\FPT University\\YEAR 2026\\SEP490\\Hệ Thống Đánh Giá Cầu Thủ\\SEP490_BE\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeagues.Repositories\\VNFootballLeagues.Repositories.csproj": {
+                "projectPath": "D:\\FPT University\\YEAR 2026\\SEP490\\Hệ Thống Đánh Giá Cầu Thủ\\SEP490_BE\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeagues.Repositories\\VNFootballLeagues.Repositories.csproj"
               },
-              "D:\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeagues.Services\\VNFootballLeagues.Services.csproj": {
-                "projectPath": "D:\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeagues.Services\\VNFootballLeagues.Services.csproj"
+              "D:\\FPT University\\YEAR 2026\\SEP490\\Hệ Thống Đánh Giá Cầu Thủ\\SEP490_BE\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeagues.Services\\VNFootballLeagues.Services.csproj": {
+                "projectPath": "D:\\FPT University\\YEAR 2026\\SEP490\\Hệ Thống Đánh Giá Cầu Thủ\\SEP490_BE\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeagues.Services\\VNFootballLeagues.Services.csproj"
               }
             }
           }
@@ -271,7 +257,7 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.312/PortableRuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.311/PortableRuntimeIdentifierGraph.json"
         }
       }
     }
