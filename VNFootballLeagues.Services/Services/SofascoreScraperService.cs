@@ -1,6 +1,7 @@
 using PuppeteerSharp;
 using VNFootballLeagues.Services.IServices;
 using Microsoft.Extensions.Logging;
+using System.Text.Json;
 
 namespace VNFootballLeagues.Services.Services;
 
@@ -46,6 +47,153 @@ public class SofascoreScraperService : ISofascoreScraperService
         _logger.LogInformation("Fetching standings for tournament {TournamentId}, season {SeasonId}", tournamentId, seasonId);
         
         return await ScrapeApiEndpointAsync(url, $"tournament {tournamentId} season {seasonId} standings");
+    }
+
+    /// <summary>
+    /// Fetches live matches currently in progress
+    /// </summary>
+    /// <returns>JSON string containing live matches data</returns>
+    /// <exception cref="Exception">Thrown when scraping fails</exception>
+    public async Task<string> GetLiveMatchesAsync()
+    {
+        string url = "https://www.sofascore.com/api/v1/sport/football/events/live";
+        _logger.LogInformation("Fetching live matches");
+        
+        return await ScrapeApiEndpointAsync(url, "live matches");
+    }
+
+    /// <summary>
+    /// Fetches live and upcoming matches for Vietnamese leagues only
+    /// Filters for V-League 1 (626), V-League 2 (771), and Vietnam Cup (3087)
+    /// </summary>
+    /// <returns>JSON string containing filtered matches data</returns>
+    /// <exception cref="Exception">Thrown when scraping fails</exception>
+    public async Task<string> GetVietnameseLeagueLiveMatchesAsync()
+    {
+        try
+        {
+            // Get all live matches
+            string allLiveMatchesJson = await GetLiveMatchesAsync();
+            var allMatches = JsonSerializer.Deserialize<JsonElement>(allLiveMatchesJson);
+
+            // Vietnamese uniqueTournament IDs (not tournament.id!)
+            var vietnameseTournamentIds = new HashSet<int> { 626, 771, 3087 }; // V-League 1, V-League 2, Vietnam Cup
+
+            // Filter matches by uniqueTournament ID
+            var filteredEvents = new List<JsonElement>();
+            
+            if (allMatches.TryGetProperty("events", out var events))
+            {
+                foreach (var match in events.EnumerateArray())
+                {
+                    // Check tournament.uniqueTournament.id instead of tournament.id
+                    if (match.TryGetProperty("tournament", out var tournament) &&
+                        tournament.TryGetProperty("uniqueTournament", out var uniqueTournament) &&
+                        uniqueTournament.TryGetProperty("id", out var uniqueTournamentId))
+                    {
+                        if (vietnameseTournamentIds.Contains(uniqueTournamentId.GetInt32()))
+                        {
+                            filteredEvents.Add(match);
+                        }
+                    }
+                }
+            }
+
+            // Build filtered response
+            var filteredResponse = new
+            {
+                events = filteredEvents,
+                count = filteredEvents.Count,
+                message = filteredEvents.Count == 0 
+                    ? "No Vietnamese league matches currently live" 
+                    : $"Found {filteredEvents.Count} Vietnamese league match(es)"
+            };
+
+            string filteredJson = JsonSerializer.Serialize(filteredResponse, new JsonSerializerOptions 
+            { 
+                WriteIndented = true 
+            });
+
+            _logger.LogInformation("Found {Count} Vietnamese league matches", filteredEvents.Count);
+            return filteredJson;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching Vietnamese league live matches");
+            throw new Exception($"Failed to fetch Vietnamese league live matches: {ex.Message}", ex);
+        }
+    }
+
+    /// <summary>
+    /// Fetches match incidents (goals, cards, substitutions) for a specific event
+    /// </summary>
+    /// <param name="eventId">The SofaScore event/match ID</param>
+    /// <returns>JSON string containing incidents data</returns>
+    /// <exception cref="Exception">Thrown when scraping fails</exception>
+    public async Task<string> GetMatchIncidentsAsync(int eventId)
+    {
+        string url = $"https://www.sofascore.com/api/v1/event/{eventId}/incidents";
+        _logger.LogInformation("Fetching incidents for event {EventId}", eventId);
+        
+        return await ScrapeApiEndpointAsync(url, $"event {eventId} incidents");
+    }
+
+    /// <summary>
+    /// Fetches last (previous) matches for a tournament
+    /// </summary>
+    public async Task<string> GetTournamentLastMatchesAsync(int uniqueTournamentId, int seasonId, int page = 0)
+    {
+        string url = $"https://www.sofascore.com/api/v1/unique-tournament/{uniqueTournamentId}/season/{seasonId}/events/last/{page}";
+        _logger.LogInformation("Fetching last matches for tournament {TournamentId}, season {SeasonId}, page {Page}", 
+            uniqueTournamentId, seasonId, page);
+        
+        return await ScrapeApiEndpointAsync(url, $"tournament {uniqueTournamentId} last matches");
+    }
+
+    /// <summary>
+    /// Fetches next (upcoming) matches for a tournament
+    /// </summary>
+    public async Task<string> GetTournamentNextMatchesAsync(int uniqueTournamentId, int seasonId, int page = 0)
+    {
+        string url = $"https://www.sofascore.com/api/v1/unique-tournament/{uniqueTournamentId}/season/{seasonId}/events/next/{page}";
+        _logger.LogInformation("Fetching next matches for tournament {TournamentId}, season {SeasonId}, page {Page}", 
+            uniqueTournamentId, seasonId, page);
+        
+        return await ScrapeApiEndpointAsync(url, $"tournament {uniqueTournamentId} next matches");
+    }
+
+    /// <summary>
+    /// Fetches matches for a specific round in a tournament
+    /// </summary>
+    public async Task<string> GetTournamentRoundMatchesAsync(int uniqueTournamentId, int seasonId, int round)
+    {
+        string url = $"https://www.sofascore.com/api/v1/unique-tournament/{uniqueTournamentId}/season/{seasonId}/events/round/{round}";
+        _logger.LogInformation("Fetching round {Round} matches for tournament {TournamentId}, season {SeasonId}", 
+            round, uniqueTournamentId, seasonId);
+        
+        return await ScrapeApiEndpointAsync(url, $"tournament {uniqueTournamentId} round {round}");
+    }
+
+    /// <summary>
+    /// Fetches last (previous) matches for a team
+    /// </summary>
+    public async Task<string> GetTeamLastMatchesAsync(int teamId, int page = 0)
+    {
+        string url = $"https://www.sofascore.com/api/v1/team/{teamId}/events/last/{page}";
+        _logger.LogInformation("Fetching last matches for team {TeamId}, page {Page}", teamId, page);
+        
+        return await ScrapeApiEndpointAsync(url, $"team {teamId} last matches");
+    }
+
+    /// <summary>
+    /// Fetches next (upcoming) matches for a team
+    /// </summary>
+    public async Task<string> GetTeamNextMatchesAsync(int teamId, int page = 0)
+    {
+        string url = $"https://www.sofascore.com/api/v1/team/{teamId}/events/next/{page}";
+        _logger.LogInformation("Fetching next matches for team {TeamId}, page {Page}", teamId, page);
+        
+        return await ScrapeApiEndpointAsync(url, $"team {teamId} next matches");
     }
 
     /// <summary>

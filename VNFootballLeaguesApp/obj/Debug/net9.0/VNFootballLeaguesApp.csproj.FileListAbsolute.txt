@@ -262,12 +262,23 @@ D:\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\obj\Debug\net9.0\
 D:\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\obj\Debug\net9.0\VNFootballLeaguesApp.pdb
 D:\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\obj\Debug\net9.0\VNFootballLeaguesApp.genruntimeconfig.cache
 D:\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\obj\Debug\net9.0\ref\VNFootballLeaguesApp.dll
+D:\FPT University\YEAR 2026\SEP490\Hệ Thống Đánh Giá Cầu Thủ\SEP490_BE\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\obj\Debug\net9.0\VNFootballLeaguesApp.csproj.AssemblyReference.cache
+D:\FPT University\YEAR 2026\SEP490\Hệ Thống Đánh Giá Cầu Thủ\SEP490_BE\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\obj\Debug\net9.0\rpswa.dswa.cache.json
+D:\FPT University\YEAR 2026\SEP490\Hệ Thống Đánh Giá Cầu Thủ\SEP490_BE\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\obj\Debug\net9.0\VNFootballLeaguesApp.GeneratedMSBuildEditorConfig.editorconfig
+D:\FPT University\YEAR 2026\SEP490\Hệ Thống Đánh Giá Cầu Thủ\SEP490_BE\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\obj\Debug\net9.0\VNFootballLeaguesApp.AssemblyInfoInputs.cache
+D:\FPT University\YEAR 2026\SEP490\Hệ Thống Đánh Giá Cầu Thủ\SEP490_BE\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\obj\Debug\net9.0\VNFootballLeaguesApp.AssemblyInfo.cs
+D:\FPT University\YEAR 2026\SEP490\Hệ Thống Đánh Giá Cầu Thủ\SEP490_BE\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\obj\Debug\net9.0\VNFootballLeaguesApp.csproj.CoreCompileInputs.cache
+D:\FPT University\YEAR 2026\SEP490\Hệ Thống Đánh Giá Cầu Thủ\SEP490_BE\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\obj\Debug\net9.0\VNFootballLeaguesApp.MvcApplicationPartsAssemblyInfo.cs
+D:\FPT University\YEAR 2026\SEP490\Hệ Thống Đánh Giá Cầu Thủ\SEP490_BE\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\obj\Debug\net9.0\VNFootballLeaguesApp.MvcApplicationPartsAssemblyInfo.cache
+D:\FPT University\YEAR 2026\SEP490\Hệ Thống Đánh Giá Cầu Thủ\SEP490_BE\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\obj\Debug\net9.0\VNFootballLeaguesApp.RazorAssemblyInfo.cache
+D:\FPT University\YEAR 2026\SEP490\Hệ Thống Đánh Giá Cầu Thủ\SEP490_BE\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\obj\Debug\net9.0\VNFootballLeaguesApp.RazorAssemblyInfo.cs
+D:\FPT University\YEAR 2026\SEP490\Hệ Thống Đánh Giá Cầu Thủ\SEP490_BE\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\obj\Debug\net9.0\VNFootballLeaguesApp.sourcelink.json
 D:\FPT University\YEAR 2026\SEP490\Hệ Thống Đánh Giá Cầu Thủ\SEP490_BE\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\bin\Debug\net9.0\Microsoft.Azure.Documents.ServiceInterop.dll
 D:\FPT University\YEAR 2026\SEP490\Hệ Thống Đánh Giá Cầu Thủ\SEP490_BE\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\bin\Debug\net9.0\Cosmos.CRTCompat.dll
 D:\FPT University\YEAR 2026\SEP490\Hệ Thống Đánh Giá Cầu Thủ\SEP490_BE\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\bin\Debug\net9.0\appsettings.Development.json
+D:\FPT University\YEAR 2026\SEP490\Hệ Thống Đánh Giá Cầu Thủ\SEP490_BE\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\bin\Debug\net9.0\appsettings.json
 D:\FPT University\YEAR 2026\SEP490\Hệ Thống Đánh Giá Cầu Thủ\SEP490_BE\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\bin\Debug\net9.0\VNFootballLeaguesApp.staticwebassets.runtime.json
 D:\FPT University\YEAR 2026\SEP490\Hệ Thống Đánh Giá Cầu Thủ\SEP490_BE\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\bin\Debug\net9.0\VNFootballLeaguesApp.staticwebassets.endpoints.json
-D:\FPT University\YEAR 2026\SEP490\Hệ Thống Đánh Giá Cầu Thủ\SEP490_BE\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\bin\Debug\net9.0\appsettings.json
 D:\FPT University\YEAR 2026\SEP490\Hệ Thống Đánh Giá Cầu Thủ\SEP490_BE\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\bin\Debug\net9.0\VNFootballLeaguesApp.exe
 D:\FPT University\YEAR 2026\SEP490\Hệ Thống Đánh Giá Cầu Thủ\SEP490_BE\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\bin\Debug\net9.0\VNFootballLeaguesApp.deps.json
 D:\FPT University\YEAR 2026\SEP490\Hệ Thống Đánh Giá Cầu Thủ\SEP490_BE\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\bin\Debug\net9.0\VNFootballLeaguesApp.runtimeconfig.json
@@ -330,6 +341,7 @@ D:\FPT University\YEAR 2026\SEP490\Hệ Thống Đánh Giá Cầu Thủ\SEP490_B
 D:\FPT University\YEAR 2026\SEP490\Hệ Thống Đánh Giá Cầu Thủ\SEP490_BE\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\bin\Debug\net9.0\MimeKit.dll
 D:\FPT University\YEAR 2026\SEP490\Hệ Thống Đánh Giá Cầu Thủ\SEP490_BE\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\bin\Debug\net9.0\Mono.TextTemplating.dll
 D:\FPT University\YEAR 2026\SEP490\Hệ Thống Đánh Giá Cầu Thủ\SEP490_BE\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\bin\Debug\net9.0\Newtonsoft.Json.dll
+D:\FPT University\YEAR 2026\SEP490\Hệ Thống Đánh Giá Cầu Thủ\SEP490_BE\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\bin\Debug\net9.0\PuppeteerSharp.dll
 D:\FPT University\YEAR 2026\SEP490\Hệ Thống Đánh Giá Cầu Thủ\SEP490_BE\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\bin\Debug\net9.0\Swashbuckle.AspNetCore.Swagger.dll
 D:\FPT University\YEAR 2026\SEP490\Hệ Thống Đánh Giá Cầu Thủ\SEP490_BE\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\bin\Debug\net9.0\Swashbuckle.AspNetCore.SwaggerGen.dll
 D:\FPT University\YEAR 2026\SEP490\Hệ Thống Đánh Giá Cầu Thủ\SEP490_BE\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\bin\Debug\net9.0\Swashbuckle.AspNetCore.SwaggerUI.dll
@@ -341,13 +353,19 @@ D:\FPT University\YEAR 2026\SEP490\Hệ Thống Đánh Giá Cầu Thủ\SEP490_B
 D:\FPT University\YEAR 2026\SEP490\Hệ Thống Đánh Giá Cầu Thủ\SEP490_BE\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\bin\Debug\net9.0\System.Composition.Runtime.dll
 D:\FPT University\YEAR 2026\SEP490\Hệ Thống Đánh Giá Cầu Thủ\SEP490_BE\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\bin\Debug\net9.0\System.Composition.TypedParts.dll
 D:\FPT University\YEAR 2026\SEP490\Hệ Thống Đánh Giá Cầu Thủ\SEP490_BE\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\bin\Debug\net9.0\System.Configuration.ConfigurationManager.dll
+D:\FPT University\YEAR 2026\SEP490\Hệ Thống Đánh Giá Cầu Thủ\SEP490_BE\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\bin\Debug\net9.0\System.Diagnostics.DiagnosticSource.dll
 D:\FPT University\YEAR 2026\SEP490\Hệ Thống Đánh Giá Cầu Thủ\SEP490_BE\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\bin\Debug\net9.0\System.Drawing.Common.dll
 D:\FPT University\YEAR 2026\SEP490\Hệ Thống Đánh Giá Cầu Thủ\SEP490_BE\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\bin\Debug\net9.0\System.IdentityModel.Tokens.Jwt.dll
+D:\FPT University\YEAR 2026\SEP490\Hệ Thống Đánh Giá Cầu Thủ\SEP490_BE\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\bin\Debug\net9.0\System.IO.Pipelines.dll
 D:\FPT University\YEAR 2026\SEP490\Hệ Thống Đánh Giá Cầu Thủ\SEP490_BE\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\bin\Debug\net9.0\System.Memory.Data.dll
+D:\FPT University\YEAR 2026\SEP490\Hệ Thống Đánh Giá Cầu Thủ\SEP490_BE\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\bin\Debug\net9.0\System.Net.WebSockets.WebSocketProtocol.dll
 D:\FPT University\YEAR 2026\SEP490\Hệ Thống Đánh Giá Cầu Thủ\SEP490_BE\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\bin\Debug\net9.0\System.Runtime.Caching.dll
 D:\FPT University\YEAR 2026\SEP490\Hệ Thống Đánh Giá Cầu Thủ\SEP490_BE\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\bin\Debug\net9.0\System.Security.Cryptography.ProtectedData.dll
 D:\FPT University\YEAR 2026\SEP490\Hệ Thống Đánh Giá Cầu Thủ\SEP490_BE\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\bin\Debug\net9.0\System.Security.Permissions.dll
+D:\FPT University\YEAR 2026\SEP490\Hệ Thống Đánh Giá Cầu Thủ\SEP490_BE\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\bin\Debug\net9.0\System.Text.Encodings.Web.dll
+D:\FPT University\YEAR 2026\SEP490\Hệ Thống Đánh Giá Cầu Thủ\SEP490_BE\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\bin\Debug\net9.0\System.Text.Json.dll
 D:\FPT University\YEAR 2026\SEP490\Hệ Thống Đánh Giá Cầu Thủ\SEP490_BE\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\bin\Debug\net9.0\System.Windows.Extensions.dll
+D:\FPT University\YEAR 2026\SEP490\Hệ Thống Đánh Giá Cầu Thủ\SEP490_BE\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\bin\Debug\net9.0\WebDriverBiDi.dll
 D:\FPT University\YEAR 2026\SEP490\Hệ Thống Đánh Giá Cầu Thủ\SEP490_BE\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\bin\Debug\net9.0\cs\Microsoft.CodeAnalysis.resources.dll
 D:\FPT University\YEAR 2026\SEP490\Hệ Thống Đánh Giá Cầu Thủ\SEP490_BE\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\bin\Debug\net9.0\de\Microsoft.CodeAnalysis.resources.dll
 D:\FPT University\YEAR 2026\SEP490\Hệ Thống Đánh Giá Cầu Thủ\SEP490_BE\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\bin\Debug\net9.0\es\Microsoft.CodeAnalysis.resources.dll
@@ -429,22 +447,13 @@ D:\FPT University\YEAR 2026\SEP490\Hệ Thống Đánh Giá Cầu Thủ\SEP490_B
 D:\FPT University\YEAR 2026\SEP490\Hệ Thống Đánh Giá Cầu Thủ\SEP490_BE\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\bin\Debug\net9.0\runtimes\win\lib\net6.0\System.Drawing.Common.dll
 D:\FPT University\YEAR 2026\SEP490\Hệ Thống Đánh Giá Cầu Thủ\SEP490_BE\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\bin\Debug\net9.0\runtimes\win\lib\net6.0\System.Runtime.Caching.dll
 D:\FPT University\YEAR 2026\SEP490\Hệ Thống Đánh Giá Cầu Thủ\SEP490_BE\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\bin\Debug\net9.0\runtimes\win\lib\net6.0\System.Security.Cryptography.ProtectedData.dll
+D:\FPT University\YEAR 2026\SEP490\Hệ Thống Đánh Giá Cầu Thủ\SEP490_BE\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\bin\Debug\net9.0\runtimes\browser\lib\net8.0\System.Text.Encodings.Web.dll
+D:\FPT University\YEAR 2026\SEP490\Hệ Thống Đánh Giá Cầu Thủ\SEP490_BE\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\bin\Debug\net9.0\runtimes\win\lib\net9.0\System.Text.Encodings.Web.dll
 D:\FPT University\YEAR 2026\SEP490\Hệ Thống Đánh Giá Cầu Thủ\SEP490_BE\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\bin\Debug\net9.0\runtimes\win\lib\net6.0\System.Windows.Extensions.dll
 D:\FPT University\YEAR 2026\SEP490\Hệ Thống Đánh Giá Cầu Thủ\SEP490_BE\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\bin\Debug\net9.0\VNFootballLeagues.Repositories.dll
 D:\FPT University\YEAR 2026\SEP490\Hệ Thống Đánh Giá Cầu Thủ\SEP490_BE\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\bin\Debug\net9.0\VNFootballLeagues.Services.dll
 D:\FPT University\YEAR 2026\SEP490\Hệ Thống Đánh Giá Cầu Thủ\SEP490_BE\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\bin\Debug\net9.0\VNFootballLeagues.Repositories.pdb
 D:\FPT University\YEAR 2026\SEP490\Hệ Thống Đánh Giá Cầu Thủ\SEP490_BE\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\bin\Debug\net9.0\VNFootballLeagues.Services.pdb
-D:\FPT University\YEAR 2026\SEP490\Hệ Thống Đánh Giá Cầu Thủ\SEP490_BE\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\obj\Debug\net9.0\VNFootballLeaguesApp.csproj.AssemblyReference.cache
-D:\FPT University\YEAR 2026\SEP490\Hệ Thống Đánh Giá Cầu Thủ\SEP490_BE\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\obj\Debug\net9.0\rpswa.dswa.cache.json
-D:\FPT University\YEAR 2026\SEP490\Hệ Thống Đánh Giá Cầu Thủ\SEP490_BE\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\obj\Debug\net9.0\VNFootballLeaguesApp.GeneratedMSBuildEditorConfig.editorconfig
-D:\FPT University\YEAR 2026\SEP490\Hệ Thống Đánh Giá Cầu Thủ\SEP490_BE\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\obj\Debug\net9.0\VNFootballLeaguesApp.AssemblyInfoInputs.cache
-D:\FPT University\YEAR 2026\SEP490\Hệ Thống Đánh Giá Cầu Thủ\SEP490_BE\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\obj\Debug\net9.0\VNFootballLeaguesApp.AssemblyInfo.cs
-D:\FPT University\YEAR 2026\SEP490\Hệ Thống Đánh Giá Cầu Thủ\SEP490_BE\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\obj\Debug\net9.0\VNFootballLeaguesApp.csproj.CoreCompileInputs.cache
-D:\FPT University\YEAR 2026\SEP490\Hệ Thống Đánh Giá Cầu Thủ\SEP490_BE\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\obj\Debug\net9.0\VNFootballLeaguesApp.MvcApplicationPartsAssemblyInfo.cs
-D:\FPT University\YEAR 2026\SEP490\Hệ Thống Đánh Giá Cầu Thủ\SEP490_BE\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\obj\Debug\net9.0\VNFootballLeaguesApp.MvcApplicationPartsAssemblyInfo.cache
-D:\FPT University\YEAR 2026\SEP490\Hệ Thống Đánh Giá Cầu Thủ\SEP490_BE\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\obj\Debug\net9.0\VNFootballLeaguesApp.RazorAssemblyInfo.cache
-D:\FPT University\YEAR 2026\SEP490\Hệ Thống Đánh Giá Cầu Thủ\SEP490_BE\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\obj\Debug\net9.0\VNFootballLeaguesApp.RazorAssemblyInfo.cs
-D:\FPT University\YEAR 2026\SEP490\Hệ Thống Đánh Giá Cầu Thủ\SEP490_BE\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\obj\Debug\net9.0\VNFootballLeaguesApp.sourcelink.json
 D:\FPT University\YEAR 2026\SEP490\Hệ Thống Đánh Giá Cầu Thủ\SEP490_BE\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\obj\Debug\net9.0\rjimswa.dswa.cache.json
 D:\FPT University\YEAR 2026\SEP490\Hệ Thống Đánh Giá Cầu Thủ\SEP490_BE\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\obj\Debug\net9.0\rjsmrazor.dswa.cache.json
 D:\FPT University\YEAR 2026\SEP490\Hệ Thống Đánh Giá Cầu Thủ\SEP490_BE\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\obj\Debug\net9.0\rjsmcshtml.dswa.cache.json
@@ -513,6 +522,7 @@ D:\FPT University\YEAR 2026\SEP490\Hệ Thống Đánh Giá Cầu Thủ\SEP490_B
 D:\FPT University\YEAR 2026\SEP490\Hệ Thống Đánh Giá Cầu Thủ\SEP490_BE\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\obj\Debug\net9.0\compressed\75x0uw8lyk-9vr69e8ynj.gz
 D:\FPT University\YEAR 2026\SEP490\Hệ Thống Đánh Giá Cầu Thủ\SEP490_BE\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\obj\Debug\net9.0\compressed\ad3vmmu303-87fc7y1x7t.gz
 D:\FPT University\YEAR 2026\SEP490\Hệ Thống Đánh Giá Cầu Thủ\SEP490_BE\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\obj\Debug\net9.0\compressed\2ingwmtbzz-mlv21k5csn.gz
+D:\FPT University\YEAR 2026\SEP490\Hệ Thống Đánh Giá Cầu Thủ\SEP490_BE\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\obj\Debug\net9.0\compressed\7md637ksw7-k7rf2bo6ep.gz
 D:\FPT University\YEAR 2026\SEP490\Hệ Thống Đánh Giá Cầu Thủ\SEP490_BE\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\obj\Debug\net9.0\compressed\sikxxtykfp-ur7d1w9iq6.gz
 D:\FPT University\YEAR 2026\SEP490\Hệ Thống Đánh Giá Cầu Thủ\SEP490_BE\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\obj\Debug\net9.0\compressed\vyfwqe8txw-ur7d1w9iq6.gz
 D:\FPT University\YEAR 2026\SEP490\Hệ Thống Đánh Giá Cầu Thủ\SEP490_BE\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\obj\Debug\net9.0\staticwebassets.build.json
@@ -525,11 +535,3 @@ D:\FPT University\YEAR 2026\SEP490\Hệ Thống Đánh Giá Cầu Thủ\SEP490_B
 D:\FPT University\YEAR 2026\SEP490\Hệ Thống Đánh Giá Cầu Thủ\SEP490_BE\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\obj\Debug\net9.0\VNFootballLeaguesApp.pdb
 D:\FPT University\YEAR 2026\SEP490\Hệ Thống Đánh Giá Cầu Thủ\SEP490_BE\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\obj\Debug\net9.0\VNFootballLeaguesApp.genruntimeconfig.cache
 D:\FPT University\YEAR 2026\SEP490\Hệ Thống Đánh Giá Cầu Thủ\SEP490_BE\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\obj\Debug\net9.0\ref\VNFootballLeaguesApp.dll
-D:\FPT University\YEAR 2026\SEP490\Hệ Thống Đánh Giá Cầu Thủ\SEP490_BE\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\bin\Debug\net9.0\PuppeteerSharp.dll
-D:\FPT University\YEAR 2026\SEP490\Hệ Thống Đánh Giá Cầu Thủ\SEP490_BE\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\bin\Debug\net9.0\System.Diagnostics.DiagnosticSource.dll
-D:\FPT University\YEAR 2026\SEP490\Hệ Thống Đánh Giá Cầu Thủ\SEP490_BE\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\bin\Debug\net9.0\System.IO.Pipelines.dll
-D:\FPT University\YEAR 2026\SEP490\Hệ Thống Đánh Giá Cầu Thủ\SEP490_BE\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\bin\Debug\net9.0\System.Text.Encodings.Web.dll
-D:\FPT University\YEAR 2026\SEP490\Hệ Thống Đánh Giá Cầu Thủ\SEP490_BE\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\bin\Debug\net9.0\System.Text.Json.dll
-D:\FPT University\YEAR 2026\SEP490\Hệ Thống Đánh Giá Cầu Thủ\SEP490_BE\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\bin\Debug\net9.0\WebDriverBiDi.dll
-D:\FPT University\YEAR 2026\SEP490\Hệ Thống Đánh Giá Cầu Thủ\SEP490_BE\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\bin\Debug\net9.0\runtimes\browser\lib\net8.0\System.Text.Encodings.Web.dll
-D:\FPT University\YEAR 2026\SEP490\Hệ Thống Đánh Giá Cầu Thủ\SEP490_BE\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\bin\Debug\net9.0\runtimes\win\lib\net9.0\System.Text.Encodings.Web.dll
