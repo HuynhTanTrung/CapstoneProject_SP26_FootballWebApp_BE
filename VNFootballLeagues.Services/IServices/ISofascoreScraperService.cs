@@ -11,4 +11,12 @@ public interface ISofascoreScraperService
     /// <param name="eventId">The SofaScore event/match ID</param>
     /// <returns>JSON string containing lineup data</returns>
     Task<string> GetMatchLineupsAsync(int eventId);
+
+    /// <summary>
+    /// Fetches tournament standings data from SofaScore API
+    /// </summary>
+    /// <param name="tournamentId">The SofaScore tournament ID</param>
+    /// <param name="seasonId">The season ID</param>
+    /// <returns>JSON string containing standings data</returns>
+    Task<string> GetTournamentStandingsAsync(int tournamentId, int seasonId);
 }

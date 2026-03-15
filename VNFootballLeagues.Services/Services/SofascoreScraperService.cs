@@ -27,6 +27,35 @@ public class SofascoreScraperService : ISofascoreScraperService
     /// <exception cref="Exception">Thrown when scraping fails</exception>
     public async Task<string> GetMatchLineupsAsync(int eventId)
     {
+        string url = $"https://www.sofascore.com/api/v1/event/{eventId}/lineups";
+        _logger.LogInformation("Fetching lineups for event {EventId}", eventId);
+        
+        return await ScrapeApiEndpointAsync(url, $"event {eventId} lineups");
+    }
+
+    /// <summary>
+    /// Fetches tournament standings data from SofaScore API using browser automation
+    /// </summary>
+    /// <param name="tournamentId">The SofaScore tournament ID</param>
+    /// <param name="seasonId">The season ID</param>
+    /// <returns>JSON string containing standings data</returns>
+    /// <exception cref="Exception">Thrown when scraping fails</exception>
+    public async Task<string> GetTournamentStandingsAsync(int tournamentId, int seasonId)
+    {
+        string url = $"https://www.sofascore.com/api/v1/tournament/{tournamentId}/season/{seasonId}/standings/total";
+        _logger.LogInformation("Fetching standings for tournament {TournamentId}, season {SeasonId}", tournamentId, seasonId);
+        
+        return await ScrapeApiEndpointAsync(url, $"tournament {tournamentId} season {seasonId} standings");
+    }
+
+    /// <summary>
+    /// Generic method to scrape any SofaScore API endpoint
+    /// </summary>
+    /// <param name="apiUrl">The full API URL to scrape</param>
+    /// <param name="description">Description for logging purposes</param>
+    /// <returns>JSON string response</returns>
+    private async Task<string> ScrapeApiEndpointAsync(string apiUrl, string description)
+    {
         IBrowser? browser = null;
         IPage? page = null;
 
@@ -35,8 +64,8 @@ public class SofascoreScraperService : ISofascoreScraperService
             // Ensure Chromium is downloaded (only happens once)
             await EnsureBrowserDownloadedAsync();
 
-            // Launch headless Chromium browser with additional stealth options
-            _logger.LogInformation("Launching headless browser for event {EventId}", eventId);
+            // Launch headless Chromium browser with stealth options
+            _logger.LogInformation("Launching headless browser for {Description}", description);
             browser = await Puppeteer.LaunchAsync(new LaunchOptions
             {
                 Headless = true,
@@ -62,7 +91,7 @@ public class SofascoreScraperService : ISofascoreScraperService
                 Height = 1080
             });
 
-            // Set user agent and headers to mimic a real browser
+            // Set user agent to mimic a real browser
             await page.SetUserAgentAsync(
                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
             );
@@ -74,7 +103,7 @@ public class SofascoreScraperService : ISofascoreScraperService
                 { "Accept-Encoding", "gzip, deflate, br" }
             });
 
-            // STRATEGY: First visit main site to establish session and cookies
+            // First visit main site to establish session and cookies
             _logger.LogInformation("Establishing session by visiting main site");
             await page.GoToAsync("https://www.sofascore.com/", new NavigationOptions
             {
@@ -82,18 +111,15 @@ public class SofascoreScraperService : ISofascoreScraperService
                 Timeout = 30000
             });
 
-            // Wait for page to settle
+            // Wait for page to settle and cookies to be set
             await Task.Delay(2000);
 
-            // Now navigate to the API endpoint with established session
-            string url = $"https://www.sofascore.com/api/v1/event/{eventId}/lineups";
-            _logger.LogInformation("Navigating to API endpoint: {Url}", url);
-
-            // Use page.EvaluateFunctionAsync to fetch via XHR/fetch instead of navigation
+            // Fetch API data using JavaScript fetch within browser context
+            _logger.LogInformation("Fetching data from: {Url}", apiUrl);
             string jsonResponse = await page.EvaluateFunctionAsync<string>($@"
                 async () => {{
                     try {{
-                        const response = await fetch('{url}', {{
+                        const response = await fetch('{apiUrl}', {{
                             method: 'GET',
                             headers: {{
                                 'Accept': 'application/json',
@@ -128,15 +154,15 @@ public class SofascoreScraperService : ISofascoreScraperService
                 throw new Exception("Response is not valid JSON");
             }
 
-            _logger.LogInformation("Successfully retrieved lineup data for event {EventId} ({Length} characters)", 
-                eventId, jsonResponse.Length);
+            _logger.LogInformation("Successfully retrieved data for {Description} ({Length} characters)", 
+                description, jsonResponse.Length);
 
             return jsonResponse;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error scraping lineup data for event {EventId}", eventId);
-            throw new Exception($"Failed to scrape lineup data for event {eventId}: {ex.Message}", ex);
+            _logger.LogError(ex, "Error scraping data for {Description}", description);
+            throw new Exception($"Failed to scrape {description}: {ex.Message}", ex);
         }
         finally
         {
