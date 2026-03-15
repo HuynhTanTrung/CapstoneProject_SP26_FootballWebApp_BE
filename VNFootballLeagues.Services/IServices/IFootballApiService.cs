@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -22,5 +22,16 @@ namespace VNFootballLeagues.Services.IServices
         Task<TeamStatistic> SyncTeamStatisticsAsync(int apiLeagueId, int seasonYear, int apiTeamId);
         //Task<List<Lineup>> SyncLineupsAsync(int apiFixtureId);
 
+        // GetAll methods
+        Task<List<League>> GetAllLeaguesAsync();
+        Task<List<Season>> GetAllSeasonsAsync();
+        Task<List<Team>> GetAllTeamsAsync();
+        Task<List<Player>> GetAllPlayersAsync();
+        Task<List<PlayerSeasonStatistic>> GetAllPlayerSeasonStatisticsAsync();
+        Task<List<Match>> GetAllMatchesAsync();
+        Task<List<Standing>> GetAllStandingsAsync();
+        Task<List<MatchEvent>> GetAllMatchEventsAsync();
+        Task<List<Transfer>> GetAllTransfersAsync();
+        Task<List<TeamStatistic>> GetAllTeamStatisticsAsync();
     }
 }

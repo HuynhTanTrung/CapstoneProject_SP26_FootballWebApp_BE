@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -997,5 +997,57 @@ namespace VNFootballLeagues.Services.Services
 
         //    return lineups;
         //}
+
+        // ==================== GetAll Methods ====================
+
+        public async Task<List<League>> GetAllLeaguesAsync()
+        {
+            return await _context.Leagues.ToListAsync();
+        }
+
+        public async Task<List<Season>> GetAllSeasonsAsync()
+        {
+            return await _context.Seasons.ToListAsync();
+        }
+
+        public async Task<List<Team>> GetAllTeamsAsync()
+        {
+            return await _context.Teams.ToListAsync();
+        }
+
+        public async Task<List<Player>> GetAllPlayersAsync()
+        {
+            return await _context.Players.ToListAsync();
+        }
+
+        public async Task<List<PlayerSeasonStatistic>> GetAllPlayerSeasonStatisticsAsync()
+        {
+            return await _context.PlayerSeasonStatistics.ToListAsync();
+        }
+
+        public async Task<List<Match>> GetAllMatchesAsync()
+        {
+            return await _context.Matches.ToListAsync();
+        }
+
+        public async Task<List<Standing>> GetAllStandingsAsync()
+        {
+            return await _context.Standings.ToListAsync();
+        }
+
+        public async Task<List<MatchEvent>> GetAllMatchEventsAsync()
+        {
+            return await _context.MatchEvents.ToListAsync();
+        }
+
+        public async Task<List<Transfer>> GetAllTransfersAsync()
+        {
+            return await _context.Transfers.ToListAsync();
+        }
+
+        public async Task<List<TeamStatistic>> GetAllTeamStatisticsAsync()
+        {
+            return await _context.TeamStatistics.ToListAsync();
+        }
     }
 }
