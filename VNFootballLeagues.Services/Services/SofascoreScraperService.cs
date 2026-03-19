@@ -37,13 +37,13 @@ public class SofascoreScraperService : ISofascoreScraperService
     /// <summary>
     /// Fetches tournament standings data from SofaScore API using browser automation
     /// </summary>
-    /// <param name="tournamentId">The SofaScore tournament ID</param>
+    /// <param name="tournamentId">The SofaScore uniqueTournament ID (e.g. 626 for V-League 1)</param>
     /// <param name="seasonId">The season ID</param>
     /// <returns>JSON string containing standings data</returns>
     /// <exception cref="Exception">Thrown when scraping fails</exception>
     public async Task<string> GetTournamentStandingsAsync(int tournamentId, int seasonId)
     {
-        string url = $"https://www.sofascore.com/api/v1/tournament/{tournamentId}/season/{seasonId}/standings/total";
+        string url = $"https://www.sofascore.com/api/v1/unique-tournament/{tournamentId}/season/{seasonId}/standings/total";
         _logger.LogInformation("Fetching standings for tournament {TournamentId}, season {SeasonId}", tournamentId, seasonId);
         
         return await ScrapeApiEndpointAsync(url, $"tournament {tournamentId} season {seasonId} standings");
