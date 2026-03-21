@@ -3,6 +3,7 @@ using Microsoft.OpenApi.Models;
 using VNFootballLeagues.Services.IServices;
 using VNFootballLeagues.Services.Services;
 using VNFootballLeaguesApp.Extensions;
+using VNFootballLeaguesApp.Hubs;
 using VNFootballLeaguesApp.Middleware;
 using VNFootballLeaguesApp.Services;
 using VNFootballLeaguesApp.Settings;
@@ -50,15 +51,22 @@ builder.Services.AddCors(options =>
     options.AddPolicy("FrontendPolicy", policy =>
     {
         var allowedOrigins = builder.Configuration.GetSection("CorsSettings:AllowedOrigins").Get<string[]>() ?? [];
+        
+        // For SignalR, we need to allow credentials, so we can't use AllowAnyOrigin
+        // If no origins configured, allow localhost for development
         if (allowedOrigins.Length == 0)
         {
-            policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod();
+            policy.SetIsOriginAllowed(_ => true) // Allow any origin in development
+                  .AllowAnyHeader()
+                  .AllowAnyMethod()
+                  .AllowCredentials();
             return;
         }
 
         policy.WithOrigins(allowedOrigins)
               .AllowAnyHeader()
-              .AllowAnyMethod();
+              .AllowAnyMethod()
+              .AllowCredentials();
     });
 });
 
@@ -83,7 +91,17 @@ builder.Services.AddControllers()
 builder.Services.Configure<DatabaseAutoUpdateSettings>(builder.Configuration.GetSection("DatabaseAutoUpdate"));
 builder.Services.AddHostedService<DatabaseAutoUpdateHostedService>();
 builder.Services.AddHttpClient<IFootballApiService, FootballApiService>();
+
+// Register SofaScore scraper service
+builder.Services.AddScoped<ISofascoreScraperService, SofascoreScraperService>();
+
+// Register SignalR
+builder.Services.AddSignalR();
+
+// Register Live Match Polling Service
+builder.Services.AddHostedService<LiveMatchPollingService>();
 builder.Services.AddScoped<ISofascoreHybridService, SofascoreHybridService>();
+
 
 var app = builder.Build();
 
@@ -101,11 +119,15 @@ if (enableSwagger)
 }
 
 app.UseHttpsRedirection();
+app.UseStaticFiles(); // Enable serving static files from wwwroot
 app.UseCors("FrontendPolicy");
 app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+
+// Map SignalR hub
+app.MapHub<LiveMatchHub>("/hubs/livematch");
 
 app.Run();

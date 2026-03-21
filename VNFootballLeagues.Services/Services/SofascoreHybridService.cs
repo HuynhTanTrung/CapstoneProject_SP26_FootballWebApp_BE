@@ -27,6 +27,27 @@ namespace VNFootballLeagues.Services.Services
         }
 
         #region Browser Management
+        private async Task EnsureBrowserExistsAsync()
+        {
+            var browserFetcher = new BrowserFetcher();
+
+            // Get installed browsers - this returns a list of BrowserInfo objects
+            var installedBrowsers = browserFetcher.GetInstalledBrowsers();
+
+            if (installedBrowsers.Any())
+            {
+                var browserInfo = installedBrowsers.First();
+                _logger.LogInformation($"Browser already installed at: {browserInfo.GetExecutablePath()}");
+                return;
+            }
+
+            _logger.LogInformation("Downloading browser...");
+
+            // Use DownloadAsync without a specific revision (gets the default)
+            var revision = await browserFetcher.DownloadAsync();
+
+            _logger.LogInformation($"Browser downloaded successfully to: {revision.GetExecutablePath()}");
+        }
 
         private async Task InitBrowser()
         {
@@ -37,72 +58,45 @@ namespace VNFootballLeagues.Services.Services
             {
                 if (_initialized) return;
 
-                // Use a specific browser path for Azure
+                _logger.LogInformation("Launching browser...");
+
+                // Ensure browser exists before launching
+                await EnsureBrowserExistsAsync();
+
                 var options = new LaunchOptions
                 {
                     Headless = true,
+                    Timeout = 60000,
                     Args = new[]
                     {
                 "--no-sandbox",
                 "--disable-setuid-sandbox",
                 "--disable-dev-shm-usage",
-                "--disable-accelerated-2d-canvas",
                 "--disable-gpu",
                 "--window-size=1920,1080",
-                "--disable-web-security",
-                "--disable-features=VizDisplayCompositor",
                 "--disable-extensions",
-                "--disable-component-extensions-with-background-pages",
-                "--disable-default-apps",
-                "--mute-audio",
-                "--no-first-run",
-                "--disable-background-networking",
                 "--disable-sync",
-                "--disable-translate"
-            },
-                    Timeout = 60000, // Increased timeout for Azure
-                    ExecutablePath = GetChromeExecutablePath() // Set specific path
+                "--no-first-run",
+                "--no-zygote",
+                "--single-process"
+            }
                 };
 
                 _browser = await Puppeteer.LaunchAsync(options);
+
                 _initialized = true;
-                _logger.LogInformation("Browser initialized successfully");
+
+                _logger.LogInformation("Browser initialized successfully ✅");
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to initialize browser");
+                _logger.LogError(ex, "❌ Failed to initialize browser");
                 throw;
             }
             finally
             {
                 _lock.Release();
             }
-        }
-
-        private string GetChromeExecutablePath()
-        {
-            // Try different possible paths for Chrome in Azure
-            var possiblePaths = new[]
-            {
-        Path.Combine(Directory.GetCurrentDirectory(), "Chrome", "chrome.exe"),
-        Path.Combine(Directory.GetCurrentDirectory(), "chrome-win", "chrome.exe"),
-        Path.Combine(Directory.GetCurrentDirectory(), "bin", "chrome", "chrome.exe"),
-        // On Linux Azure App Service
-        "/usr/bin/google-chrome",
-        "/usr/bin/chromium-browser",
-        "/usr/bin/chromium"
-    };
-
-            foreach (var path in possiblePaths)
-            {
-                if (File.Exists(path))
-                {
-                    _logger.LogInformation($"Found Chrome at: {path}");
-                    return path;
-                }
-            }
-
-            return null; // Let Puppeteer find it automatically
         }
 
         private async Task<string> FetchJson(string url, int retryCount = 2)

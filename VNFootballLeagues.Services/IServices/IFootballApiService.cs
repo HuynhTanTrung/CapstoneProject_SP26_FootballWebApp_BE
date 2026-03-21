@@ -10,6 +10,7 @@ namespace VNFootballLeagues.Services.IServices
 {
     public interface IFootballApiService
     {
+        // Sync methods (POST)
         Task<List<Team>> SyncTeamsByLeagueAsync(int apiLeagueId, int season);
         Task<List<Season>> SyncSeasonsAsync();
         Task<List<League>> SyncLeaguesAsync();

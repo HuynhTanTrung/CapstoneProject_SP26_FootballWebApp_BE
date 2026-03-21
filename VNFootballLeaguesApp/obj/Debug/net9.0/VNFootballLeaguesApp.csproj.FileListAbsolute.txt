@@ -84,6 +84,7 @@ D:\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\bin\Debug\net9.0\
 D:\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\bin\Debug\net9.0\System.IdentityModel.Tokens.Jwt.dll
 D:\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\bin\Debug\net9.0\System.IO.Pipelines.dll
 D:\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\bin\Debug\net9.0\System.Memory.Data.dll
+D:\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\bin\Debug\net9.0\System.Net.WebSockets.WebSocketProtocol.dll
 D:\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\bin\Debug\net9.0\System.Runtime.Caching.dll
 D:\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\bin\Debug\net9.0\System.Security.Cryptography.ProtectedData.dll
 D:\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\bin\Debug\net9.0\System.Security.Permissions.dll
@@ -258,6 +259,7 @@ D:\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\obj\Debug\net9.0\
 D:\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\obj\Debug\net9.0\compressed\75x0uw8lyk-9vr69e8ynj.gz
 D:\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\obj\Debug\net9.0\compressed\ad3vmmu303-87fc7y1x7t.gz
 D:\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\obj\Debug\net9.0\compressed\2ingwmtbzz-mlv21k5csn.gz
+D:\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\obj\Debug\net9.0\compressed\7md637ksw7-k7rf2bo6ep.gz
 D:\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\obj\Debug\net9.0\compressed\sikxxtykfp-ur7d1w9iq6.gz
 D:\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\obj\Debug\net9.0\compressed\vyfwqe8txw-ur7d1w9iq6.gz
 D:\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\obj\Debug\net9.0\staticwebassets.build.json
