@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.HttpsPolicy;
 using Microsoft.OpenApi.Models;
 using VNFootballLeagues.Services.IServices;
 using VNFootballLeagues.Services.Services;
@@ -99,6 +100,7 @@ builder.Services.AddSignalR();
 
 // Register Live Match Polling Service
 builder.Services.AddHostedService<LiveMatchPollingService>();
+builder.Services.AddScoped<ISofascoreHybridService, SofascoreHybridService>();
 
 
 var app = builder.Build();

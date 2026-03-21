@@ -8,32 +8,63 @@ namespace VNFootballLeagues.Repositories.Models;
 public partial class TeamStatistic
 {
     public int TeamStatId { get; set; }
-
     public int? TeamId { get; set; }
-
     public int? LeagueId { get; set; }
-
     public int? SeasonId { get; set; }
-
     public int? Played { get; set; }
-
     public int? Wins { get; set; }
-
     public int? Draws { get; set; }
-
     public int? Losses { get; set; }
-
     public int? GoalsFor { get; set; }
-
     public int? GoalsAgainst { get; set; }
-
+    public string Form { get; set; }
+    public int? HomePlayed { get; set; }
+    public int? HomeWins { get; set; }
+    public int? HomeDraws { get; set; }
+    public int? HomeLosses { get; set; }
+    public int? AwayPlayed { get; set; }
+    public int? AwayWins { get; set; }
+    public int? AwayDraws { get; set; }
+    public int? AwayLosses { get; set; }
+    public int? HomeGoalsFor { get; set; }
+    public int? AwayGoalsFor { get; set; }
+    public int? HomeGoalsAgainst { get; set; }
+    public int? AwayGoalsAgainst { get; set; }
+    public string GoalsForAvgHome { get; set; }
+    public string GoalsForAvgAway { get; set; }
+    public string GoalsForAvgTotal { get; set; }
+    public string GoalsAgainstAvgHome { get; set; }
+    public string GoalsAgainstAvgAway { get; set; }
+    public string GoalsAgainstAvgTotal { get; set; }
+    public string GoalsForMinute { get; set; }
+    public string GoalsAgainstMinute { get; set; }
+    public string UnderOverFor { get; set; }
+    public string UnderOverAgainst { get; set; }
+    public int? BiggestStreakWins { get; set; }
+    public int? BiggestStreakDraws { get; set; }
+    public int? BiggestStreakLosses { get; set; }
+    public string BiggestWinHome { get; set; }
+    public string BiggestWinAway { get; set; }
+    public string BiggestLossHome { get; set; }
+    public string BiggestLossAway { get; set; }
+    public int? BiggestGoalsForHome { get; set; }
+    public int? BiggestGoalsForAway { get; set; }
+    public int? BiggestGoalsAgainstHome { get; set; }
+    public int? BiggestGoalsAgainstAway { get; set; }
+    public int? PenaltiesScored { get; set; }
+    public int? PenaltiesMissed { get; set; }
+    public int? PenaltiesTotal { get; set; }
+    public string PenaltyPercentage { get; set; }
+    public string YellowCardsMinute { get; set; }
+    public string RedCardsMinute { get; set; }
     public int? CleanSheets { get; set; }
-
+    public int? CleanSheetsHome { get; set; }
+    public int? CleanSheetsAway { get; set; }
     public int? FailedToScore { get; set; }
+    public int? FailedToScoreHome { get; set; }
+    public int? FailedToScoreAway { get; set; }
 
     public virtual League League { get; set; }
-
     public virtual Season Season { get; set; }
-
     public virtual Team Team { get; set; }
 }

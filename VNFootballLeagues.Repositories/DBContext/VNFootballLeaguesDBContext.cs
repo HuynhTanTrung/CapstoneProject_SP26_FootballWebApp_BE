@@ -493,6 +493,55 @@ public partial class VNFootballLeaguesDBContext : DbContext
         {
             entity.HasKey(e => e.TeamStatId).HasName("PK__TeamStat__A0F24F8C98D4F1F2");
 
+            entity.Property(e => e.Form).HasMaxLength(100);
+
+            entity.Property(e => e.HomePlayed);
+            entity.Property(e => e.HomeWins);
+            entity.Property(e => e.HomeDraws);
+            entity.Property(e => e.HomeLosses);
+            entity.Property(e => e.AwayPlayed);
+            entity.Property(e => e.AwayWins);
+            entity.Property(e => e.AwayDraws);
+            entity.Property(e => e.AwayLosses);
+
+            entity.Property(e => e.HomeGoalsFor);
+            entity.Property(e => e.AwayGoalsFor);
+            entity.Property(e => e.HomeGoalsAgainst);
+            entity.Property(e => e.AwayGoalsAgainst);
+
+            entity.Property(e => e.GoalsForAvgHome).HasMaxLength(10);
+            entity.Property(e => e.GoalsForAvgAway).HasMaxLength(10);
+            entity.Property(e => e.GoalsForAvgTotal).HasMaxLength(10);
+            entity.Property(e => e.GoalsAgainstAvgHome).HasMaxLength(10);
+            entity.Property(e => e.GoalsAgainstAvgAway).HasMaxLength(10);
+            entity.Property(e => e.GoalsAgainstAvgTotal).HasMaxLength(10);
+
+            entity.Property(e => e.GoalsForMinute).HasColumnType("nvarchar(max)");
+            entity.Property(e => e.GoalsAgainstMinute).HasColumnType("nvarchar(max)");
+            entity.Property(e => e.UnderOverFor).HasColumnType("nvarchar(max)");
+            entity.Property(e => e.UnderOverAgainst).HasColumnType("nvarchar(max)");
+            entity.Property(e => e.YellowCardsMinute).HasColumnType("nvarchar(max)");
+            entity.Property(e => e.RedCardsMinute).HasColumnType("nvarchar(max)");
+
+            entity.Property(e => e.BiggestStreakWins);
+            entity.Property(e => e.BiggestStreakDraws);
+            entity.Property(e => e.BiggestStreakLosses);
+            entity.Property(e => e.BiggestWinHome).HasMaxLength(20);
+            entity.Property(e => e.BiggestWinAway).HasMaxLength(20);
+            entity.Property(e => e.BiggestLossHome).HasMaxLength(20);
+            entity.Property(e => e.BiggestLossAway).HasMaxLength(20);
+
+            entity.Property(e => e.PenaltiesScored);
+            entity.Property(e => e.PenaltiesMissed);
+            entity.Property(e => e.PenaltiesTotal);
+            entity.Property(e => e.PenaltyPercentage).HasMaxLength(10);
+
+            entity.Property(e => e.CleanSheetsHome);
+            entity.Property(e => e.CleanSheetsAway);
+
+            entity.Property(e => e.FailedToScoreHome);
+            entity.Property(e => e.FailedToScoreAway);
+
             entity.HasOne(d => d.League).WithMany(p => p.TeamStatistics)
                 .HasForeignKey(d => d.LeagueId)
                 .HasConstraintName("FK__TeamStati__Leagu__7E37BEF6");
@@ -510,12 +559,6 @@ public partial class VNFootballLeaguesDBContext : DbContext
         {
             entity.HasKey(e => e.TransferId).HasName("PK__Transfer__9549009130B11A7E");
 
-            entity.Property(e => e.ContractUntil)
-                .HasMaxLength(50)
-                .IsUnicode(false);
-            entity.Property(e => e.TransferFee)
-                .HasMaxLength(50)
-                .IsUnicode(false);
             entity.Property(e => e.TransferType)
                 .HasMaxLength(50)
                 .IsUnicode(false);

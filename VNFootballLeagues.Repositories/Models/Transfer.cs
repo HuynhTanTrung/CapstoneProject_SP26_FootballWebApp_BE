@@ -9,21 +9,15 @@ public partial class Transfer
 {
     public int TransferId { get; set; }
 
-    public int? ApiTransferId { get; set; }
-
     public int? PlayerId { get; set; }
 
     public int? FromTeamId { get; set; }
 
     public int? ToTeamId { get; set; }
 
-    public DateOnly? TransferDate { get; set; }
+    public DateTime? TransferDate { get; set; }
 
     public string TransferType { get; set; }
-
-    public string TransferFee { get; set; }
-
-    public string ContractUntil { get; set; }
 
     public virtual Team FromTeam { get; set; }
 

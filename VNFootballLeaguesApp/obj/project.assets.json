@@ -1668,6 +1668,19 @@
           }
         }
       },
+      "Microsoft.IO.RecyclableMemoryStream/3.0.1": {
+        "type": "package",
+        "compile": {
+          "lib/net6.0/Microsoft.IO.RecyclableMemoryStream.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net6.0/Microsoft.IO.RecyclableMemoryStream.dll": {
+            "related": ".xml"
+          }
+        }
+      },
       "Microsoft.Net.Http.Headers/2.3.0": {
         "type": "package",
         "dependencies": {
@@ -1859,11 +1872,12 @@
           }
         }
       },
-      "PuppeteerSharp/24.39.0": {
+      "PuppeteerSharp/24.40.0": {
         "type": "package",
         "dependencies": {
           "Microsoft.Bcl.AsyncInterfaces": "10.0.3",
           "Microsoft.Extensions.Logging": "10.0.0",
+          "Microsoft.IO.RecyclableMemoryStream": "3.0.1",
           "System.Text.Json": "10.0.3",
           "WebDriverBiDi": "0.0.45"
         },
@@ -4182,7 +4196,7 @@
           "BCrypt.Net-Next": "4.0.3",
           "MailKit": "4.8.0",
           "Microsoft.Extensions.Options.ConfigurationExtensions": "9.0.9",
-          "PuppeteerSharp": "24.39.0",
+          "PuppeteerSharp": "24.40.0",
           "System.IdentityModel.Tokens.Jwt": "8.14.0",
           "VNFootballLeagues.Repositories": "1.0.0"
         },
@@ -6959,6 +6973,24 @@
         "microsoft.identitymodel.tokens.nuspec"
       ]
     },
+    "Microsoft.IO.RecyclableMemoryStream/3.0.1": {
+      "sha512": "s/s20YTVY9r9TPfTrN5g8zPF1YhwxyqO6PxUkrYTGI2B+OGPe9AdajWZrLhFqXIvqIW23fnUE4+ztrUWNU1+9g==",
+      "type": "package",
+      "path": "microsoft.io.recyclablememorystream/3.0.1",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "README.md",
+        "lib/net6.0/Microsoft.IO.RecyclableMemoryStream.dll",
+        "lib/net6.0/Microsoft.IO.RecyclableMemoryStream.xml",
+        "lib/netstandard2.0/Microsoft.IO.RecyclableMemoryStream.dll",
+        "lib/netstandard2.0/Microsoft.IO.RecyclableMemoryStream.xml",
+        "lib/netstandard2.1/Microsoft.IO.RecyclableMemoryStream.dll",
+        "lib/netstandard2.1/Microsoft.IO.RecyclableMemoryStream.xml",
+        "microsoft.io.recyclablememorystream.3.0.1.nupkg.sha512",
+        "microsoft.io.recyclablememorystream.nuspec"
+      ]
+    },
     "Microsoft.Net.Http.Headers/2.3.0": {
       "sha512": "/M0wVg6tJUOHutWD3BMOUVZAioJVXe0tCpFiovzv0T9T12TBf4MnaHP0efO8TCr1a6O9RZgQeZ9Gdark8L9XdA==",
       "type": "package",
@@ -7204,10 +7236,10 @@
         "newtonsoft.json.nuspec"
       ]
     },
-    "PuppeteerSharp/24.39.0": {
-      "sha512": "T0Y6LiBa/c7Yk0O5i1A7FG0rSzgyJjGXtkGMCLwR9L7dZaXOjHj3/nq43KSlyzu98+loSKtVbFAnDpOM/Tc+zQ==",
+    "PuppeteerSharp/24.40.0": {
+      "sha512": "vVvHFHCRW6772ptQmwzIxmc2CdkEv+F9kTlCncv4VFSGev1ev5mtlL9aVOPdHc6ss5ck6sArP4b2JtNy/7GzGA==",
       "type": "package",
-      "path": "puppeteersharp/24.39.0",
+      "path": "puppeteersharp/24.40.0",
       "files": [
         ".nupkg.metadata",
         ".signature.p7s",
@@ -7216,7 +7248,7 @@
         "lib/net10.0/PuppeteerSharp.xml",
         "lib/netstandard2.0/PuppeteerSharp.dll",
         "lib/netstandard2.0/PuppeteerSharp.xml",
-        "puppeteersharp.24.39.0.nupkg.sha512",
+        "puppeteersharp.24.40.0.nupkg.sha512",
         "puppeteersharp.nuspec"
       ]
     },
@@ -12431,35 +12463,42 @@
     ]
   },
   "packageFolders": {
-    "C:\\Users\\ASUS\\.nuget\\packages\\": {}
+    "C:\\Users\\Nghe\\.nuget\\packages\\": {},
+    "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages": {}
   },
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "D:\\FPT University\\YEAR 2026\\SEP490\\Hệ Thống Đánh Giá Cầu Thủ\\SEP490_BE\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeaguesApp\\VNFootballLeaguesApp.csproj",
+      "projectUniqueName": "D:\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeaguesApp\\VNFootballLeaguesApp.csproj",
       "projectName": "VNFootballLeaguesApp",
-      "projectPath": "D:\\FPT University\\YEAR 2026\\SEP490\\Hệ Thống Đánh Giá Cầu Thủ\\SEP490_BE\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeaguesApp\\VNFootballLeaguesApp.csproj",
-      "packagesPath": "C:\\Users\\ASUS\\.nuget\\packages\\",
-      "outputPath": "D:\\FPT University\\YEAR 2026\\SEP490\\Hệ Thống Đánh Giá Cầu Thủ\\SEP490_BE\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeaguesApp\\obj\\",
+      "projectPath": "D:\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeaguesApp\\VNFootballLeaguesApp.csproj",
+      "packagesPath": "C:\\Users\\Nghe\\.nuget\\packages\\",
+      "outputPath": "D:\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeaguesApp\\obj\\",
       "projectStyle": "PackageReference",
+      "fallbackFolders": [
+        "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
+      ],
       "configFilePaths": [
-        "C:\\Users\\ASUS\\AppData\\Roaming\\NuGet\\NuGet.Config"
+        "C:\\Users\\Nghe\\AppData\\Roaming\\NuGet\\NuGet.Config",
+        "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
+        "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
       ],
       "originalTargetFrameworks": [
         "net9.0"
       ],
       "sources": {
+        "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
         "https://api.nuget.org/v3/index.json": {}
       },
       "frameworks": {
         "net9.0": {
           "targetAlias": "net9.0",
           "projectReferences": {
-            "D:\\FPT University\\YEAR 2026\\SEP490\\Hệ Thống Đánh Giá Cầu Thủ\\SEP490_BE\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeagues.Repositories\\VNFootballLeagues.Repositories.csproj": {
-              "projectPath": "D:\\FPT University\\YEAR 2026\\SEP490\\Hệ Thống Đánh Giá Cầu Thủ\\SEP490_BE\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeagues.Repositories\\VNFootballLeagues.Repositories.csproj"
+            "D:\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeagues.Repositories\\VNFootballLeagues.Repositories.csproj": {
+              "projectPath": "D:\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeagues.Repositories\\VNFootballLeagues.Repositories.csproj"
             },
-            "D:\\FPT University\\YEAR 2026\\SEP490\\Hệ Thống Đánh Giá Cầu Thủ\\SEP490_BE\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeagues.Services\\VNFootballLeagues.Services.csproj": {
-              "projectPath": "D:\\FPT University\\YEAR 2026\\SEP490\\Hệ Thống Đánh Giá Cầu Thủ\\SEP490_BE\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeagues.Services\\VNFootballLeagues.Services.csproj"
+            "D:\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeagues.Services\\VNFootballLeagues.Services.csproj": {
+              "projectPath": "D:\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeagues.Services\\VNFootballLeagues.Services.csproj"
             }
           }
         }
@@ -12522,7 +12561,7 @@
             "privateAssets": "all"
           }
         },
-        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.311/PortableRuntimeIdentifierGraph.json"
+        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.312/PortableRuntimeIdentifierGraph.json"
       }
     }
   }

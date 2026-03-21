@@ -1,18 +1,22 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text;
+using System.Text.Json;
 using System.Threading.Tasks;
 using VNFootballLeagues.Repositories.Models;
 using VNFootballLeagues.Services.IServices;
 using VNFootballLeagues.Services.Models.Api;
+using VNFootballLeagues.Services.Models.Api.GetEvent;
 using VNFootballLeagues.Services.Models.Api.GetLeague;
+using VNFootballLeagues.Services.Models.Api.GetLineup;
 using VNFootballLeagues.Services.Models.Api.GetMatches;
 using VNFootballLeagues.Services.Models.Api.GetPlayer;
 using VNFootballLeagues.Services.Models.Api.GetStanding;
+using VNFootballLeagues.Services.Models.Api.GetTeam;
 using VNFootballLeagues.Services.Models.Api.GetTransfer;
 
 namespace VNFootballLeagues.Services.Services
@@ -21,8 +25,7 @@ namespace VNFootballLeagues.Services.Services
     {
         private readonly HttpClient _httpClient;
         private readonly VNFootballLeaguesDBContext _context;
-        //private const string ApiKey = "6eb9790bc76fca11467f05ff4386793a";
-        private const string ApiKey = "a62490994cdd84b4c3ed053a5425321b";
+        private const string ApiKey = "b5926dbd1c11e00072a6332f8c311ac3";
         private const string BaseUrl = "https://v3.football.api-sports.io/";
         private readonly int[] VietnamLeagueApiIds = { 340, 341, 637 };
 
@@ -46,6 +49,56 @@ namespace VNFootballLeagues.Services.Services
                 System.Globalization.CultureInfo.InvariantCulture,
                 out var result))
                 return result;
+
+            return null;
+        }
+
+        private decimal? ParseDecimal(dynamic value)
+        {
+            if (value == null)
+                return null;
+
+            if (value is decimal decimalValue)
+                return decimalValue;
+
+            if (value is int intValue)
+                return intValue;
+
+            if (value is string stringValue)
+            {
+                stringValue = stringValue.Replace("%", "").Trim();
+
+                return ParseDecimal(stringValue);
+            }
+
+            return null;
+        }
+        private int? ParseInt(dynamic value)
+        {
+            if (value == null) return null;
+
+            if (value is int intValue)
+                return intValue;
+
+            if (value is string stringValue && int.TryParse(stringValue, out int result))
+                return result;
+
+            return null;
+        }
+
+        private int? ParsePossession(dynamic value)
+        {
+            if (value == null) return null;
+
+            if (value is string stringValue)
+            {
+                stringValue = stringValue.Replace("%", "").Trim();
+                if (int.TryParse(stringValue, out int result))
+                    return result;
+            }
+
+            if (value is int intValue)
+                return intValue;
 
             return null;
         }
@@ -623,115 +676,378 @@ namespace VNFootballLeagues.Services.Services
                 .ToListAsync();
         }
 
-        // GET methods - retrieve synced data from database
-        public async Task<List<League>> GetLeaguesAsync()
+        public async Task<List<MatchEvent>> SyncMatchEventsAsync(int apiFixtureId)
         {
-            return await _context.Leagues
-                .OrderBy(l => l.LeagueName)
-                .ToListAsync();
+            var match = await _context.Matches
+                .FirstOrDefaultAsync(m => m.ApiFixtureId == apiFixtureId);
+
+            if (match == null)
+                throw new Exception("Match must be synced first.");
+
+            var response = await _httpClient
+                .GetFromJsonAsync<ApiFootballEventResponse>(
+                    $"fixtures/events?fixture={apiFixtureId}");
+
+            if (response?.response == null)
+                return new List<MatchEvent>();
+
+            var players = await _context.Players
+                .ToDictionaryAsync(p => p.ApiPlayerId);
+
+            var teams = await _context.Teams
+                .ToDictionaryAsync(t => t.ApiTeamId);
+
+            var events = new List<MatchEvent>();
+
+            foreach (var item in response.response)
+            {
+                if (!teams.TryGetValue(item.team.id, out var team))
+                    continue;
+
+                Player player = null;
+                Player assist = null;
+
+                if (item.player?.id != null)
+                    players.TryGetValue(item.player.id.Value, out player);
+
+                if (item.assist?.id != null)
+                    players.TryGetValue(item.assist.id.Value, out assist);
+
+                var matchEvent = new MatchEvent
+                {
+                    MatchId = match.MatchId,
+                    TeamId = team.TeamId,
+                    PlayerId = player?.PlayerId,
+                    AssistPlayerId = assist?.PlayerId,
+                    EventType = item.type,
+                    Detail = item.detail,
+                    EventTime = item.time?.elapsed ?? 0,
+                    ExtraTime = item.time?.extra,
+                    Period = "Regular",
+                    Comments = item.comments
+                };
+
+                _context.MatchEvents.Add(matchEvent);
+                events.Add(matchEvent);
+            }
+
+            await _context.SaveChangesAsync();
+
+            return events;
         }
 
-        public async Task<List<Season>> GetSeasonsAsync(int? leagueId = null)
+        public async Task<List<Transfer>> SyncTransfersAsync(int apiTeamId)
         {
-            var query = _context.Seasons
-                .Include(s => s.League)
-                .AsQueryable();
+            var team = await _context.Teams
+                .FirstOrDefaultAsync(t => t.ApiTeamId == apiTeamId);
 
-            if (leagueId.HasValue)
-                query = query.Where(s => s.LeagueId == leagueId.Value);
+            if (team == null)
+                throw new Exception("Team must be synced first.");
 
-            return await query
-                .OrderByDescending(s => s.Year)
-                .ToListAsync();
+            var response = await _httpClient
+                .GetFromJsonAsync<ApiFootballTransferResponse>(
+                    $"transfers?team={apiTeamId}");
+
+            if (response?.response == null)
+                return new List<Transfer>();
+
+            var players = await _context.Players
+                .ToDictionaryAsync(p => p.ApiPlayerId);
+
+            var syncedTransfers = new List<Transfer>();
+
+            foreach (var item in response.response)
+            {
+                if (!players.TryGetValue(item.player.id, out var player))
+                    continue;
+
+                if (item.transfers == null)
+                    continue;
+
+                foreach (var transferDetail in item.transfers)
+                {
+                    if (transferDetail.teams?.@in?.id == null || transferDetail.teams?.@out?.id == null)
+                        continue;
+
+                    var fromTeam = await _context.Teams
+                        .FirstOrDefaultAsync(t => t.ApiTeamId == transferDetail.teams.@out.id.Value);
+
+                    var toTeam = await _context.Teams
+                        .FirstOrDefaultAsync(t => t.ApiTeamId == transferDetail.teams.@in.id.Value);
+
+                    if (fromTeam == null || toTeam == null)
+                        continue;
+
+                    DateTime? transferDate = null;
+                    if (DateTime.TryParse(transferDetail.date, out var parsedDate))
+                        transferDate = parsedDate;
+
+                    var existing = await _context.Transfers
+                        .FirstOrDefaultAsync(t =>
+                            t.PlayerId == player.PlayerId &&
+                            t.FromTeamId == fromTeam.TeamId &&
+                            t.ToTeamId == toTeam.TeamId &&
+                            t.TransferDate == transferDate);
+
+                    if (existing == null)
+                    {
+                        var transfer = new Transfer
+                        {
+                            PlayerId = player.PlayerId,
+                            FromTeamId = fromTeam.TeamId,
+                            ToTeamId = toTeam.TeamId,
+                            TransferDate = transferDate,
+                            TransferType = transferDetail.type,
+                        };
+
+                        _context.Transfers.Add(transfer);
+                        syncedTransfers.Add(transfer);
+                    }
+                }
+            }
+
+            await _context.SaveChangesAsync();
+            return syncedTransfers;
         }
 
-        public async Task<List<Team>> GetTeamsAsync(int? leagueId = null)
+        public async Task<TeamStatistic> SyncTeamStatisticsAsync(int apiLeagueId, int seasonYear, int apiTeamId)
         {
-            var query = _context.Teams
-                .Include(t => t.League)
-                .Include(t => t.Stadium)
-                .AsQueryable();
+            var league = await _context.Leagues
+                .FirstOrDefaultAsync(l => l.ApiLeagueId == apiLeagueId);
 
-            if (leagueId.HasValue)
-                query = query.Where(t => t.LeagueId == leagueId.Value);
+            if (league == null)
+                throw new Exception("League must be synced first.");
 
-            return await query
-                .OrderBy(t => t.TeamName)
-                .ToListAsync();
+            var season = await _context.Seasons
+                .FirstOrDefaultAsync(s =>
+                    s.LeagueId == league.LeagueId &&
+                    s.Year == seasonYear);
+
+            if (season == null)
+                throw new Exception("Season must be synced first.");
+
+            var team = await _context.Teams
+                .FirstOrDefaultAsync(t => t.ApiTeamId == apiTeamId);
+
+            if (team == null)
+                throw new Exception("Team must be synced first.");
+
+            var response = await _httpClient
+                .GetFromJsonAsync<ApiFootballTeamStatisticsResponse>(
+                    $"teams/statistics?league={apiLeagueId}&season={seasonYear}&team={apiTeamId}");
+
+            if (response?.response == null)
+                return null;
+
+            var item = response.response;
+
+            var existing = await _context.TeamStatistics
+                .FirstOrDefaultAsync(ts =>
+                    ts.TeamId == team.TeamId &&
+                    ts.SeasonId == season.SeasonId);
+
+            TeamStatistic teamStat;
+
+            if (existing == null)
+            {
+                teamStat = new TeamStatistic();
+                _context.TeamStatistics.Add(teamStat);
+            }
+            else
+            {
+                teamStat = existing;
+            }
+
+            teamStat.TeamId = team.TeamId;
+            teamStat.LeagueId = league.LeagueId;
+            teamStat.SeasonId = season.SeasonId;
+
+            teamStat.Form = item.form;
+
+            teamStat.Played = item.fixtures?.played?.total;
+            teamStat.Wins = item.fixtures?.wins?.total;
+            teamStat.Draws = item.fixtures?.draws?.total;
+            teamStat.Losses = item.fixtures?.loses?.total;
+
+            teamStat.HomePlayed = item.fixtures?.played?.home;
+            teamStat.HomeWins = item.fixtures?.wins?.home;
+            teamStat.HomeDraws = item.fixtures?.draws?.home;
+            teamStat.HomeLosses = item.fixtures?.loses?.home;
+
+            teamStat.AwayPlayed = item.fixtures?.played?.away;
+            teamStat.AwayWins = item.fixtures?.wins?.away;
+            teamStat.AwayDraws = item.fixtures?.draws?.away;
+            teamStat.AwayLosses = item.fixtures?.loses?.away;
+
+            teamStat.GoalsFor = item.goals?.@for?.total?.total;
+            teamStat.GoalsAgainst = item.goals?.against?.total?.total;
+
+            teamStat.HomeGoalsFor = item.goals?.@for?.total?.home;
+            teamStat.AwayGoalsFor = item.goals?.@for?.total?.away;
+            teamStat.HomeGoalsAgainst = item.goals?.against?.total?.home;
+            teamStat.AwayGoalsAgainst = item.goals?.against?.total?.away;
+
+            teamStat.GoalsForAvgHome = item.goals?.@for?.average?.home;
+            teamStat.GoalsForAvgAway = item.goals?.@for?.average?.away;
+            teamStat.GoalsForAvgTotal = item.goals?.@for?.average?.total;
+            teamStat.GoalsAgainstAvgHome = item.goals?.against?.average?.home;
+            teamStat.GoalsAgainstAvgAway = item.goals?.against?.average?.away;
+            teamStat.GoalsAgainstAvgTotal = item.goals?.against?.average?.total;
+
+
+            if (item.goals?.@for?.minute != null)
+                teamStat.GoalsForMinute = JsonSerializer.Serialize(item.goals.@for.minute) ;
+
+            if (item.goals?.against?.minute != null)
+                teamStat.GoalsAgainstMinute = JsonSerializer.Serialize(item.goals.against.minute);
+
+            if (item.goals?.@for?.under_over != null)
+                teamStat.UnderOverFor = JsonSerializer.Serialize(item.goals.@for.under_over) ;
+
+            if (item.goals?.against?.under_over != null)
+                teamStat.UnderOverAgainst = JsonSerializer.Serialize(item.goals.against.under_over);
+
+            teamStat.BiggestStreakWins = item.biggest?.streak?.wins;
+            teamStat.BiggestStreakDraws = item.biggest?.streak?.draws;
+            teamStat.BiggestStreakLosses = item.biggest?.streak?.loses;
+
+            teamStat.BiggestWinHome = item.biggest?.wins?.home;
+            teamStat.BiggestWinAway = item.biggest?.wins?.away;
+            teamStat.BiggestLossHome = item.biggest?.loses?.home;
+            teamStat.BiggestLossAway = item.biggest?.loses?.away;
+
+            teamStat.BiggestGoalsForHome = item.biggest?.goals?.@for?.home;
+            teamStat.BiggestGoalsForAway = item.biggest?.goals?.@for?.away;
+            teamStat.BiggestGoalsAgainstHome = item.biggest?.goals?.against?.home;
+            teamStat.BiggestGoalsAgainstAway = item.biggest?.goals?.against?.away;
+
+            teamStat.PenaltiesScored = item.penalty?.scored?.total;
+            teamStat.PenaltiesMissed = item.penalty?.missed?.total;
+            teamStat.PenaltiesTotal = item.penalty?.total;
+            teamStat.PenaltyPercentage = item.penalty?.scored?.percentage;
+
+            if (item.cards?.yellow != null)
+                teamStat.YellowCardsMinute = JsonSerializer.Serialize(item.cards.yellow);
+
+            if (item.cards?.red != null)
+                teamStat.RedCardsMinute = JsonSerializer.Serialize(item.cards.red);
+
+            teamStat.CleanSheets = item.clean_sheet?.total;
+            teamStat.CleanSheetsHome = item.clean_sheet?.home;
+            teamStat.CleanSheetsAway = item.clean_sheet?.away;
+
+            teamStat.FailedToScore = item.failed_to_score?.total;
+            teamStat.FailedToScoreHome = item.failed_to_score?.home;
+            teamStat.FailedToScoreAway = item.failed_to_score?.away;
+
+            await _context.SaveChangesAsync();
+            return teamStat;
         }
 
-        public async Task<List<Player>> GetPlayersAsync(int? teamId = null)
+        //public async Task<List<Lineup>> SyncLineupsAsync(int apiFixtureId)
+        //{
+        //    var match = await _context.Matches
+        //        .FirstOrDefaultAsync(m => m.ApiFixtureId == apiFixtureId);
+
+        //    if (match == null)
+        //        throw new Exception("Match must be synced first.");
+
+        //    var response = await _httpClient
+        //        .GetFromJsonAsync<ApiFootballLineupResponse>(
+        //            $"fixtures/lineups?fixture={apiFixtureId}");
+
+        //    if (response?.response == null)
+        //        return new List<Lineup>();
+
+        //    var teams = await _context.Teams
+        //        .ToDictionaryAsync(t => t.ApiTeamId);
+
+        //    var lineups = new List<Lineup>();
+
+        //    foreach (var item in response.response)
+        //    {
+        //        if (!teams.TryGetValue(item.team.id, out var team))
+        //            continue;
+
+        //        var existing = await _context.Lineups
+        //            .FirstOrDefaultAsync(l =>
+        //                l.MatchId == match.MatchId &&
+        //                l.TeamId == team.TeamId);
+
+        //        if (existing == null)
+        //        {
+        //            existing = new Lineup
+        //            {
+        //                MatchId = match.MatchId,
+        //                TeamId = team.TeamId,
+        //                Formation = item.formation
+        //            };
+
+        //            _context.Lineups.Add(existing);
+        //        }
+        //        else
+        //        {
+        //            existing.Formation = item.formation;
+        //        }
+
+        //        lineups.Add(existing);
+        //    }
+
+        //    await _context.SaveChangesAsync();
+
+        //    return lineups;
+        //}
+
+        // ==================== GetAll Methods ====================
+
+        public async Task<List<League>> GetAllLeaguesAsync()
         {
-            var query = _context.Players
-                .Include(p => p.Team)
-                .AsQueryable();
-
-            if (teamId.HasValue)
-                query = query.Where(p => p.TeamId == teamId.Value);
-
-            return await query
-                .OrderBy(p => p.LastName)
-                .ThenBy(p => p.FirstName)
-                .ToListAsync();
+            return await _context.Leagues.ToListAsync();
         }
 
-        public async Task<List<PlayerSeasonStatistic>> GetPlayerStatsAsync(int? playerId = null, int? seasonId = null)
+        public async Task<List<Season>> GetAllSeasonsAsync()
         {
-            var query = _context.PlayerSeasonStatistics
-                .Include(s => s.Player)
-                .Include(s => s.Season)
-                .Include(s => s.Team)
-                .Include(s => s.League)
-                .AsQueryable();
-
-            if (playerId.HasValue)
-                query = query.Where(s => s.PlayerId == playerId.Value);
-
-            if (seasonId.HasValue)
-                query = query.Where(s => s.SeasonId == seasonId.Value);
-
-            return await query
-                .OrderByDescending(s => s.Goals)
-                .ToListAsync();
+            return await _context.Seasons.ToListAsync();
         }
 
-        public async Task<List<Match>> GetMatchesAsync(int? leagueId = null, int? seasonId = null)
+        public async Task<List<Team>> GetAllTeamsAsync()
         {
-            var query = _context.Matches
-                .Include(m => m.HomeTeam)
-                .Include(m => m.AwayTeam)
-                .Include(m => m.League)
-                .Include(m => m.Season)
-                .AsQueryable();
-
-            if (leagueId.HasValue)
-                query = query.Where(m => m.LeagueId == leagueId.Value);
-
-            if (seasonId.HasValue)
-                query = query.Where(m => m.SeasonId == seasonId.Value);
-
-            return await query
-                .OrderByDescending(m => m.MatchDate)
-                .ToListAsync();
+            return await _context.Teams.ToListAsync();
         }
 
-        public async Task<List<Standing>> GetStandingsAsync(int? leagueId = null, int? seasonId = null)
+        public async Task<List<Player>> GetAllPlayersAsync()
         {
-            var query = _context.Standings
-                .Include(s => s.Team)
-                .Include(s => s.League)
-                .Include(s => s.Season)
-                .AsQueryable();
+            return await _context.Players.ToListAsync();
+        }
 
-            if (leagueId.HasValue)
-                query = query.Where(s => s.LeagueId == leagueId.Value);
+        public async Task<List<PlayerSeasonStatistic>> GetAllPlayerSeasonStatisticsAsync()
+        {
+            return await _context.PlayerSeasonStatistics.ToListAsync();
+        }
 
-            if (seasonId.HasValue)
-                query = query.Where(s => s.SeasonId == seasonId.Value);
+        public async Task<List<Match>> GetAllMatchesAsync()
+        {
+            return await _context.Matches.ToListAsync();
+        }
 
-            return await query
-                .OrderBy(s => s.Rank)
-                .ToListAsync();
+        public async Task<List<Standing>> GetAllStandingsAsync()
+        {
+            return await _context.Standings.ToListAsync();
+        }
+
+        public async Task<List<MatchEvent>> GetAllMatchEventsAsync()
+        {
+            return await _context.MatchEvents.ToListAsync();
+        }
+
+        public async Task<List<Transfer>> GetAllTransfersAsync()
+        {
+            return await _context.Transfers.ToListAsync();
+        }
+
+        public async Task<List<TeamStatistic>> GetAllTeamStatisticsAsync()
+        {
+            return await _context.TeamStatistics.ToListAsync();
         }
     }
 }

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -18,14 +18,21 @@ namespace VNFootballLeagues.Services.IServices
         Task<List<PlayerSeasonStatistic>> SyncPlayerSeasonStatisticsAsync(int apiLeagueId, int seasonYear);
         Task<List<Match>> SyncMatchesByLeagueAsync(int apiLeagueId, int season);
         Task<List<Standing>> SyncStandingsAsync(int apiLeagueId, int seasonYear);
+        Task<List<MatchEvent>> SyncMatchEventsAsync(int apiFixtureId);
+        Task<List<Transfer>> SyncTransfersAsync(int apiTeamId);
+        Task<TeamStatistic> SyncTeamStatisticsAsync(int apiLeagueId, int seasonYear, int apiTeamId);
+        //Task<List<Lineup>> SyncLineupsAsync(int apiFixtureId);
 
-        // Get methods (GET)
-        Task<List<League>> GetLeaguesAsync();
-        Task<List<Season>> GetSeasonsAsync(int? leagueId = null);
-        Task<List<Team>> GetTeamsAsync(int? leagueId = null);
-        Task<List<Player>> GetPlayersAsync(int? teamId = null);
-        Task<List<PlayerSeasonStatistic>> GetPlayerStatsAsync(int? playerId = null, int? seasonId = null);
-        Task<List<Match>> GetMatchesAsync(int? leagueId = null, int? seasonId = null);
-        Task<List<Standing>> GetStandingsAsync(int? leagueId = null, int? seasonId = null);
+        // GetAll methods
+        Task<List<League>> GetAllLeaguesAsync();
+        Task<List<Season>> GetAllSeasonsAsync();
+        Task<List<Team>> GetAllTeamsAsync();
+        Task<List<Player>> GetAllPlayersAsync();
+        Task<List<PlayerSeasonStatistic>> GetAllPlayerSeasonStatisticsAsync();
+        Task<List<Match>> GetAllMatchesAsync();
+        Task<List<Standing>> GetAllStandingsAsync();
+        Task<List<MatchEvent>> GetAllMatchEventsAsync();
+        Task<List<Transfer>> GetAllTransfersAsync();
+        Task<List<TeamStatistic>> GetAllTeamStatisticsAsync();
     }
 }

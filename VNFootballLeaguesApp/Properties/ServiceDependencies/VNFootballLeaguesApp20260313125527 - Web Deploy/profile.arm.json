@@ -21,7 +21,7 @@
     },
     "resourceName": {
       "type": "string",
-      "defaultValue": "VNFootballLeagues",
+      "defaultValue": "VNFootballLeaguesApp20260313125527",
       "metadata": {
         "description": "Name of the main resource to be created by this template."
       }

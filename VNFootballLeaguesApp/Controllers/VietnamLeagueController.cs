@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using VNFootballLeagues.Services.IServices;
 using VNFootballLeagues.Services.Services;
 
@@ -127,121 +127,394 @@ namespace VNFootballLeaguesApp.Controllers
             });
         }
 
-        // GET endpoints - retrieve synced data
-        [HttpGet("leagues")]
-        public async Task<IActionResult> GetLeagues()
+        [HttpPost("sync-match-events")]
+        public async Task<IActionResult> SyncMatchEvents([FromQuery] int apiFixtureId)
         {
-            var leagues = await _service.GetLeaguesAsync();
+            var events = await _service.SyncMatchEventsAsync(apiFixtureId);
+
             return Ok(new
             {
                 success = true,
-                count = leagues.Count,
-                data = leagues
+                message = "Match events synced successfully",
+                count = events.Count,
             });
+        }
+
+        [HttpPost("sync-transfers")]
+        public async Task<IActionResult> SyncTransfers(
+        [FromQuery] int apiTeamId)
+        {
+            var transfers = await _service.SyncTransfersAsync(apiTeamId);
+
+            return Ok(new
+            {
+                success = true,
+                message = "Transfers synced successfully",
+                count = transfers.Count
+            });
+        }
+
+        [HttpPost("sync-team-statistics")]
+        public async Task<IActionResult> SyncTeamStatistics(
+        [FromQuery] int apiLeagueId,
+        [FromQuery] int season,
+        [FromQuery] int apiTeamId)
+        {
+            try
+            {
+                var stat = await _service.SyncTeamStatisticsAsync(apiLeagueId, season, apiTeamId);
+
+                if (stat == null)
+                {
+                    return Ok(new
+                    {
+                        success = false,
+                        message = "No team statistics found"
+                    });
+                }
+
+                return Ok(new
+                {
+                    success = true,
+                    message = "Team statistics synced successfully",
+                    data = new
+                    {
+                        stat.TeamStatId,
+                        stat.TeamId,
+                        stat.LeagueId,
+                        stat.SeasonId,
+                        stat.Form,
+                        stat.Played,
+                        stat.Wins,
+                        stat.Draws,
+                        stat.Losses,
+                        stat.HomePlayed,
+                        stat.HomeWins,
+                        stat.HomeDraws,
+                        stat.HomeLosses,
+                        stat.AwayPlayed,
+                        stat.AwayWins,
+                        stat.AwayDraws,
+                        stat.AwayLosses,
+                        stat.GoalsFor,
+                        stat.GoalsAgainst,
+                        stat.HomeGoalsFor,
+                        stat.AwayGoalsFor,
+                        stat.HomeGoalsAgainst,
+                        stat.AwayGoalsAgainst,
+                        stat.CleanSheets,
+                        stat.CleanSheetsHome,
+                        stat.CleanSheetsAway,
+                        stat.FailedToScore,
+                        stat.FailedToScoreHome,
+                        stat.FailedToScoreAway,
+                        stat.PenaltiesScored,
+                        stat.PenaltiesMissed,
+                        stat.PenaltiesTotal,
+                        stat.PenaltyPercentage,
+                        stat.BiggestStreakWins,
+                        stat.BiggestStreakDraws,
+                        stat.BiggestStreakLosses
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new
+                {
+                    success = false,
+                    message = ex.Message
+                });
+            }
+        }
+
+        //[HttpPost("sync-lineups")]
+        //public async Task<IActionResult> SyncLineups([FromQuery] int apiFixtureId)
+        //{
+        //    var lineups = await _service.SyncLineupsAsync(apiFixtureId);
+
+        //    return Ok(new
+        //    {
+        //        success = true,
+        //        message = "Lineups synced successfully",
+        //        count = lineups.Count
+        //    });
+        //}
+
+        // ==================== GetAll Endpoints ====================
+
+        [HttpGet("leagues")]
+        public async Task<IActionResult> GetAllLeagues()
+        {
+            var data = await _service.GetAllLeaguesAsync();
+            return Ok(data.Select(x => new
+            {
+                x.LeagueId,
+                x.ApiLeagueId,
+                x.LeagueName,
+                x.LeagueType,
+                x.LogoUrl
+            }));
         }
 
         [HttpGet("seasons")]
-        public async Task<IActionResult> GetSeasons([FromQuery] int? leagueId = null)
+        public async Task<IActionResult> GetAllSeasons()
         {
-            var seasons = await _service.GetSeasonsAsync(leagueId);
-            return Ok(new
+            var data = await _service.GetAllSeasonsAsync();
+            return Ok(data.Select(x => new
             {
-                success = true,
-                count = seasons.Count,
-                data = seasons
-            });
+                x.SeasonId,
+                x.LeagueId,
+                x.Year,
+                x.StartDate,
+                x.EndDate,
+                x.IsCurrent,
+                x.IsCurrentSeason,
+                x.ApiCoverage
+            }));
         }
 
         [HttpGet("teams")]
-        public async Task<IActionResult> GetTeams([FromQuery] int? leagueId = null)
+        public async Task<IActionResult> GetAllTeams()
         {
-            var teams = await _service.GetTeamsAsync(leagueId);
-            return Ok(new
+            var data = await _service.GetAllTeamsAsync();
+            return Ok(data.Select(x => new
             {
-                success = true,
-                count = teams.Count,
-                data = teams
-            });
+                x.TeamId,
+                x.TeamName,
+                x.ClubId,
+                x.ApiTeamId,
+                x.LogoUrl,
+                x.ShortName,
+                x.Founded,
+                x.National,
+                x.StadiumId,
+                x.LeagueId
+            }));
         }
 
         [HttpGet("players")]
-        public async Task<IActionResult> GetPlayers([FromQuery] int? teamId = null)
+        public async Task<IActionResult> GetAllPlayers()
         {
-            var players = await _service.GetPlayersAsync(teamId);
-            return Ok(new
+            var data = await _service.GetAllPlayersAsync();
+            return Ok(data.Select(x => new
             {
-                success = true,
-                count = players.Count,
-                data = players
-            });
+                x.PlayerId,
+                x.ApiPlayerId,
+                x.FirstName,
+                x.LastName,
+                x.FullName,
+                x.DateOfBirth,
+                x.Age,
+                x.Nationality,
+                x.BirthPlace,
+                x.BirthCountry,
+                x.HeightCm,
+                x.WeightKg,
+                x.PhotoUrl,
+                x.IsInjured,
+                x.TeamId,
+                x.Position,
+                x.Number
+            }));
         }
 
         [HttpGet("player-stats")]
-        public async Task<IActionResult> GetPlayerStats(
-            [FromQuery] int? playerId = null,
-            [FromQuery] int? seasonId = null)
+        public async Task<IActionResult> GetAllPlayerStats()
         {
-            var stats = await _service.GetPlayerStatsAsync(playerId, seasonId);
-            return Ok(new
+            var data = await _service.GetAllPlayerSeasonStatisticsAsync();
+            return Ok(data.Select(x => new
             {
-                success = true,
-                count = stats.Count,
-                data = stats
-            });
+                x.PlayerStatisticsId,
+                x.PlayerId,
+                x.TeamId,
+                x.LeagueId,
+                x.SeasonId,
+                x.Appearances,
+                x.Lineups,
+                x.Minutes,
+                x.Goals,
+                x.Assists,
+                x.YellowCards,
+                x.RedCards,
+                x.Rating,
+                x.SubstitutionsIn,
+                x.SubstitutionsOut,
+                x.ShotsTotal,
+                x.ShotsOnTarget,
+                x.PassesTotal,
+                x.PassesKey,
+                x.PassesAccuracy,
+                x.DribblesAttempted,
+                x.DribblesSuccess,
+                x.DribblesSuccessRate,
+                x.DuelsWon,
+                x.DuelsTotal,
+                x.DuelsWonRate,
+                x.Tackles,
+                x.Interceptions,
+                x.FoulsDrawn,
+                x.FoulsCommitted,
+                x.PenaltiesScored,
+                x.PenaltiesMissed
+            }));
         }
 
         [HttpGet("matches")]
-        public async Task<IActionResult> GetMatches(
-            [FromQuery] int? leagueId = null,
-            [FromQuery] int? seasonId = null)
+        public async Task<IActionResult> GetAllMatches()
         {
-            var matches = await _service.GetMatchesAsync(leagueId, seasonId);
-            return Ok(new
+            var data = await _service.GetAllMatchesAsync();
+            return Ok(data.Select(x => new
             {
-                success = true,
-                count = matches.Count,
-                data = matches.Select(m => new
-                {
-                    m.MatchId,
-                    m.ApiFixtureId,
-                    HomeTeam = new { m.HomeTeam.TeamId, m.HomeTeam.TeamName, m.HomeTeam.LogoUrl },
-                    AwayTeam = new { m.AwayTeam.TeamId, m.AwayTeam.TeamName, m.AwayTeam.LogoUrl },
-                    m.HomeGoals,
-                    m.AwayGoals,
-                    m.MatchDate,
-                    m.Round,
-                    m.Status,
-                    m.Venue
-                })
-            });
+                x.MatchId,
+                x.ApiFixtureId,
+                x.LeagueId,
+                x.SeasonId,
+                x.MatchDate,
+                x.KickOffTime,
+                x.Status,
+                x.HomeTeamId,
+                x.AwayTeamId,
+                x.HomeGoals,
+                x.AwayGoals,
+                x.Venue,
+                x.RefereeName,
+                x.Attendance,
+                x.ApiTimestamp,
+                x.Timezone,
+                x.PeriodFirstHalf,
+                x.PeriodSecondHalf,
+                x.Round,
+                x.ApiVenueId
+            }));
         }
 
         [HttpGet("standings")]
-        public async Task<IActionResult> GetStandings(
-            [FromQuery] int? leagueId = null,
-            [FromQuery] int? seasonId = null)
+        public async Task<IActionResult> GetAllStandings()
         {
-            var standings = await _service.GetStandingsAsync(leagueId, seasonId);
-            return Ok(new
+            var data = await _service.GetAllStandingsAsync();
+            return Ok(data.Select(x => new
             {
-                success = true,
-                count = standings.Count,
-                data = standings.Select(s => new
-                {
-                    s.StandingId,
-                    Team = new { s.Team.TeamId, s.Team.TeamName, s.Team.LogoUrl },
-                    s.Rank,
-                    s.Points,
-                    s.Played,
-                    s.Win,
-                    s.Draw,
-                    s.Loss,
-                    s.GoalsFor,
-                    s.GoalsAgainst,
-                    s.GoalDifference,
-                    s.Form
-                })
-            });
+                x.StandingId,
+                x.LeagueId,
+                x.SeasonId,
+                x.TeamId,
+                x.Rank,
+                x.Played,
+                x.Win,
+                x.Draw,
+                x.Loss,
+                x.GoalsFor,
+                x.GoalsAgainst,
+                x.GoalDifference,
+                x.Points,
+                x.Form,
+                x.Status,
+                x.Description,
+                x.HomeRecord,
+                x.AwayRecord,
+                x.ApiLastUpdated
+            }));
+        }
+
+        [HttpGet("match-events")]
+        public async Task<IActionResult> GetAllMatchEvents()
+        {
+            var data = await _service.GetAllMatchEventsAsync();
+            return Ok(data.Select(x => new
+            {
+                x.EventId,
+                x.MatchId,
+                x.TeamId,
+                x.PlayerId,
+                x.AssistPlayerId,
+                x.EventType,
+                x.Detail,
+                x.EventTime,
+                x.ExtraTime,
+                x.Period,
+                x.Comments
+            }));
+        }
+
+        [HttpGet("transfers")]
+        public async Task<IActionResult> GetAllTransfers()
+        {
+            var data = await _service.GetAllTransfersAsync();
+            return Ok(data.Select(x => new
+            {
+                x.TransferId,
+                x.PlayerId,
+                x.FromTeamId,
+                x.ToTeamId,
+                x.TransferDate,
+                x.TransferType
+            }));
+        }
+
+        [HttpGet("team-statistics")]
+        public async Task<IActionResult> GetAllTeamStatistics()
+        {
+            var data = await _service.GetAllTeamStatisticsAsync();
+            return Ok(data.Select(x => new
+            {
+                x.TeamStatId,
+                x.TeamId,
+                x.LeagueId,
+                x.SeasonId,
+                x.Played,
+                x.Wins,
+                x.Draws,
+                x.Losses,
+                x.GoalsFor,
+                x.GoalsAgainst,
+                x.Form,
+                x.HomePlayed,
+                x.HomeWins,
+                x.HomeDraws,
+                x.HomeLosses,
+                x.AwayPlayed,
+                x.AwayWins,
+                x.AwayDraws,
+                x.AwayLosses,
+                x.HomeGoalsFor,
+                x.AwayGoalsFor,
+                x.HomeGoalsAgainst,
+                x.AwayGoalsAgainst,
+                x.GoalsForAvgHome,
+                x.GoalsForAvgAway,
+                x.GoalsForAvgTotal,
+                x.GoalsAgainstAvgHome,
+                x.GoalsAgainstAvgAway,
+                x.GoalsAgainstAvgTotal,
+                x.GoalsForMinute,
+                x.GoalsAgainstMinute,
+                x.UnderOverFor,
+                x.UnderOverAgainst,
+                x.BiggestStreakWins,
+                x.BiggestStreakDraws,
+                x.BiggestStreakLosses,
+                x.BiggestWinHome,
+                x.BiggestWinAway,
+                x.BiggestLossHome,
+                x.BiggestLossAway,
+                x.BiggestGoalsForHome,
+                x.BiggestGoalsForAway,
+                x.BiggestGoalsAgainstHome,
+                x.BiggestGoalsAgainstAway,
+                x.PenaltiesScored,
+                x.PenaltiesMissed,
+                x.PenaltiesTotal,
+                x.PenaltyPercentage,
+                x.YellowCardsMinute,
+                x.RedCardsMinute,
+                x.CleanSheets,
+                x.CleanSheetsHome,
+                x.CleanSheetsAway,
+                x.FailedToScore,
+                x.FailedToScoreHome,
+                x.FailedToScoreAway
+            }));
         }
     }
 }
