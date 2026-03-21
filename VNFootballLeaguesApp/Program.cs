@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.HttpsPolicy;
 using Microsoft.OpenApi.Models;
 using VNFootballLeagues.Services.IServices;
 using VNFootballLeagues.Services.Services;
@@ -82,7 +83,7 @@ builder.Services.AddControllers()
 builder.Services.Configure<DatabaseAutoUpdateSettings>(builder.Configuration.GetSection("DatabaseAutoUpdate"));
 builder.Services.AddHostedService<DatabaseAutoUpdateHostedService>();
 builder.Services.AddHttpClient<IFootballApiService, FootballApiService>();
-
+builder.Services.AddScoped<ISofascoreHybridService, SofascoreHybridService>();
 
 var app = builder.Build();
 
