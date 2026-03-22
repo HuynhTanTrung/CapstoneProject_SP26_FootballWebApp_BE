@@ -258,9 +258,11 @@ namespace VNFootballLeaguesApp.Controllers
         }
 
         [HttpGet("seasons")]
-        public async Task<IActionResult> GetAllSeasons()
+        public async Task<IActionResult> GetAllSeasons([FromQuery] int? leagueId)
         {
             var data = await _service.GetAllSeasonsAsync();
+            if (leagueId.HasValue)
+                data = data.Where(s => s.LeagueId == leagueId.Value).ToList();
             return Ok(data.Select(x => new
             {
                 x.SeasonId,
