@@ -647,49 +647,77 @@ namespace VNFootballLeagues.Services.Services
         {
             try
             {
-                // Fetch standings data
-                string standingsJson = await GetTournamentStandingsAsync(tournamentId, seasonId);
-
-                using var doc = JsonDocument.Parse(standingsJson);
-
                 var teamsList = new List<(int id, string name, string shortName, string logoUrl)>();
 
-                // Parse standings to extract teams
-                if (doc.RootElement.TryGetProperty("standings", out var standings))
+                // Try standings first; fall back to last-matches for knockout tournaments (e.g. Cup)
+                bool fromMatches = false;
+                string standingsJson = null;
+                try
                 {
-                    foreach (var standingGroup in standings.EnumerateArray())
+                    standingsJson = await GetTournamentStandingsAsync(tournamentId, seasonId);
+                }
+                catch
+                {
+                    fromMatches = true;
+                }
+
+                if (!fromMatches && standingsJson != null)
+                {
+                    using var doc = JsonDocument.Parse(standingsJson);
+                    if (doc.RootElement.TryGetProperty("standings", out var standings))
                     {
-                        if (standingGroup.TryGetProperty("rows", out var rows))
+                        foreach (var standingGroup in standings.EnumerateArray())
                         {
-                            foreach (var row in rows.EnumerateArray())
+                            if (standingGroup.TryGetProperty("rows", out var rows))
                             {
-                                if (row.TryGetProperty("team", out var team))
+                                foreach (var row in rows.EnumerateArray())
                                 {
-                                    var id = team.GetProperty("id").GetInt32();
-                                    var name = team.GetProperty("name").GetString();
-                                    var shortName = team.TryGetProperty("shortName", out var shortProp) ? shortProp.GetString() : null;
-
-                                    // Extract logo URL - Sofascore often uses "image" field
-                                    string logoUrl = null;
-                                    if (team.TryGetProperty("image", out var imageProp))
+                                    if (row.TryGetProperty("team", out var team))
                                     {
-                                        logoUrl = imageProp.GetString();
+                                        var id = team.GetProperty("id").GetInt32();
+                                        var name = team.GetProperty("name").GetString();
+                                        var shortName = team.TryGetProperty("shortName", out var sp) ? sp.GetString() : null;
+                                        string logoUrl = null;
+                                        if (team.TryGetProperty("image", out var img)) logoUrl = img.GetString();
+                                        else if (team.TryGetProperty("logo", out var logo)) logoUrl = logo.GetString();
+                                        teamsList.Add((id, name, shortName, logoUrl));
                                     }
-                                    // Some versions might use "logo" or "icon"
-                                    else if (team.TryGetProperty("logo", out var logoProp))
-                                    {
-                                        logoUrl = logoProp.GetString();
-                                    }
-                                    else if (team.TryGetProperty("icon", out var iconProp))
-                                    {
-                                        logoUrl = iconProp.GetString();
-                                    }
-
-                                    teamsList.Add((id, name, shortName, logoUrl));
-
-                                    // Log to see what we're getting
-                                    _logger.LogDebug($"Team {id}: {name}, Logo: {logoUrl ?? "null"}");
                                 }
+                            }
+                        }
+                    }
+                    if (teamsList.Count == 0) fromMatches = true;
+                }
+
+                if (fromMatches)
+                {
+                    // Fallback: extract unique teams from last-matches (pages 0–4)
+                    var seen = new HashSet<int>();
+                    for (int page = 0; page <= 4; page++)
+                    {
+                        string matchesJson;
+                        try
+                        {
+                            matchesJson = await FetchJson(
+                                $"https://www.sofascore.com/api/v1/unique-tournament/{tournamentId}/season/{seasonId}/events/last/{page}");
+                        }
+                        catch { break; }
+
+                        using var mdoc = JsonDocument.Parse(matchesJson);
+                        if (!mdoc.RootElement.TryGetProperty("events", out var events)) break;
+                        var arr = events.EnumerateArray().ToList();
+                        if (arr.Count == 0) break;
+
+                        foreach (var ev in arr)
+                        {
+                            foreach (var side in new[] { "homeTeam", "awayTeam" })
+                            {
+                                if (!ev.TryGetProperty(side, out var t)) continue;
+                                var id = t.GetProperty("id").GetInt32();
+                                if (!seen.Add(id)) continue;
+                                var name = t.GetProperty("name").GetString();
+                                var shortName = t.TryGetProperty("shortName", out var sp) ? sp.GetString() : null;
+                                teamsList.Add((id, name, shortName, null));
                             }
                         }
                     }
@@ -697,81 +725,143 @@ namespace VNFootballLeagues.Services.Services
 
                 if (teamsList.Count == 0)
                 {
-                    return new
-                    {
-                        status = false,
-                        message = "No teams found in standings data",
-                        data = (object)null
-                    };
+                    return new { status = false, message = "No teams found", data = (object)null };
                 }
 
-                _logger.LogInformation($"Found {teamsList.Count} teams in standings for tournament {tournamentId}, season {seasonId}");
+                _logger.LogInformation("Found {Count} teams for tournament {TournamentId}, season {SeasonId} (fromMatches={FromMatches})",
+                    teamsList.Count, tournamentId, seasonId, fromMatches);
 
-                int added = 0;
-                int updated = 0;
+                int added = 0, updated = 0;
+
+                // Resolve internal LeagueId from Sofascore tournamentId (ApiLeagueId)
+                // Fallback: try to find by name if ApiLeagueId doesn't match
+                var league = await _context.Leagues
+                    .FirstOrDefaultAsync(l => l.ApiLeagueId == tournamentId)
+                    ?? await _context.Leagues.FirstOrDefaultAsync();
+                int internalLeagueId = league?.LeagueId ?? 1;
 
                 foreach (var teamData in teamsList)
                 {
-                    var existingTeam = await _context.Teams
-                        .FirstOrDefaultAsync(t => t.ApiTeamId == teamData.id && t.LeagueId == tournamentId);
+                    var logoUrl = teamData.logoUrl ?? $"https://api.sofascore.app/api/v1/team/{teamData.id}/image";
+                    var existingTeam = await _context.Teams.FirstOrDefaultAsync(t => t.ApiTeamId == teamData.id);
+
+                    // Fetch team detail: stadium, founded, coach
+                    int? stadiumId = existingTeam?.StadiumId;
+                    int? founded = existingTeam?.Founded;
+                    string coachName = existingTeam?.CoachName;
+                    int? coachApiId = existingTeam?.CoachApiId;
+                    try
+                    {
+                        var detailJson = await FetchJson($"https://www.sofascore.com/api/v1/team/{teamData.id}");
+                        using var dd = JsonDocument.Parse(detailJson);
+                        if (dd.RootElement.TryGetProperty("team", out var te))
+                        {
+                            // Stadium
+                            try
+                            {
+                                if (te.TryGetProperty("venue", out var venue))
+                                {
+                                    var venueName = venue.TryGetProperty("name", out var vn) ? vn.GetString() : null;
+                                    var venueApiId = venue.TryGetProperty("id", out var vid) ? (int?)vid.GetInt32() : null;
+                                    var venueCity = venue.TryGetProperty("city", out var vc) && vc.TryGetProperty("name", out var vcn) ? vcn.GetString() : null;
+                                    var venueCapacity = venue.TryGetProperty("capacity", out var vcap) ? (int?)vcap.GetInt32() : null;
+                                    if (venueName != null)
+                                    {
+                                        Stadium stadium = null;
+                                        if (venueApiId.HasValue)
+                                            stadium = await _context.Stadiums.FirstOrDefaultAsync(s => s.ApiVenueId == venueApiId);
+                                        if (stadium == null)
+                                            stadium = await _context.Stadiums.FirstOrDefaultAsync(s => s.StadiumName == venueName);
+                                        if (stadium == null)
+                                        {
+                                            stadium = new Stadium { StadiumName = venueName, ApiVenueId = venueApiId, City = venueCity, Capacity = venueCapacity };
+                                            _context.Stadiums.Add(stadium);
+                                            await _context.SaveChangesAsync();
+                                        }
+                                        else
+                                        {
+                                            bool sc = false;
+                                            if (stadium.ApiVenueId == null && venueApiId != null) { stadium.ApiVenueId = venueApiId; sc = true; }
+                                            if (stadium.City == null && venueCity != null) { stadium.City = venueCity; sc = true; }
+                                            if (stadium.Capacity == null && venueCapacity != null) { stadium.Capacity = venueCapacity; sc = true; }
+                                            if (sc) await _context.SaveChangesAsync();
+                                        }
+                                        stadiumId = stadium.StadiumId;
+                                    }
+                                }
+                            }
+                            catch (Exception ex) { _logger.LogWarning("Stadium error for team {Id}: {Msg}", teamData.id, ex.InnerException?.Message ?? ex.Message); _context.ChangeTracker.Clear(); }
+
+                            // Founded
+                            try
+                            {
+                                if (te.TryGetProperty("foundationDateTimestamp", out var fts))
+                                    founded = DateTimeOffset.FromUnixTimeSeconds(fts.GetInt64()).Year;
+                            }
+                            catch { }
+
+                            // Coach
+                            try
+                            {
+                                if (te.TryGetProperty("manager", out var mgr) && mgr.TryGetProperty("name", out var mn))
+                                {
+                                    coachName = mn.GetString();
+                                    coachApiId = mgr.TryGetProperty("id", out var mid) ? (int?)mid.GetInt32() : null;
+                                }
+                            }
+                            catch { }
+                        }
+                    }
+                    catch (Exception ex) { _logger.LogWarning("Could not fetch detail for team {Id} ({Name}): {Msg}", teamData.id, teamData.name, ex.InnerException?.Message ?? ex.Message); }
 
                     if (existingTeam == null)
                     {
-                        // Create new team with ClubId = 1
-                        var newTeam = new Team
+                        _context.Teams.Add(new Team
                         {
                             TeamName = teamData.name,
                             ClubId = 1,
                             ApiTeamId = teamData.id,
-                            LogoUrl = teamData.logoUrl,  // This should now have the logo URL
+                            LogoUrl = logoUrl,
                             ShortName = teamData.shortName,
-                            Founded = null,
+                            Founded = founded,
+                            CoachName = coachName,
+                            CoachApiId = coachApiId,
                             National = false,
-                            LeagueId = tournamentId,
-                            StadiumId = null
-                        };
-
-                        _context.Teams.Add(newTeam);
+                            LeagueId = internalLeagueId,
+                            StadiumId = stadiumId
+                        });
                         added++;
                     }
                     else
                     {
-                        // Update existing team
                         existingTeam.TeamName = teamData.name;
-                        existingTeam.LogoUrl = teamData.logoUrl ?? existingTeam.LogoUrl;  // Update logo if available
+                        existingTeam.LogoUrl = logoUrl;
                         existingTeam.ShortName = teamData.shortName ?? existingTeam.ShortName;
-                        existingTeam.ClubId = 1;
-
+                        existingTeam.LeagueId = internalLeagueId;
+                        if (stadiumId.HasValue) existingTeam.StadiumId = stadiumId;
+                        if (founded.HasValue) existingTeam.Founded = founded;
+                        if (coachName != null) existingTeam.CoachName = coachName;
+                        if (coachApiId.HasValue) existingTeam.CoachApiId = coachApiId;
                         _context.Teams.Update(existingTeam);
                         updated++;
                     }
-                }
 
-                await _context.SaveChangesAsync();
+                    await _context.SaveChangesAsync();
+                }
 
                 return new
                 {
                     status = true,
                     message = $"Inserted {added} teams, Updated {updated} teams",
-                    data = new
-                    {
-                        added,
-                        updated,
-                        tournamentId,
-                        seasonId,
+                    data = new { added, updated, tournamentId, seasonId,
                         teams = teamsList.Select(t => new { t.id, t.name, t.shortName, t.logoUrl })
                     }
                 };
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error syncing teams from standings");
-                return new
-                {
-                    status = false,
-                    message = ex.Message,
-                    data = ex.StackTrace
-                };
+                _logger.LogError(ex, "Error syncing teams");
+                return new { status = false, message = ex.Message, data = ex.StackTrace };
             }
         }
 
@@ -783,8 +873,384 @@ namespace VNFootballLeagues.Services.Services
             return await FetchJson(url);
         }
 
-        public async Task<object> GetTeamsByTournamentAsync(int tournamentId)
+        public async Task<object> SyncTeamPlayersAsync(int sofascoreTeamId)
         {
+            try
+            {
+                // Find internal team (no tracking — we'll update via raw SQL-style approach)
+                var team = await _context.Teams.AsNoTracking().FirstOrDefaultAsync(t => t.ApiTeamId == sofascoreTeamId);
+                if (team == null)
+                    return new { status = false, message = $"Team with Sofascore ID {sofascoreTeamId} not found in DB. Sync team first." };
+
+                int teamId = team.TeamId;
+
+                // Fetch players
+                string playersJson = await FetchJson($"https://www.sofascore.com/api/v1/team/{sofascoreTeamId}/players");
+                using var doc = JsonDocument.Parse(playersJson);
+
+                if (!doc.RootElement.TryGetProperty("players", out var playersEl))
+                    return new { status = false, message = "No players array in response" };
+
+                int added = 0, updated = 0, skipped = 0;
+
+                // Collect all player data first (before any DB ops)
+                var playerDataList = new List<(int apiId, string name, string shortName, string position, int? number,
+                    string nationality, string photoUrl, int? age, DateOnly? dob, decimal? height)>();
+
+                foreach (var item in playersEl.EnumerateArray())
+                {
+                    if (!item.TryGetProperty("player", out var p)) continue;
+                    var apiId = p.GetProperty("id").GetInt32();
+                    var name = p.TryGetProperty("name", out var n) ? n.GetString() : null;
+                    var shortName = p.TryGetProperty("shortName", out var sn) ? sn.GetString() : null;
+                    var position = p.TryGetProperty("position", out var pos) ? pos.GetString() : null;
+                    var number = item.TryGetProperty("shirtNumber", out var num) ? (int?)num.GetInt32() : null;
+                    var nationality = p.TryGetProperty("country", out var country) && country.TryGetProperty("name", out var cn) ? cn.GetString() : null;
+                    var photoUrl = $"https://api.sofascore.app/api/v1/player/{apiId}/image";
+                    int? age = p.TryGetProperty("age", out var ageEl) ? (int?)ageEl.GetInt32() : null;
+                    DateOnly? dob = null;
+                    if (p.TryGetProperty("dateOfBirthTimestamp", out var dobTs))
+                        dob = DateOnly.FromDateTime(DateTimeOffset.FromUnixTimeSeconds(dobTs.GetInt64()).DateTime);
+                    decimal? height = p.TryGetProperty("height", out var h) ? (decimal?)h.GetDecimal() : null;
+                    playerDataList.Add((apiId, name, shortName, position, number, nationality, photoUrl, age, dob, height));
+                }
+
+                // Process each player with isolated save
+                foreach (var pd in playerDataList)
+                {
+                    try
+                    {
+                        // Always re-query with no tracking to avoid stale state
+                        var existing = await _context.Players.AsNoTracking().FirstOrDefaultAsync(pl => pl.ApiPlayerId == pd.apiId);
+                        if (existing == null)
+                        {
+                            _context.Players.Add(new Player
+                            {
+                                ApiPlayerId = pd.apiId,
+                                FullName = pd.name ?? pd.shortName ?? $"Player {pd.apiId}",
+                                FirstName = pd.name?.Split(' ').FirstOrDefault(),
+                                LastName = pd.name?.Split(' ').Skip(1).LastOrDefault(),
+                                Position = pd.position,
+                                Number = pd.number,
+                                Nationality = pd.nationality,
+                                PhotoUrl = pd.photoUrl,
+                                Age = pd.age,
+                                DateOfBirth = pd.dob,
+                                HeightCm = pd.height,
+                                TeamId = teamId,
+                                IsInjured = false,
+                            });
+                            await _context.SaveChangesAsync();
+                            added++;
+                        }
+                        else
+                        {
+                            await _context.Players
+                                .Where(pl => pl.PlayerId == existing.PlayerId)
+                                .ExecuteUpdateAsync(s => s
+                                    .SetProperty(pl => pl.FullName, pd.name ?? existing.FullName)
+                                    .SetProperty(pl => pl.Position, pd.position ?? existing.Position)
+                                    .SetProperty(pl => pl.Number, pd.number ?? existing.Number)
+                                    .SetProperty(pl => pl.Nationality, pd.nationality ?? existing.Nationality)
+                                    .SetProperty(pl => pl.PhotoUrl, pd.photoUrl)
+                                    .SetProperty(pl => pl.Age, pd.age ?? existing.Age)
+                                    .SetProperty(pl => pl.DateOfBirth, pd.dob ?? existing.DateOfBirth)
+                                    .SetProperty(pl => pl.HeightCm, pd.height ?? existing.HeightCm)
+                                    .SetProperty(pl => pl.TeamId, teamId));
+                            updated++;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning("Skip player {Id} ({Name}): {Err}", pd.apiId, pd.name, ex.InnerException?.Message ?? ex.Message);
+                        _context.ChangeTracker.Clear();
+                        skipped++;
+                    }
+                }
+
+                return new
+                {
+                    status = true,
+                    message = $"Players: {added} added, {updated} updated, {skipped} skipped",
+                    data = new { added, updated, skipped, teamId, sofascoreTeamId }
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error syncing players for team {Id}", sofascoreTeamId);
+                return new { status = false, message = ex.Message, data = ex.StackTrace };
+            }
+        }
+
+        public async Task<object> SyncAllTeamPlayersAsync(int tournamentId, int seasonId)
+        {
+            try
+            {
+                // Get all teams in this tournament/season from standings
+                var standingsJson = await GetTournamentStandingsAsync(tournamentId, seasonId);
+                using var doc = JsonDocument.Parse(standingsJson);
+
+                var sofascoreTeamIds = new List<int>();
+                if (doc.RootElement.TryGetProperty("standings", out var standings))
+                {
+                    foreach (var group in standings.EnumerateArray())
+                    {
+                        if (!group.TryGetProperty("rows", out var rows)) continue;
+                        foreach (var row in rows.EnumerateArray())
+                        {
+                            if (row.TryGetProperty("team", out var t))
+                                sofascoreTeamIds.Add(t.GetProperty("id").GetInt32());
+                        }
+                    }
+                }
+
+                if (sofascoreTeamIds.Count == 0)
+                    return new { status = false, message = "No teams found in standings" };
+
+                int totalAdded = 0, totalUpdated = 0, totalSkipped = 0;
+                var results = new List<object>();
+
+                foreach (var sofaId in sofascoreTeamIds)
+                {
+                    var result = await SyncTeamPlayersAsync(sofaId);
+                    // Extract counts from result
+                    var resultJson = JsonSerializer.Serialize(result);
+                    using var rd = JsonDocument.Parse(resultJson);
+                    var root = rd.RootElement;
+                    bool ok = root.TryGetProperty("status", out var st) && st.GetBoolean();
+                    if (ok && root.TryGetProperty("data", out var data))
+                    {
+                        totalAdded += data.TryGetProperty("added", out var a) ? a.GetInt32() : 0;
+                        totalUpdated += data.TryGetProperty("updated", out var u) ? u.GetInt32() : 0;
+                        totalSkipped += data.TryGetProperty("skipped", out var sk) ? sk.GetInt32() : 0;
+                    }
+                    results.Add(new { sofascoreTeamId = sofaId, result });
+                    await Task.Delay(500); // be polite to Sofascore
+                }
+
+                return new
+                {
+                    status = true,
+                    message = $"Synced {sofascoreTeamIds.Count} teams — {totalAdded} added, {totalUpdated} updated, {totalSkipped} skipped",
+                    data = new { totalAdded, totalUpdated, totalSkipped, teams = results }
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in SyncAllTeamPlayersAsync");
+                return new { status = false, message = ex.Message, data = ex.StackTrace };
+            }
+        }
+
+        public async Task<object> SyncAllPlayerStatisticsAsync(int tournamentId, int seasonId)
+        {
+            try
+            {
+                // Fetch season year from Sofascore
+                int seasonYear = DateTime.UtcNow.Year;
+                try
+                {
+                    var seasonInfoJson = await FetchJson($"https://www.sofascore.com/api/v1/unique-tournament/{tournamentId}/season/{seasonId}");
+                    using var si = JsonDocument.Parse(seasonInfoJson);
+                    if (si.RootElement.TryGetProperty("season", out var sEl) && sEl.TryGetProperty("year", out var yEl))
+                    {
+                        var yearStr = yEl.GetString() ?? "";
+                        // year can be "2024/2025" or "2025" — take last 4-digit number
+                        var parts = yearStr.Split('/');
+                        if (int.TryParse(parts[^1], out var y)) seasonYear = y;
+                    }
+                }
+                catch { /* fallback to current year */ }
+
+                // Get standings to find sofascore team IDs
+                var standingsJson = await GetTournamentStandingsAsync(tournamentId, seasonId);
+                using var standingsDoc = JsonDocument.Parse(standingsJson);
+
+                var sofascoreTeamIds = new List<int>();
+                if (standingsDoc.RootElement.TryGetProperty("standings", out var standings))
+                {
+                    foreach (var group in standings.EnumerateArray())
+                    {
+                        if (!group.TryGetProperty("rows", out var rows)) continue;
+                        foreach (var row in rows.EnumerateArray())
+                        {
+                            if (row.TryGetProperty("team", out var t))
+                                sofascoreTeamIds.Add(t.GetProperty("id").GetInt32());
+                        }
+                    }
+                }
+
+                if (sofascoreTeamIds.Count == 0)
+                    return new { status = false, message = "No teams found in standings" };
+
+                // Resolve internal league from one of the teams
+                var firstTeam = await _context.Teams.AsNoTracking()
+                    .FirstOrDefaultAsync(t => sofascoreTeamIds.Contains(t.ApiTeamId ?? -1));
+                if (firstTeam == null)
+                    return new { status = false, message = "No matching teams found in DB. Run sync-teams first." };
+
+                var league = await _context.Leagues.FirstOrDefaultAsync(l => l.LeagueId == firstTeam.LeagueId);
+                if (league == null)
+                    return new { status = false, message = $"League not found for LeagueId={firstTeam.LeagueId}" };
+
+                // Find or create internal season
+                var season = await _context.Seasons
+                    .FirstOrDefaultAsync(s => s.LeagueId == league.LeagueId && s.Year == seasonYear);
+                if (season == null)
+                {
+                    // Create season record on the fly
+                    season = new Season
+                    {
+                        LeagueId = league.LeagueId,
+                        Year = seasonYear,
+                        IsCurrent = true,
+                        IsCurrentSeason = true,
+                    };
+                    _context.Seasons.Add(season);
+                    await _context.SaveChangesAsync();
+                    _logger.LogInformation("Created Season year={Year} for league {League}", seasonYear, league.LeagueName);
+                }
+
+                int added = 0, updated = 0, skipped = 0, errors = 0;
+
+                foreach (var sofaTeamId in sofascoreTeamIds)
+                {
+                    // Find internal team
+                    var team = await _context.Teams.AsNoTracking()
+                        .FirstOrDefaultAsync(t => t.ApiTeamId == sofaTeamId);
+                    if (team == null) { skipped++; continue; }
+
+                    // Get players of this team
+                    var teamPlayers = await _context.Players.AsNoTracking()
+                        .Where(p => p.TeamId == team.TeamId)
+                        .Select(p => new { p.PlayerId, p.ApiPlayerId })
+                        .ToListAsync();
+
+                    foreach (var player in teamPlayers)
+                    {
+                        if (player.ApiPlayerId == null) { skipped++; continue; }
+                        try
+                        {
+                            var statsJson = await FetchJson(
+                                $"https://www.sofascore.com/api/v1/player/{player.ApiPlayerId}/unique-tournament/{tournamentId}/season/{seasonId}/statistics/overall");
+                            using var doc = JsonDocument.Parse(statsJson);
+
+                            if (!doc.RootElement.TryGetProperty("statistics", out var s))
+                            { skipped++; continue; }
+
+                            int? goals = s.TryGetProperty("goals", out var g) ? (int?)g.GetInt32() : null;
+                            int? assists = s.TryGetProperty("assists", out var a) ? (int?)a.GetInt32() : null;
+                            int? appearances = s.TryGetProperty("appearances", out var ap) ? (int?)ap.GetInt32() : null;
+                            int? minutesPlayed = s.TryGetProperty("minutesPlayed", out var mp) ? (int?)mp.GetInt32() : null;
+                            int? yellowCards = s.TryGetProperty("yellowCards", out var yc) ? (int?)yc.GetInt32() : null;
+                            int? redCards = s.TryGetProperty("redCards", out var rc) ? (int?)rc.GetInt32() : null;
+                            decimal? rating = s.TryGetProperty("rating", out var r) ? (decimal?)r.GetDecimal() : null;
+                            int? shotsTotal = s.TryGetProperty("totalShots", out var st) ? (int?)st.GetInt32() : null;
+                            int? shotsOnTarget = s.TryGetProperty("shotsOnTarget", out var sot) ? (int?)sot.GetInt32() : null;
+                            int? passesTotal = s.TryGetProperty("totalPasses", out var pt) ? (int?)pt.GetInt32() : null;
+                            int? passesKey = s.TryGetProperty("keyPasses", out var kp) ? (int?)kp.GetInt32() : null;
+                            decimal? passesAccuracy = s.TryGetProperty("accuratePasses", out var pac) ? (decimal?)pac.GetDecimal() : null;
+                            int? dribblesAttempted = s.TryGetProperty("totalDribbleAttempts", out var da) ? (int?)da.GetInt32() : null;
+                            int? dribblesSuccess = s.TryGetProperty("successfulDribbles", out var ds) ? (int?)ds.GetInt32() : null;
+                            int? tackles = s.TryGetProperty("tackles", out var tk) ? (int?)tk.GetInt32() : null;
+                            int? interceptions = s.TryGetProperty("interceptions", out var ic) ? (int?)ic.GetInt32() : null;
+                            int? foulsCommitted = s.TryGetProperty("fouls", out var fc) ? (int?)fc.GetInt32() : null;
+                            int? penaltiesScored = s.TryGetProperty("penaltyGoals", out var pg) ? (int?)pg.GetInt32() : null;
+                            int? lineups = s.TryGetProperty("matchesStarted", out var ls) ? (int?)ls.GetInt32() : null;
+                            int? subsIn = s.TryGetProperty("substitutionsIn", out var si) ? (int?)si.GetInt32() : null;
+                            int? subsOut = s.TryGetProperty("substitutionsOut", out var so) ? (int?)so.GetInt32() : null;
+
+                            var existing = await _context.PlayerSeasonStatistics
+                                .FirstOrDefaultAsync(x =>
+                                    x.PlayerId == player.PlayerId &&
+                                    x.SeasonId == season.SeasonId &&
+                                    x.LeagueId == league.LeagueId);
+
+                            if (existing == null)
+                            {
+                                _context.PlayerSeasonStatistics.Add(new PlayerSeasonStatistic
+                                {
+                                    PlayerId = player.PlayerId,
+                                    TeamId = team.TeamId,
+                                    LeagueId = league.LeagueId,
+                                    SeasonId = season.SeasonId,
+                                    Appearances = appearances,
+                                    Lineups = lineups,
+                                    Minutes = minutesPlayed,
+                                    Goals = goals,
+                                    Assists = assists,
+                                    YellowCards = yellowCards,
+                                    RedCards = redCards,
+                                    Rating = rating,
+                                    SubstitutionsIn = subsIn,
+                                    SubstitutionsOut = subsOut,
+                                    ShotsTotal = shotsTotal,
+                                    ShotsOnTarget = shotsOnTarget,
+                                    PassesTotal = passesTotal,
+                                    PassesKey = passesKey,
+                                    PassesAccuracy = passesAccuracy,
+                                    DribblesAttempted = dribblesAttempted,
+                                    DribblesSuccess = dribblesSuccess,
+                                    Tackles = tackles,
+                                    Interceptions = interceptions,
+                                    FoulsCommitted = foulsCommitted,
+                                    PenaltiesScored = penaltiesScored,
+                                });
+                                added++;
+                            }
+                            else
+                            {
+                                existing.TeamId = team.TeamId;
+                                existing.Appearances = appearances;
+                                existing.Lineups = lineups;
+                                existing.Minutes = minutesPlayed;
+                                existing.Goals = goals;
+                                existing.Assists = assists;
+                                existing.YellowCards = yellowCards;
+                                existing.RedCards = redCards;
+                                existing.Rating = rating;
+                                existing.SubstitutionsIn = subsIn;
+                                existing.SubstitutionsOut = subsOut;
+                                existing.ShotsTotal = shotsTotal;
+                                existing.ShotsOnTarget = shotsOnTarget;
+                                existing.PassesTotal = passesTotal;
+                                existing.PassesKey = passesKey;
+                                existing.PassesAccuracy = passesAccuracy;
+                                existing.DribblesAttempted = dribblesAttempted;
+                                existing.DribblesSuccess = dribblesSuccess;
+                                existing.Tackles = tackles;
+                                existing.Interceptions = interceptions;
+                                existing.FoulsCommitted = foulsCommitted;
+                                existing.PenaltiesScored = penaltiesScored;
+                                updated++;
+                            }
+
+                            await _context.SaveChangesAsync();
+                            await Task.Delay(300);
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogWarning("Failed stats for player {Id}: {Msg}", player.ApiPlayerId, ex.Message);
+                            errors++;
+                        }
+                    }
+                }
+
+                return new
+                {
+                    status = true,
+                    message = $"Player stats synced — {added} added, {updated} updated, {skipped} skipped, {errors} errors",
+                    data = new { added, updated, skipped, errors }
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in SyncAllPlayerStatisticsAsync");
+                return new { status = false, message = ex.Message, data = ex.StackTrace };
+            }
+        }
+
+        public async Task<object> GetTeamsByTournamentAsync(int tournamentId)        {
             try
             {
                 var teams = await _context.Teams

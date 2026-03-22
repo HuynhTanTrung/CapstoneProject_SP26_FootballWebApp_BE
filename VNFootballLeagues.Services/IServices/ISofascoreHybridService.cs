@@ -14,5 +14,8 @@ namespace VNFootballLeagues.Services.IServices
         Task<object> SyncMatchStatisticsAsync(int apiFixtureId);
         Task<object> GetTeamsByTournamentAsync(int tournamentId);
         Task<object> SyncTeamsFromStandingsAsync(int tournamentId, int seasonId);
+        Task<object> SyncTeamPlayersAsync(int sofascoreTeamId);
+        Task<object> SyncAllTeamPlayersAsync(int tournamentId, int seasonId);
+        Task<object> SyncAllPlayerStatisticsAsync(int tournamentId, int seasonId);
     }
 }

@@ -45,7 +45,6 @@ public class DatabaseAutoUpdateHostedService : IHostedService
                 }
                 else
                 {
-                    await dbContext.Database.EnsureCreatedAsync(cancellationToken);
                     _logger.LogInformation("No pending migrations. Database is ready.");
                 }
             }

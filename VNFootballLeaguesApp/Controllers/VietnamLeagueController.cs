@@ -293,10 +293,42 @@ namespace VNFootballLeaguesApp.Controllers
             }));
         }
 
-        [HttpGet("players")]
-        public async Task<IActionResult> GetAllPlayers()
+        [HttpGet("teams/{id}")]
+        public async Task<IActionResult> GetTeamById(int id)
         {
-            var data = await _service.GetAllPlayersAsync();
+            var x = await _service.GetTeamByIdAsync(id);
+            if (x == null) return NotFound();
+            return Ok(new
+            {
+                x.TeamId,
+                x.TeamName,
+                x.ClubId,
+                x.ApiTeamId,
+                x.LogoUrl,
+                x.ShortName,
+                x.Founded,
+                x.CoachName,
+                x.CoachApiId,
+                x.National,
+                x.StadiumId,
+                x.LeagueId,
+                Stadium = x.Stadium == null ? null : new
+                {
+                    x.Stadium.StadiumId,
+                    x.Stadium.StadiumName,
+                    x.Stadium.City,
+                    x.Stadium.Capacity,
+                    x.Stadium.Surface,
+                    x.Stadium.ImageUrl,
+                    x.Stadium.Address
+                }
+            });
+        }
+
+        [HttpGet("players")]
+        public async Task<IActionResult> GetAllPlayers([FromQuery] int? teamId)
+        {
+            var data = await _service.GetAllPlayersAsync(teamId);
             return Ok(data.Select(x => new
             {
                 x.PlayerId,
@@ -316,6 +348,74 @@ namespace VNFootballLeaguesApp.Controllers
                 x.TeamId,
                 x.Position,
                 x.Number
+            }));
+        }
+
+        [HttpGet("players/{id}")]
+        public async Task<IActionResult> GetPlayerById(int id)
+        {
+            var x = await _service.GetPlayerByIdAsync(id);
+            if (x == null) return NotFound();
+            return Ok(new
+            {
+                x.PlayerId,
+                x.ApiPlayerId,
+                x.FirstName,
+                x.LastName,
+                x.FullName,
+                x.DateOfBirth,
+                x.Age,
+                x.Nationality,
+                x.BirthPlace,
+                x.BirthCountry,
+                x.HeightCm,
+                x.WeightKg,
+                x.PhotoUrl,
+                x.IsInjured,
+                x.TeamId,
+                x.Position,
+                x.Number
+            });
+        }
+
+        [HttpGet("player-stats/by-player/{playerId}")]
+        public async Task<IActionResult> GetPlayerStatsByPlayerId(int playerId)
+        {
+            var data = await _service.GetPlayerStatsByPlayerIdAsync(playerId);
+            return Ok(data.Select(x => new
+            {
+                x.PlayerStatisticsId,
+                x.PlayerId,
+                x.TeamId,
+                x.LeagueId,
+                x.SeasonId,
+                x.Appearances,
+                x.Lineups,
+                x.Minutes,
+                x.Goals,
+                x.Assists,
+                x.YellowCards,
+                x.RedCards,
+                x.Rating,
+                x.SubstitutionsIn,
+                x.SubstitutionsOut,
+                x.ShotsTotal,
+                x.ShotsOnTarget,
+                x.PassesTotal,
+                x.PassesKey,
+                x.PassesAccuracy,
+                x.DribblesAttempted,
+                x.DribblesSuccess,
+                x.DribblesSuccessRate,
+                x.DuelsWon,
+                x.DuelsTotal,
+                x.DuelsWonRate,
+                x.Tackles,
+                x.Interceptions,
+                x.FoulsDrawn,
+                x.FoulsCommitted,
+                x.PenaltiesScored,
+                x.PenaltiesMissed
             }));
         }
 
