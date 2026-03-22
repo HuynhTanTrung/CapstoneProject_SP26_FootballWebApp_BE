@@ -82,6 +82,7 @@ builder.Services.AddControllers()
 builder.Services.Configure<DatabaseAutoUpdateSettings>(builder.Configuration.GetSection("DatabaseAutoUpdate"));
 builder.Services.AddHostedService<DatabaseAutoUpdateHostedService>();
 builder.Services.AddHttpClient<IFootballApiService, FootballApiService>();
+builder.Services.AddSingleton<IGeminiService, GeminiService>();
 
 
 var app = builder.Build();
