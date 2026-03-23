@@ -196,6 +196,20 @@ public class SofascoreScraperService : ISofascoreScraperService
         return await ScrapeApiEndpointAsync(url, $"team {teamId} next matches");
     }
 
+    public async Task<string> GetTeamDetailsAsync(int teamId)
+    {
+        string url = $"https://www.sofascore.com/api/v1/team/{teamId}";
+        _logger.LogInformation("Fetching details for team {TeamId}", teamId);
+        return await ScrapeApiEndpointAsync(url, $"team {teamId} details");
+    }
+
+    public async Task<string> GetTeamPlayersAsync(int teamId)
+    {
+        string url = $"https://www.sofascore.com/api/v1/team/{teamId}/players";
+        _logger.LogInformation("Fetching players for team {TeamId}", teamId);
+        return await ScrapeApiEndpointAsync(url, $"team {teamId} players");
+    }
+
     /// <summary>
     /// Generic method to scrape any SofaScore API endpoint
     /// </summary>

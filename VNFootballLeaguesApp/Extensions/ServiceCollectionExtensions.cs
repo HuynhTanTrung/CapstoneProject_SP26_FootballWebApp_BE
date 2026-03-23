@@ -82,7 +82,11 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddRepositories(this IServiceCollection services, IConfiguration config)
     {
         services.AddDbContext<VNFootballLeaguesDBContext>(options =>
-            options.UseSqlServer(config.GetConnectionString("DefaultConnection")));
+            options.UseSqlServer(config.GetConnectionString("DefaultConnection"),
+                sqlOptions => sqlOptions.EnableRetryOnFailure(
+                    maxRetryCount: 5,
+                    maxRetryDelay: TimeSpan.FromSeconds(10),
+                    errorNumbersToAdd: null)));
 
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();

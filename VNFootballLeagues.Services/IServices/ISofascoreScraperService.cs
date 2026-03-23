@@ -82,4 +82,13 @@ public interface ISofascoreScraperService
     /// <param name="page">Page number (0-based)</param>
     /// <returns>JSON string containing upcoming matches</returns>
     Task<string> GetTeamNextMatchesAsync(int teamId, int page = 0);
+    /// <summary>
+    /// Fetches team details (coach, venue, etc.) from SofaScore
+    /// </summary>
+    Task<string> GetTeamDetailsAsync(int teamId);
+
+    /// <summary>
+    /// Fetches squad/players for a team from SofaScore
+    /// </summary>
+    Task<string> GetTeamPlayersAsync(int teamId);
 }

@@ -79,5 +79,34 @@ namespace VNFootballLeagues.API.Controllers
                 return StatusCode(500, new { status = false, message = "Internal server error" });
             }
         }
+        [HttpPost("sync-team-players")]
+        public async Task<IActionResult> SyncTeamPlayers([FromQuery] int sofascoreTeamId)
+        {
+            if (sofascoreTeamId <= 0)
+                return BadRequest(new { status = false, message = "Invalid sofascoreTeamId" });
+
+            var result = await _service.SyncTeamPlayersAsync(sofascoreTeamId);
+            return Ok(result);
+        }
+
+        [HttpPost("sync-all-team-players")]
+        public async Task<IActionResult> SyncAllTeamPlayers([FromQuery] int tournamentId, [FromQuery] int seasonId)
+        {
+            if (tournamentId <= 0 || seasonId <= 0)
+                return BadRequest(new { status = false, message = "Invalid tournamentId or seasonId" });
+
+            var result = await _service.SyncAllTeamPlayersAsync(tournamentId, seasonId);
+            return Ok(result);
+        }
+
+        [HttpPost("sync-player-statistics")]
+        public async Task<IActionResult> SyncPlayerStatistics([FromQuery] int tournamentId, [FromQuery] int seasonId)
+        {
+            if (tournamentId <= 0 || seasonId <= 0)
+                return BadRequest(new { status = false, message = "Invalid parameters" });
+
+            var result = await _service.SyncAllPlayerStatisticsAsync(tournamentId, seasonId);
+            return Ok(result);
+        }
     }
 }

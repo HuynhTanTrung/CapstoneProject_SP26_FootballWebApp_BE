@@ -21,6 +21,10 @@ public partial class Team
 
     public int? Founded { get; set; }
 
+    public string CoachName { get; set; }
+
+    public int? CoachApiId { get; set; }
+
     public bool National { get; set; }
 
     public int? StadiumId { get; set; }
