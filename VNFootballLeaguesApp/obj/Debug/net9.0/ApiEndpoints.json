@@ -138,6 +138,75 @@
     "ReturnTypes": []
   },
   {
+    "ContainingType": "VNFootballLeaguesApp.Controllers.ChatController",
+    "Method": "Chat",
+    "RelativePath": "api/Chat",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "request",
+        "Type": "VNFootballLeaguesApp.Controllers.ChatRequest",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "VNFootballLeaguesApp.Controllers.ChatController",
+    "Method": "ChatPreview",
+    "RelativePath": "api/Chat/preview",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "request",
+        "Type": "VNFootballLeaguesApp.Controllers.ChatPreviewRequest",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "VNFootballLeaguesApp.Controllers.ChatController",
+    "Method": "GetSessions",
+    "RelativePath": "api/Chat/sessions",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "userId",
+        "Type": "System.Guid",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "VNFootballLeaguesApp.Controllers.ChatController",
+    "Method": "GetMessages",
+    "RelativePath": "api/Chat/sessions/{sessionId}/messages",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "sessionId",
+        "Type": "System.Guid",
+        "IsRequired": true
+      },
+      {
+        "Name": "userId",
+        "Type": "System.Guid",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
     "ContainingType": "VNFootballLeaguesApp.Controllers.FootballController",
     "Method": "GetAllLeagues",
     "RelativePath": "api/Football/leagues",
