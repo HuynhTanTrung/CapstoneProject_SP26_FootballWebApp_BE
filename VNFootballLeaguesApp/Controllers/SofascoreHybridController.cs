@@ -127,7 +127,7 @@ namespace VNFootballLeagues.API.Controllers
             return Ok(result);
         }
 
-        [HttpPost("sync-player-statistics")]
+        [HttpPost("sync-player-season-statistics")]
         public async Task<IActionResult> SyncPlayerStatistics([FromQuery] int tournamentId, [FromQuery] int seasonId)
         {
             if (tournamentId <= 0 || seasonId <= 0)
@@ -137,12 +137,12 @@ namespace VNFootballLeagues.API.Controllers
             return Ok(result);
         }
 
-        [HttpPost("sync-player-match-stats")]
+        [HttpPost("sync-player-match-statistics")]
         public async Task<IActionResult> SyncPlayerMatchStatistics(
-        [FromQuery] int apiFixtureId,
-        [FromQuery] int apiPlayerId)
+        [FromQuery] int apiTournamentId,
+        [FromQuery] int apiSeasonId)
         {
-            var result = await _service.SyncPlayerMatchStatisticsAsync(apiFixtureId, apiPlayerId);
+            var result = await _service.SyncPlayerMatchStatisticsAsync(apiTournamentId, apiSeasonId);
 
             if (result.GetType().GetProperty("status")?.GetValue(result) is bool status && status)
                 return Ok(result);
