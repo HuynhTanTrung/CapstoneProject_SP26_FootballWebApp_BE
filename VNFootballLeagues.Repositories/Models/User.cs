@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace VNFootballLeagues.Repositories.Models;
@@ -34,4 +34,6 @@ public partial class User
     public virtual ICollection<EmailVerificationToken> EmailVerificationTokens { get; set; } = new List<EmailVerificationToken>();
 
     public virtual ICollection<PasswordResetToken> PasswordResetTokens { get; set; } = new List<PasswordResetToken>();
+
+    public virtual ICollection<ChatSession> ChatSessions { get; set; } = new List<ChatSession>();
 }

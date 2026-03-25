@@ -21,25 +21,25 @@ namespace VNFootballLeagues.Services.Services
             };
         }
 
-        public async Task<string> ChatAsync(string message)
+        public Task<string> ChatAsync(string message) =>
+            ChatWithHistoryAsync(new List<(string role, string text)> { ("user", message) });
+
+        public async Task<string> ChatWithHistoryAsync(IReadOnlyList<(string role, string text)> turns)
         {
+            if (turns == null || turns.Count == 0)
+                return "Không có nội dung để gửi.";
+
             try
             {
                 var url = $"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={_apiKey}";
 
-                var requestBody = new
+                var contents = turns.Select(t => new
                 {
-                    contents = new[]
-                    {
-                        new
-                        {
-                            parts = new[]
-                            {
-                                new { text = message }
-                            }
-                        }
-                    }
-                };
+                    role = t.role == "user" ? "user" : "model",
+                    parts = new[] { new { text = string.IsNullOrEmpty(t.text) ? " " : t.text } }
+                }).ToArray();
+
+                var requestBody = new { contents };
 
                 var json = JsonSerializer.Serialize(requestBody);
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
