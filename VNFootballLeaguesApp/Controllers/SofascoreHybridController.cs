@@ -136,5 +136,19 @@ namespace VNFootballLeagues.API.Controllers
             var result = await _service.SyncAllPlayerStatisticsAsync(tournamentId, seasonId);
             return Ok(result);
         }
+
+        [HttpPost("sync-player-match-stats")]
+        public async Task<IActionResult> SyncPlayerMatchStatistics(
+        [FromQuery] int apiFixtureId,
+        [FromQuery] int apiPlayerId)
+        {
+            var result = await _service.SyncPlayerMatchStatisticsAsync(apiFixtureId, apiPlayerId);
+
+            if (result.GetType().GetProperty("status")?.GetValue(result) is bool status && status)
+                return Ok(result);
+
+            return BadRequest(result);
+        }
+
     }
 }

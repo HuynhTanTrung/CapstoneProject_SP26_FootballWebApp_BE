@@ -1519,5 +1519,277 @@ namespace VNFootballLeagues.Services.Services
                 };
             }
         }
+
+        public async Task<object> SyncPlayerMatchStatisticsAsync(int apiFixtureId, int apiPlayerId)
+        {
+            try
+            {
+                var match = await _context.Matches
+                    .FirstOrDefaultAsync(m => m.ApiFixtureId == apiFixtureId);
+
+                if (match == null)
+                {
+                    return new
+                    {
+                        status = false,
+                        message = $"Match with API ID {apiFixtureId} not found in database",
+                        data = (object)null
+                    };
+                }
+
+                var player = await _context.Players
+                    .FirstOrDefaultAsync(p => p.ApiPlayerId == apiPlayerId);
+
+                if (player == null)
+                {
+                    return new
+                    {
+                        status = false,
+                        message = $"Player with API ID {apiPlayerId} not found in database",
+                        data = (object)null
+                    };
+                }
+
+                var statsUrl = $"https://www.sofascore.com/api/v1/event/{apiFixtureId}/player/{apiPlayerId}/statistics";
+                string statsJson;
+
+                try
+                {
+                    statsJson = await FetchJson(statsUrl);
+                }
+                catch (Exception ex)
+                {
+                    return new
+                    {
+                        status = false,
+                        message = $"Could not fetch statistics: {ex.Message}",
+                        data = (object)null
+                    };
+                }
+
+                using var doc = JsonDocument.Parse(statsJson);
+
+                var playerStats = ExtractPlayerMatchStatisticsFromJson(doc.RootElement, match, player);
+
+                if (playerStats == null)
+                {
+                    return new
+                    {
+                        status = false,
+                        message = "No statistics found for this player in this match",
+                        data = (object)null
+                    };
+                }
+
+                var existingStats = await _context.PlayerMatchStatistics
+                    .FirstOrDefaultAsync(ps => ps.MatchId == match.MatchId &&
+                                               ps.PlayerId == player.PlayerId);
+
+                if (existingStats == null)
+                {
+                    _context.PlayerMatchStatistics.Add(playerStats);
+                    await _context.SaveChangesAsync();
+
+                    return new
+                    {
+                        status = true,
+                        message = $"Added match statistics for player {player.FullName} in match {match.MatchId}",
+                        data = new { added = true, playerMatchStatId = playerStats.PlayerMatchStatId }
+                    };
+                }
+                else
+                {
+                    UpdateExistingPlayerMatchStatistics(existingStats, playerStats);
+                    _context.PlayerMatchStatistics.Update(existingStats);
+                    await _context.SaveChangesAsync();
+
+                    return new
+                    {
+                        status = true,
+                        message = $"Updated match statistics for player {player.FullName} in match {match.MatchId}",
+                        data = new { updated = true, playerMatchStatId = existingStats.PlayerMatchStatId }
+                    };
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error syncing player match statistics for match {ApiFixtureId}, player {ApiPlayerId}",
+                    apiFixtureId, apiPlayerId);
+                return new
+                {
+                    status = false,
+                    message = ex.Message,
+                    data = ex.StackTrace
+                };
+            }
+        }
+
+        private PlayerMatchStatistic ExtractPlayerMatchStatisticsFromJson(JsonElement root, Match match, Player player)
+        {
+            var playerStats = new PlayerMatchStatistic
+            {
+                MatchId = match.MatchId,
+                PlayerId = player.PlayerId,
+                TeamId = player.TeamId
+            };
+
+            if (root.TryGetProperty("statistics", out var statisticsElement))
+            {
+                if (statisticsElement.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (var stat in statisticsElement.EnumerateArray())
+                    {
+                        if (stat.TryGetProperty("name", out var name) && stat.TryGetProperty("value", out var value))
+                        {
+                            MapStatisticToPlayerMatchStats(playerStats, name.GetString(), value);
+                        }
+                    }
+                }
+                else if (statisticsElement.ValueKind == JsonValueKind.Object)
+                {
+                    foreach (var stat in statisticsElement.EnumerateObject())
+                    {
+                        MapStatisticToPlayerMatchStats(playerStats, stat.Name, stat.Value);
+                    }
+                }
+            }
+
+            var directProperties = new[] { "minutesPlayed", "goals", "assists", "totalShots", "shotsOnTarget",
+        "totalPasses", "tackles", "yellowCards", "redCards", "rating", "offsides", "keyPasses",
+        "successfulDribbles", "interceptions", "clearances", "fouls", "wasFouled", "penaltyGoals",
+        "expectedGoals", "accuratePasses", "totalDribbleAttempts", "duelsWon", "duelsTotal",
+        "tacklesWon", "blocks", "penaltyMissed", "penaltyWon", "penaltyCommitted" };
+
+            foreach (var propName in directProperties)
+            {
+                if (root.TryGetProperty(propName, out var value))
+                {
+                    MapStatisticToPlayerMatchStats(playerStats, propName, value);
+                }
+            }
+
+            if (root.TryGetProperty("accuratePasses", out var accuratePasses) &&
+                root.TryGetProperty("totalPasses", out var totalPasses2) &&
+                totalPasses2.ValueKind != JsonValueKind.Null &&
+                totalPasses2.GetInt32() > 0)
+            {
+                playerStats.PassesAccuracy = (int)Math.Round((double)accuratePasses.GetInt32() / totalPasses2.GetInt32() * 100);
+            }
+
+            if (playerStats.Minutes == null && playerStats.Goals == null &&
+                playerStats.Assists == null && playerStats.Rating == null)
+            {
+                return null;
+            }
+
+            return playerStats;
+        }
+
+        private void MapStatisticToPlayerMatchStats(PlayerMatchStatistic stats, string statName, JsonElement value)
+        {
+            if (value.ValueKind == JsonValueKind.Null || value.ValueKind == JsonValueKind.Undefined)
+                return;
+
+            switch (statName?.ToLower())
+            {
+                case "minutesplayed":
+                case "minutes":
+                    stats.Minutes = value.GetInt32();
+                    break;
+                case "goals":
+                    stats.Goals = value.GetInt32();
+                    break;
+                case "assists":
+                    stats.Assists = value.GetInt32();
+                    break;
+                case "totalshots":
+                case "shots":
+                    stats.Shots = value.GetInt32();
+                    break;
+                case "shotsontarget":
+                    stats.ShotsOnTarget = value.GetInt32();
+                    break;
+                case "totalpasses":
+                case "passes":
+                    stats.Passes = value.GetInt32();
+                    break;
+                case "tackles":
+                    stats.Tackles = value.GetInt32();
+                    break;
+                case "yellowcards":
+                    stats.YellowCards = value.GetInt32();
+                    break;
+                case "redcards":
+                    stats.RedCards = value.GetInt32();
+                    break;
+                case "rating":
+                    if (value.ValueKind == JsonValueKind.Number)
+                        stats.Rating = (decimal)value.GetDouble();
+                    break;
+                case "offsides":
+                    stats.Offsides = value.GetInt32();
+                    break;
+                case "keypasses":
+                    stats.PassesKey = value.GetInt32();
+                    break;
+                case "successfuldribbles":
+                    stats.DribblesSuccess = value.GetInt32();
+                    break;
+                case "interceptions":
+                    stats.Interceptions = value.GetInt32();
+                    break;
+                case "clearances":
+                    stats.Clearances = value.GetInt32();
+                    break;
+                case "fouls":
+                    stats.FoulsCommitted = value.GetInt32();
+                    break;
+                case "wasfouled":
+                    stats.FoulsDrawn = value.GetInt32();
+                    break;
+                case "penaltygoals":
+                    stats.PenaltiesScored = value.GetInt32();
+                    break;
+                case "expectedgoals":
+                case "xG":
+                    if (value.ValueKind == JsonValueKind.Number)
+                        stats.ExpectedGoals = (decimal)value.GetDouble();
+                    break;
+            }
+        }
+
+        private void UpdateExistingPlayerMatchStatistics(PlayerMatchStatistic existing, PlayerMatchStatistic newStats)
+        {
+            if (newStats.Minutes.HasValue) existing.Minutes = newStats.Minutes;
+            if (newStats.Goals.HasValue) existing.Goals = newStats.Goals;
+            if (newStats.Assists.HasValue) existing.Assists = newStats.Assists;
+            if (newStats.Shots.HasValue) existing.Shots = newStats.Shots;
+            if (newStats.ShotsOnTarget.HasValue) existing.ShotsOnTarget = newStats.ShotsOnTarget;
+            if (newStats.Passes.HasValue) existing.Passes = newStats.Passes;
+            if (newStats.Tackles.HasValue) existing.Tackles = newStats.Tackles;
+            if (newStats.YellowCards.HasValue) existing.YellowCards = newStats.YellowCards;
+            if (newStats.RedCards.HasValue) existing.RedCards = newStats.RedCards;
+            if (newStats.Rating.HasValue) existing.Rating = newStats.Rating;
+            if (newStats.Offsides.HasValue) existing.Offsides = newStats.Offsides;
+            if (newStats.PassesAccuracy.HasValue) existing.PassesAccuracy = newStats.PassesAccuracy;
+            if (newStats.PassesKey.HasValue) existing.PassesKey = newStats.PassesKey;
+            if (newStats.DribblesAttempted.HasValue) existing.DribblesAttempted = newStats.DribblesAttempted;
+            if (newStats.DribblesSuccess.HasValue) existing.DribblesSuccess = newStats.DribblesSuccess;
+            if (newStats.DuelsWon.HasValue) existing.DuelsWon = newStats.DuelsWon;
+            if (newStats.DuelsTotal.HasValue) existing.DuelsTotal = newStats.DuelsTotal;
+            if (newStats.TacklesWon.HasValue) existing.TacklesWon = newStats.TacklesWon;
+            if (newStats.Blocks.HasValue) existing.Blocks = newStats.Blocks;
+            if (newStats.Interceptions.HasValue) existing.Interceptions = newStats.Interceptions;
+            if (newStats.Clearances.HasValue) existing.Clearances = newStats.Clearances;
+            if (newStats.FoulsDrawn.HasValue) existing.FoulsDrawn = newStats.FoulsDrawn;
+            if (newStats.FoulsCommitted.HasValue) existing.FoulsCommitted = newStats.FoulsCommitted;
+            if (newStats.PenaltiesWon.HasValue) existing.PenaltiesWon = newStats.PenaltiesWon;
+            if (newStats.PenaltiesCommitted.HasValue) existing.PenaltiesCommitted = newStats.PenaltiesCommitted;
+            if (newStats.PenaltiesScored.HasValue) existing.PenaltiesScored = newStats.PenaltiesScored;
+            if (newStats.PenaltiesMissed.HasValue) existing.PenaltiesMissed = newStats.PenaltiesMissed;
+            if (newStats.ExpectedGoals.HasValue) existing.ExpectedGoals = newStats.ExpectedGoals;
+        }
+
+
     }
 }
