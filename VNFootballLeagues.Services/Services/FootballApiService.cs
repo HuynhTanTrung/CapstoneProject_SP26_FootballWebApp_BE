@@ -137,21 +137,6 @@ namespace VNFootballLeagues.Services.Services
                     {
                         LeagueId = league.LeagueId,
                         Year = apiSeason.year,
-
-                        StartDate = !string.IsNullOrEmpty(apiSeason.start)
-                            ? DateOnly.Parse(apiSeason.start)
-                            : null,
-
-                        EndDate = !string.IsNullOrEmpty(apiSeason.end)
-                            ? DateOnly.Parse(apiSeason.end)
-                            : null,
-
-                        IsCurrent = apiSeason.current,
-                        IsCurrentSeason = apiSeason.current,
-
-                        ApiCoverage = apiSeason.coverage != null
-                            ? System.Text.Json.JsonSerializer.Serialize(apiSeason.coverage)
-                            : null
                     };
 
                     _context.Seasons.Add(newSeason);
