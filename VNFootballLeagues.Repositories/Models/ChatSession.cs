@@ -5,19 +5,17 @@ using System.Collections.Generic;
 
 namespace VNFootballLeagues.Repositories.Models;
 
-public partial class EmailVerificationToken
+public partial class ChatSession
 {
-    public int Id { get; set; }
-
-    public string Token { get; set; }
+    public Guid SessionId { get; set; }
 
     public Guid UserId { get; set; }
 
-    public DateTime ExpiresAt { get; set; }
+    public string Title { get; set; }
 
-    public bool IsUsed { get; set; }
+    public DateTime StartTime { get; set; }
 
-    public DateTime CreatedAt { get; set; }
+    public virtual ICollection<Message> Messages { get; set; } = new List<Message>();
 
     public virtual User User { get; set; }
 }

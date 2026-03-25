@@ -268,11 +268,6 @@ namespace VNFootballLeaguesApp.Controllers
                 x.SeasonId,
                 x.LeagueId,
                 x.Year,
-                x.StartDate,
-                x.EndDate,
-                x.IsCurrent,
-                x.IsCurrentSeason,
-                x.ApiCoverage
             }));
         }
 
@@ -309,8 +304,6 @@ namespace VNFootballLeaguesApp.Controllers
                 x.LogoUrl,
                 x.ShortName,
                 x.Founded,
-                x.CoachName,
-                x.CoachApiId,
                 x.National,
                 x.StadiumId,
                 x.LeagueId,

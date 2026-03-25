@@ -15,6 +15,10 @@ public partial class Lineup
 
     public string Formation { get; set; }
 
+    public string PlayersJson { get; set; }
+
+    public DateTime? LastUpdated { get; set; }
+
     public virtual Match Match { get; set; }
 
     public virtual Team Team { get; set; }

@@ -3,11 +3,11 @@
    "ContextClassName": "VNFootballLeaguesDBContext",
    "ContextNamespace": null,
    "FilterSchemas": false,
-   "IncludeConnectionString": true,
+   "IncludeConnectionString": false,
    "MinimumProductVersion": "2.6.1166",
    "ModelNamespace": null,
    "OutputContextPath": null,
-   "OutputPath": "TEST",
+   "OutputPath": "Models",
    "PreserveCasingWithRegex": true,
    "ProjectRootNamespace": "VNFootballLeagues.Repositories",
    "Schemas": null,
@@ -16,11 +16,19 @@
    "T4TemplatePath": null,
    "Tables": [
       {
+         "Name": "[dbo].[ChatSession]",
+         "ObjectType": 0
+      },
+      {
          "Name": "[dbo].[Club]",
          "ObjectType": 0
       },
       {
          "Name": "[dbo].[Contract]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[EmailVerificationToken]",
          "ObjectType": 0
       },
       {
@@ -44,6 +52,14 @@
          "ObjectType": 0
       },
       {
+         "Name": "[dbo].[Message]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[PasswordResetToken]",
+         "ObjectType": 0
+      },
+      {
          "Name": "[dbo].[Player]",
          "ObjectType": 0
       },
@@ -53,6 +69,14 @@
       },
       {
          "Name": "[dbo].[PlayerSeasonStatistics]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[RefreshToken]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[Role]",
          "ObjectType": 0
       },
       {
@@ -81,6 +105,14 @@
       },
       {
          "Name": "[dbo].[Transfers]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[User]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[UserRole]",
          "ObjectType": 0
       }
    ],

@@ -20,6 +20,52 @@ namespace VNFootballLeagues.API.Controllers
             _logger = logger;
         }
 
+        [HttpPost("sync-vietnamese-leagues")]
+        public async Task<IActionResult> SyncVietnameseLeagues()
+        {
+            var result = await _service.SyncVietnameseLeaguesAsync();
+
+            if (result.GetType().GetProperty("status")?.GetValue(result) is bool status && status)
+            {
+                return Ok(result);
+            }
+
+            return BadRequest(result);
+        }
+
+        [HttpPost("sync-seasons")]
+        public async Task<IActionResult> SyncSeasonsByLeague(int apiTournamentId)
+        {
+            var result = await _service.SyncSeasonsByLeagueAsync(apiTournamentId);
+
+            if (result.GetType().GetProperty("status")?.GetValue(result) is bool status && status)
+            {
+                return Ok(result);
+            }
+
+            return BadRequest(result);
+        }
+
+        [HttpPost("sync-teams")]
+        public async Task<IActionResult> SyncTeamsFromStandings([FromQuery] int tournamentId, [FromQuery] int seasonId)
+        {
+            try
+            {
+                if (tournamentId <= 0 || seasonId <= 0)
+                {
+                    return BadRequest(new { status = false, message = "Invalid tournamentId or seasonId" });
+                }
+
+                var result = await _service.SyncTeamsFromStandingsAsync(tournamentId, seasonId);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error syncing teams from standings");
+                return StatusCode(500, new { status = false, message = "Internal server error" });
+            }
+        }
+
         [HttpPost("sync-matches")]
         public async Task<IActionResult> SyncMatches([FromQuery] int tournamentId, [FromQuery] int seasonId)
         {
@@ -60,25 +106,7 @@ namespace VNFootballLeagues.API.Controllers
             }
         }
 
-        [HttpPost("sync-teams")]
-        public async Task<IActionResult> SyncTeamsFromStandings([FromQuery] int tournamentId, [FromQuery] int seasonId)
-        {
-            try
-            {
-                if (tournamentId <= 0 || seasonId <= 0)
-                {
-                    return BadRequest(new { status = false, message = "Invalid tournamentId or seasonId" });
-                }
-
-                var result = await _service.SyncTeamsFromStandingsAsync(tournamentId, seasonId);
-                return Ok(result);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error syncing teams from standings");
-                return StatusCode(500, new { status = false, message = "Internal server error" });
-            }
-        }
+        
         [HttpPost("sync-team-players")]
         public async Task<IActionResult> SyncTeamPlayers([FromQuery] int sofascoreTeamId)
         {
