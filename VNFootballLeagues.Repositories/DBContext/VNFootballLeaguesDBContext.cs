@@ -477,6 +477,10 @@ public partial class VNFootballLeaguesDBContext : DbContext
                 .IsRequired()
                 .HasMaxLength(50)
                 .IsUnicode(false);
+            entity.Property(e => e.CoachName)
+                .HasMaxLength(255)
+                .IsUnicode(false);
+            entity.Property(e => e.CoachApiId);
 
             entity.HasOne(d => d.Club).WithMany(p => p.Teams)
                 .HasForeignKey(d => d.ClubId)
