@@ -811,6 +811,43 @@
   },
   {
     "ContainingType": "VNFootballLeagues.API.Controllers.SofascoreHybridController",
+    "Method": "FetchPlayerMatchStatsByLeagueSeason",
+    "RelativePath": "api/SofascoreHybrid/fetch-player-match-stats-by-league-season",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "tournamentId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "seasonId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "VNFootballLeagues.API.Controllers.SofascoreHybridController",
+    "Method": "FetchPlayerMatchStatsByApiMatchId",
+    "RelativePath": "api/SofascoreHybrid/fetch-player-match-stats-by-match",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "apiFixtureId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "VNFootballLeagues.API.Controllers.SofascoreHybridController",
     "Method": "SyncAllTeamPlayers",
     "RelativePath": "api/SofascoreHybrid/sync-all-team-players",
     "HttpMethod": "POST",
@@ -824,6 +861,22 @@
       },
       {
         "Name": "seasonId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "VNFootballLeagues.API.Controllers.SofascoreHybridController",
+    "Method": "SyncMatchEvents",
+    "RelativePath": "api/SofascoreHybrid/sync-match-events",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "apiFixtureId",
         "Type": "System.Int32",
         "IsRequired": false
       }
@@ -869,27 +922,6 @@
   },
   {
     "ContainingType": "VNFootballLeagues.API.Controllers.SofascoreHybridController",
-    "Method": "SyncPlayerMatchStatistics",
-    "RelativePath": "api/SofascoreHybrid/sync-player-match-statistics",
-    "HttpMethod": "POST",
-    "IsController": true,
-    "Order": 0,
-    "Parameters": [
-      {
-        "Name": "apiTournamentId",
-        "Type": "System.Int32",
-        "IsRequired": false
-      },
-      {
-        "Name": "apiSeasonId",
-        "Type": "System.Int32",
-        "IsRequired": false
-      }
-    ],
-    "ReturnTypes": []
-  },
-  {
-    "ContainingType": "VNFootballLeagues.API.Controllers.SofascoreHybridController",
     "Method": "SyncPlayerStatistics",
     "RelativePath": "api/SofascoreHybrid/sync-player-season-statistics",
     "HttpMethod": "POST",
@@ -919,6 +951,27 @@
     "Parameters": [
       {
         "Name": "apiTournamentId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "VNFootballLeagues.API.Controllers.SofascoreHybridController",
+    "Method": "SyncStandings",
+    "RelativePath": "api/SofascoreHybrid/sync-standings",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "tournamentId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "seasonId",
         "Type": "System.Int32",
         "IsRequired": false
       }

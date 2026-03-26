@@ -137,18 +137,77 @@ namespace VNFootballLeagues.API.Controllers
             return Ok(result);
         }
 
-        [HttpPost("sync-player-match-statistics")]
-        public async Task<IActionResult> SyncPlayerMatchStatistics(
-        [FromQuery] int apiTournamentId,
-        [FromQuery] int apiSeasonId)
+        [HttpPost("sync-match-events")]
+        public async Task<IActionResult> SyncMatchEvents([FromQuery] int apiFixtureId)
         {
-            var result = await _service.SyncPlayerMatchStatisticsAsync(apiTournamentId, apiSeasonId);
+            try
+            {
+                if (apiFixtureId <= 0)
+                {
+                    return BadRequest(new { status = false, message = "Invalid apiFixtureId" });
+                }
 
+                var result = await _service.SyncMatchEventsAsync(apiFixtureId);
+
+                if (result.GetType().GetProperty("status")?.GetValue(result) is bool status && status)
+                {
+                    return Ok(result);
+                }
+
+                return BadRequest(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error syncing match events for fixture {ApiFixtureId}", apiFixtureId);
+                return StatusCode(500, new { status = false, message = "Internal server error" });
+            }
+        }
+
+        [HttpPost("sync-standings")]
+        public async Task<IActionResult> SyncStandings([FromQuery] int tournamentId, [FromQuery] int seasonId)
+        {
+            try
+            {
+                if (tournamentId <= 0 || seasonId <= 0)
+                {
+                    return BadRequest(new { status = false, message = "Invalid tournamentId or seasonId" });
+                }
+
+                var result = await _service.SyncStandingsAsync(tournamentId, seasonId);
+
+                if (result.GetType().GetProperty("status")?.GetValue(result) is bool status && status)
+                {
+                    return Ok(result);
+                }
+
+                return BadRequest(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error syncing standings for tournament {TournamentId}, season {SeasonId}",
+                    tournamentId, seasonId);
+                return StatusCode(500, new { status = false, message = "Internal server error" });
+            }
+        }
+
+        [HttpPost("fetch-player-match-stats-by-match")]
+        public async Task<IActionResult> FetchPlayerMatchStatsByApiMatchId([FromQuery] int apiFixtureId)
+        {
+            var result = await _service.FetchPlayerMatchStatsByApiMatchIdAsync(apiFixtureId);
             if (result.GetType().GetProperty("status")?.GetValue(result) is bool status && status)
                 return Ok(result);
-
             return BadRequest(result);
         }
 
+        [HttpPost("fetch-player-match-stats-by-league-season")]
+        public async Task<IActionResult> FetchPlayerMatchStatsByLeagueSeason(
+            [FromQuery] int tournamentId,
+            [FromQuery] int seasonId)
+        {
+            var result = await _service.FetchPlayerMatchStatsByLeagueSeasonAsync(tournamentId, seasonId);
+            if (result.GetType().GetProperty("status")?.GetValue(result) is bool status && status)
+                return Ok(result);
+            return BadRequest(result);
+        }
     }
 }
