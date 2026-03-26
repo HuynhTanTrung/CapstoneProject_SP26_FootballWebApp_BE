@@ -1,10 +1,11 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Internal;
 using Microsoft.Extensions.Logging;
 using PuppeteerSharp;
 using System.Net;
 using System.Text.Json;
 using VNFootballLeagues.Repositories.Models;
+using VNFootballLeagues.Services.Dtos;
 using VNFootballLeagues.Services.IServices;
 
 namespace VNFootballLeagues.Services.Services
@@ -1500,6 +1501,7 @@ namespace VNFootballLeagues.Services.Services
                     }
                     else
                     {
+                        existingSeason.LeagueId = league.LeagueId;
                         existingSeason.Year = year ?? existingSeason.Year;
                         existingSeason.ApiSeasonId = apiSeasonId;
 
@@ -2261,6 +2263,299 @@ namespace VNFootballLeagues.Services.Services
                     data = ex.StackTrace
                 };
             }
+        }
+
+        // ==================== GetAll (đọc từ DB) ====================
+
+        public async Task<List<League>> GetAllLeaguesAsync()
+        {
+            return await _context.Leagues.ToListAsync();
+        }
+
+        public async Task<List<SeasonListItemDto>> GetAllSeasonsAsync(int? leagueId = null, int? tournamentId = null)
+        {
+            League leagueEntity = null;
+            int? resolvedLeagueId = leagueId;
+
+            if (tournamentId.HasValue && tournamentId.Value > 0)
+            {
+                leagueEntity = await _context.Leagues
+                    .FirstOrDefaultAsync(l => l.ApiLeagueId == tournamentId.Value);
+                if (leagueEntity != null)
+                    resolvedLeagueId = leagueEntity.LeagueId;
+            }
+
+            // Chưa sync giải nhưng cần xem mùa: chỉ có Api tournament id → lấy trực tiếp từ SofaScore
+            if (tournamentId.HasValue && tournamentId.Value > 0 && leagueEntity == null)
+                return await FetchSeasonListFromSofaAsync(tournamentId.Value, null);
+
+            var query = _context.Seasons.AsQueryable();
+            if (resolvedLeagueId.HasValue)
+                query = query.Where(s => s.LeagueId == resolvedLeagueId.Value);
+
+            var dbList = await query
+                .OrderByDescending(s => s.Year)
+                .ToListAsync();
+
+            if (dbList.Count > 0)
+            {
+                return dbList.Select(s => new SeasonListItemDto
+                {
+                    SeasonId = s.SeasonId,
+                    LeagueId = s.LeagueId,
+                    Year = s.Year,
+                    ApiSeasonId = s.ApiSeasonId
+                }).ToList();
+            }
+
+            // Đã có giải trong DB nhưng chưa sync mùa → lấy từ API
+            if (tournamentId.HasValue && tournamentId.Value > 0)
+                return await FetchSeasonListFromSofaAsync(tournamentId.Value, leagueEntity?.LeagueId);
+
+            return new List<SeasonListItemDto>();
+        }
+
+        private async Task<List<SeasonListItemDto>> FetchSeasonListFromSofaAsync(int apiTournamentId, int? leagueIdHint)
+        {
+            var seasonsUrl = $"https://www.sofascore.com/api/v1/unique-tournament/{apiTournamentId}/seasons";
+            string seasonsJson;
+            try
+            {
+                seasonsJson = await FetchJson(seasonsUrl);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "FetchSeasonListFromSofaAsync failed for tournament {TournamentId}", apiTournamentId);
+                return new List<SeasonListItemDto>();
+            }
+
+            using var doc = JsonDocument.Parse(seasonsJson);
+            if (!doc.RootElement.TryGetProperty("seasons", out var seasons))
+                return new List<SeasonListItemDto>();
+
+            var parsed = new List<(int apiId, int? year)>();
+            foreach (var seasonEl in seasons.EnumerateArray())
+            {
+                if (!seasonEl.TryGetProperty("id", out var idEl))
+                    continue;
+
+                int apiSeasonId = idEl.GetInt32();
+                string seasonName = null;
+                if (seasonEl.TryGetProperty("name", out var nameEl))
+                    seasonName = nameEl.GetString();
+
+                int? year = null;
+                if (!string.IsNullOrEmpty(seasonName))
+                {
+                    var parts = seasonName.Split('/');
+                    if (int.TryParse(parts[^1], out var y))
+                        year = y;
+                    else if (int.TryParse(seasonName, out y))
+                        year = y;
+                }
+
+                parsed.Add((apiSeasonId, year));
+            }
+
+            if (parsed.Count == 0)
+                return new List<SeasonListItemDto>();
+
+            var apiIds = parsed.Select(p => p.apiId).ToList();
+            var dbSeasons = await _context.Seasons
+                .Where(s => s.ApiSeasonId.HasValue && apiIds.Contains(s.ApiSeasonId.Value))
+                .ToListAsync();
+            var byApiId = dbSeasons
+                .Where(s => s.ApiSeasonId.HasValue)
+                .ToDictionary(s => s.ApiSeasonId!.Value, s => s);
+
+            var list = new List<SeasonListItemDto>();
+            foreach (var p in parsed)
+            {
+                byApiId.TryGetValue(p.apiId, out var db);
+                list.Add(new SeasonListItemDto
+                {
+                    SeasonId = db?.SeasonId,
+                    LeagueId = db?.LeagueId ?? leagueIdHint,
+                    Year = db?.Year ?? p.year,
+                    ApiSeasonId = p.apiId
+                });
+            }
+
+            return list;
+        }
+
+        public async Task<List<Team>> GetAllTeamsAsync()
+        {
+            return await _context.Teams.ToListAsync();
+        }
+
+        public async Task<List<Match>> GetAllMatchesAsync()
+        {
+            return await _context.Matches.ToListAsync();
+        }
+
+        public async Task<List<MatchStatistic>> GetAllMatchStatisticsAsync()
+        {
+            return await _context.MatchStatistics.ToListAsync();
+        }
+
+        public async Task<List<Player>> GetAllPlayersAsync(int? teamId = null, int? sofascoreTeamId = null)
+        {
+            int? resolvedTeamId = teamId;
+
+            if (sofascoreTeamId.HasValue && sofascoreTeamId.Value > 0)
+            {
+                var team = await _context.Teams
+                    .FirstOrDefaultAsync(t => t.ApiTeamId == sofascoreTeamId.Value);
+                if (team == null)
+                    return new List<Player>();
+                resolvedTeamId = team.TeamId;
+            }
+
+            var query = _context.Players.AsQueryable();
+            if (resolvedTeamId.HasValue)
+                query = query.Where(p => p.TeamId == resolvedTeamId.Value);
+            return await query.ToListAsync();
+        }
+
+        public async Task<List<Player>> GetAllTeamPlayersByLeagueSeasonAsync(int tournamentId, int seasonId)
+        {
+            var league = await _context.Leagues
+                .FirstOrDefaultAsync(l => l.ApiLeagueId == tournamentId);
+
+            if (league == null)
+                return new List<Player>();
+
+            var season = await _context.Seasons
+                .FirstOrDefaultAsync(s => s.ApiSeasonId == seasonId && s.LeagueId == league.LeagueId);
+
+            if (season == null)
+                return new List<Player>();
+
+            var teamIds = await _context.Standings
+                .Where(s => s.LeagueId == league.LeagueId && s.SeasonId == season.SeasonId && s.TeamId.HasValue)
+                .Select(s => s.TeamId!.Value)
+                .Distinct()
+                .ToListAsync();
+
+            if (teamIds.Count == 0)
+            {
+                var matchRows = await _context.Matches
+                    .AsNoTracking()
+                    .Where(m => m.LeagueId == league.LeagueId && m.SeasonId == season.SeasonId)
+                    .Select(m => new { m.HomeTeamId, m.AwayTeamId })
+                    .ToListAsync();
+
+                teamIds = matchRows
+                    .SelectMany(m => new[] { m.HomeTeamId, m.AwayTeamId })
+                    .Where(id => id.HasValue)
+                    .Select(id => id!.Value)
+                    .Distinct()
+                    .ToList();
+            }
+
+            if (teamIds.Count == 0)
+            {
+                teamIds = await _context.Teams
+                    .Where(t => t.LeagueId == league.LeagueId)
+                    .Select(t => t.TeamId)
+                    .ToListAsync();
+            }
+
+            if (teamIds.Count == 0)
+                return new List<Player>();
+
+            return await _context.Players
+                .Where(p => p.TeamId.HasValue && teamIds.Contains(p.TeamId.Value))
+                .ToListAsync();
+        }
+
+        public async Task<List<PlayerSeasonStatistic>> GetAllPlayerSeasonStatisticsAsync()
+        {
+            return await _context.PlayerSeasonStatistics.ToListAsync();
+        }
+
+        public async Task<List<MatchEvent>> GetAllMatchEventsAsync()
+        {
+            return await _context.MatchEvents.ToListAsync();
+        }
+
+        public async Task<List<Standing>> GetAllStandingsAsync(int tournamentId, int seasonId)
+        {
+            var league = await _context.Leagues
+                .FirstOrDefaultAsync(l => l.ApiLeagueId == tournamentId);
+
+            if (league == null)
+                return new List<Standing>();
+
+            var season = await _context.Seasons
+                .FirstOrDefaultAsync(s => s.ApiSeasonId == seasonId && s.LeagueId == league.LeagueId);
+
+            if (season == null)
+                return new List<Standing>();
+
+            return await _context.Standings
+                .Where(s => s.LeagueId == league.LeagueId && s.SeasonId == season.SeasonId)
+                .ToListAsync();
+        }
+
+        public Task<bool> MatchExistsByApiFixtureIdAsync(int apiFixtureId)
+        {
+            return _context.Matches.AnyAsync(m => m.ApiFixtureId == apiFixtureId);
+        }
+
+        public async Task<List<PlayerMatchStatistic>> GetAllPlayerMatchStatisticsByApiFixtureIdAsync(int apiFixtureId, bool fetchIfEmpty = false)
+        {
+            var match = await _context.Matches
+                .FirstOrDefaultAsync(m => m.ApiFixtureId == apiFixtureId);
+
+            if (match == null)
+                return new List<PlayerMatchStatistic>();
+
+            var list = await _context.PlayerMatchStatistics
+                .Where(p => p.MatchId == match.MatchId)
+                .ToListAsync();
+
+            if (list.Count == 0 && fetchIfEmpty)
+            {
+                var fetchResult = await FetchPlayerMatchStatsByApiMatchIdAsync(apiFixtureId);
+                var ok = fetchResult.GetType().GetProperty("status")?.GetValue(fetchResult) is bool st && st;
+                if (ok)
+                {
+                    list = await _context.PlayerMatchStatistics
+                        .Where(p => p.MatchId == match.MatchId)
+                        .ToListAsync();
+                }
+            }
+
+            return list;
+        }
+
+        public async Task<List<PlayerMatchStatistic>> GetAllPlayerMatchStatisticsByLeagueSeasonAsync(int tournamentId, int seasonId)
+        {
+            var league = await _context.Leagues
+                .FirstOrDefaultAsync(l => l.ApiLeagueId == tournamentId);
+
+            if (league == null)
+                return new List<PlayerMatchStatistic>();
+
+            var season = await _context.Seasons
+                .FirstOrDefaultAsync(s => s.ApiSeasonId == seasonId && s.LeagueId == league.LeagueId);
+
+            if (season == null)
+                return new List<PlayerMatchStatistic>();
+
+            var matchIds = await _context.Matches
+                .Where(m => m.LeagueId == league.LeagueId && m.SeasonId == season.SeasonId)
+                .Select(m => m.MatchId)
+                .ToListAsync();
+
+            if (matchIds.Count == 0)
+                return new List<PlayerMatchStatistic>();
+
+            return await _context.PlayerMatchStatistics
+                .Where(p => p.MatchId.HasValue && matchIds.Contains(p.MatchId.Value))
+                .ToListAsync();
         }
 
         private PlayerMatchStatistic ExtractPlayerMatchStatisticsFromJson(JsonElement root, Match match, Player player)
