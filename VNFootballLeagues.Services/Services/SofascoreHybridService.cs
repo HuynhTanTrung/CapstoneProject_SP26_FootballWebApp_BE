@@ -32,7 +32,6 @@ namespace VNFootballLeagues.Services.Services
         {
             var browserFetcher = new BrowserFetcher();
 
-            // Get installed browsers - this returns a list of BrowserInfo objects
             var installedBrowsers = browserFetcher.GetInstalledBrowsers();
 
             if (installedBrowsers.Any())
@@ -44,7 +43,6 @@ namespace VNFootballLeagues.Services.Services
 
             _logger.LogInformation("Downloading browser...");
 
-            // Use DownloadAsync without a specific revision (gets the default)
             var revision = await browserFetcher.DownloadAsync();
 
             _logger.LogInformation($"Browser downloaded successfully to: {revision.GetExecutablePath()}");
@@ -61,7 +59,6 @@ namespace VNFootballLeagues.Services.Services
 
                 _logger.LogInformation("Launching browser...");
 
-                // Ensure browser exists before launching
                 await EnsureBrowserExistsAsync();
 
                 var options = new LaunchOptions
@@ -118,10 +115,8 @@ namespace VNFootballLeagues.Services.Services
 
                 page = await _browser.NewPageAsync();
 
-                // Set default timeout for all operations on this page
                 page.DefaultTimeout = 30000;
 
-                // Or set navigation timeout specifically
                 page.DefaultNavigationTimeout = 30000;
 
                 await page.SetUserAgentAsync(
@@ -1268,15 +1263,172 @@ namespace VNFootballLeagues.Services.Services
             }
         }
 
-        private int GetYearFromApiSeason(int apiSeasonId)
+        public async Task<object> SyncMatchStatisticsByLeagueAndSeasonAsync(int apiTournamentId, int apiSeasonId)
         {
             try
             {
-                return DateTime.UtcNow.Year;
+                var league = await _context.Leagues
+                    .FirstOrDefaultAsync(l => l.ApiLeagueId == apiTournamentId);
+
+                if (league == null)
+                {
+                    return new
+                    {
+                        status = false,
+                        message = $"League with API ID {apiTournamentId} not found. Please sync leagues first.",
+                        data = (object)null
+                    };
+                }
+
+                var season = await _context.Seasons
+                    .FirstOrDefaultAsync(s => s.ApiSeasonId == apiSeasonId && s.LeagueId == league.LeagueId);
+
+                if (season == null)
+                {
+                    return new
+                    {
+                        status = false,
+                        message = $"Season with API ID {apiSeasonId} not found for league {league.LeagueName}. Please sync seasons first.",
+                        data = (object)null
+                    };
+                }
+
+                var matches = await _context.Matches
+                    .Where(m => m.LeagueId == league.LeagueId &&
+                               m.SeasonId == season.SeasonId &&
+                               m.ApiFixtureId.HasValue &&
+                               m.ApiFixtureId > 0)
+                    .Select(m => new { m.MatchId, m.ApiFixtureId, m.MatchDate, m.HomeTeam, m.AwayTeam })
+                    .OrderBy(m => m.MatchDate)
+                    .ToListAsync();
+
+                if (!matches.Any())
+                {
+                    return new
+                    {
+                        status = false,
+                        message = $"No matches found for {league.LeagueName} season {season.Year} with valid ApiFixtureId",
+                        data = (object)null
+                    };
+                }
+
+                int totalMatchesProcessed = 0;
+                int totalAdded = 0;
+                int totalUpdated = 0;
+                int totalFailed = 0;
+                var matchResults = new List<object>();
+
+                foreach (var match in matches)
+                {
+                    int apiFixtureId = match.ApiFixtureId.Value;
+
+                    try
+                    {
+                        var statisticsUrl = $"https://www.sofascore.com/api/v1/event/{apiFixtureId}/statistics";
+                        var json = await FetchJson(statisticsUrl);
+
+                        using var doc = JsonDocument.Parse(json);
+
+                        if (doc.RootElement.TryGetProperty("statistics", out var statistics) &&
+                            statistics.ValueKind == JsonValueKind.Array)
+                        {
+                            int matchAdded = 0;
+                            int matchUpdated = 0;
+
+                            foreach (var period in statistics.EnumerateArray())
+                            {
+                                var result = await ProcessStatisticsPeriod(period, match.MatchId);
+                                matchAdded += result.added;
+                                matchUpdated += result.updated;
+                            }
+
+                            totalAdded += matchAdded;
+                            totalUpdated += matchUpdated;
+                            totalMatchesProcessed++;
+
+                            matchResults.Add(new
+                            {
+                                matchId = match.MatchId,
+                                apiFixtureId = apiFixtureId,
+                                matchDate = match.MatchDate,
+                                homeTeam = match.HomeTeam?.TeamName,
+                                awayTeam = match.AwayTeam?.TeamName,
+                                added = matchAdded,
+                                updated = matchUpdated,
+                                success = true
+                            });
+
+                            _logger.LogInformation("Processed match {ApiFixtureId} for {League} {Season}: +{Added} added, +{Updated} updated",
+                                apiFixtureId, league.LeagueName, season.Year, matchAdded, matchUpdated);
+                        }
+                        else
+                        {
+                            totalFailed++;
+                            matchResults.Add(new
+                            {
+                                matchId = match.MatchId,
+                                apiFixtureId = apiFixtureId,
+                                matchDate = match.MatchDate,
+                                homeTeam = match.HomeTeam?.TeamName,
+                                awayTeam = match.AwayTeam?.TeamName,
+                                success = false,
+                                reason = "No statistics found"
+                            });
+                        }
+
+                        await Task.Delay(500);
+                    }
+                    catch (Exception ex)
+                    {
+                        totalFailed++;
+                        matchResults.Add(new
+                        {
+                            matchId = match.MatchId,
+                            apiFixtureId = apiFixtureId,
+                            matchDate = match.MatchDate,
+                            homeTeam = match.HomeTeam?.TeamName,
+                            awayTeam = match.AwayTeam?.TeamName,
+                            success = false,
+                            reason = ex.Message
+                        });
+
+                        _logger.LogWarning(ex, "Failed to sync statistics for match {ApiFixtureId}", apiFixtureId);
+                    }
+                }
+
+                await _context.SaveChangesAsync();
+
+                return new
+                {
+                    status = true,
+                    message = $"Synced match statistics for {league.LeagueName} {season.Year}: " +
+                              $"{totalMatchesProcessed} matches processed, " +
+                              $"{totalAdded} added, {totalUpdated} updated, {totalFailed} failed",
+                    data = new
+                    {
+                        leagueId = league.LeagueId,
+                        leagueName = league.LeagueName,
+                        seasonId = season.SeasonId,
+                        seasonYear = season.Year,
+                        totalMatches = matches.Count,
+                        totalMatchesProcessed,
+                        totalAdded,
+                        totalUpdated,
+                        totalFailed,
+                        matchResults
+                    }
+                };
             }
-            catch
+            catch (Exception ex)
             {
-                return DateTime.UtcNow.Year;
+                _logger.LogError(ex, "Error in SyncMatchStatisticsByLeagueAndSeasonAsync for tournament {ApiTournamentId}, season {ApiSeasonId}",
+                    apiTournamentId, apiSeasonId);
+                return new
+                {
+                    status = false,
+                    message = ex.Message,
+                    data = ex.StackTrace
+                };
             }
         }
 
@@ -2265,54 +2417,24 @@ namespace VNFootballLeagues.Services.Services
             }
         }
 
-        // ==================== GetAll (đọc từ DB) ====================
-
         public async Task<List<League>> GetAllLeaguesAsync()
         {
             return await _context.Leagues.ToListAsync();
         }
 
-        public async Task<List<SeasonListItemDto>> GetAllSeasonsAsync(int? leagueId = null, int? tournamentId = null)
+        public async Task<List<SeasonListItemDto>> GetAllSeasonsAsync()
         {
-            League leagueEntity = null;
-            int? resolvedLeagueId = leagueId;
-
-            if (tournamentId.HasValue && tournamentId.Value > 0)
-            {
-                leagueEntity = await _context.Leagues
-                    .FirstOrDefaultAsync(l => l.ApiLeagueId == tournamentId.Value);
-                if (leagueEntity != null)
-                    resolvedLeagueId = leagueEntity.LeagueId;
-            }
-
-            // Chưa sync giải nhưng cần xem mùa: chỉ có Api tournament id → lấy trực tiếp từ SofaScore
-            if (tournamentId.HasValue && tournamentId.Value > 0 && leagueEntity == null)
-                return await FetchSeasonListFromSofaAsync(tournamentId.Value, null);
-
-            var query = _context.Seasons.AsQueryable();
-            if (resolvedLeagueId.HasValue)
-                query = query.Where(s => s.LeagueId == resolvedLeagueId.Value);
-
-            var dbList = await query
+            var seasons = await _context.Seasons
                 .OrderByDescending(s => s.Year)
                 .ToListAsync();
 
-            if (dbList.Count > 0)
+            return seasons.Select(s => new SeasonListItemDto
             {
-                return dbList.Select(s => new SeasonListItemDto
-                {
-                    SeasonId = s.SeasonId,
-                    LeagueId = s.LeagueId,
-                    Year = s.Year,
-                    ApiSeasonId = s.ApiSeasonId
-                }).ToList();
-            }
-
-            // Đã có giải trong DB nhưng chưa sync mùa → lấy từ API
-            if (tournamentId.HasValue && tournamentId.Value > 0)
-                return await FetchSeasonListFromSofaAsync(tournamentId.Value, leagueEntity?.LeagueId);
-
-            return new List<SeasonListItemDto>();
+                SeasonId = s.SeasonId,
+                LeagueId = s.LeagueId,
+                Year = s.Year,
+                ApiSeasonId = s.ApiSeasonId
+            }).ToList();
         }
 
         private async Task<List<SeasonListItemDto>> FetchSeasonListFromSofaAsync(int apiTournamentId, int? leagueIdHint)
@@ -2399,23 +2521,37 @@ namespace VNFootballLeagues.Services.Services
             return await _context.MatchStatistics.ToListAsync();
         }
 
-        public async Task<List<Player>> GetAllPlayersAsync(int? teamId = null, int? sofascoreTeamId = null)
+        public async Task<List<MatchStatistic>> GetMatchStatisticsByMatchAsync(int apiFixtureId)
         {
-            int? resolvedTeamId = teamId;
+            var match = await _context.Matches
+                .FirstOrDefaultAsync(m => m.ApiFixtureId == apiFixtureId);
 
-            if (sofascoreTeamId.HasValue && sofascoreTeamId.Value > 0)
+            if (match == null)
+                return new List<MatchStatistic>();
+
+            return await _context.MatchStatistics
+                .Where(ms => ms.MatchId == match.MatchId)
+                .ToListAsync();
+        }
+
+        public async Task<List<Player>> GetAllPlayersAsync(int sofascoreTeamId)
+        {
+            if (sofascoreTeamId <= 0)
             {
-                var team = await _context.Teams
-                    .FirstOrDefaultAsync(t => t.ApiTeamId == sofascoreTeamId.Value);
-                if (team == null)
-                    return new List<Player>();
-                resolvedTeamId = team.TeamId;
+                return new List<Player>();
             }
 
-            var query = _context.Players.AsQueryable();
-            if (resolvedTeamId.HasValue)
-                query = query.Where(p => p.TeamId == resolvedTeamId.Value);
-            return await query.ToListAsync();
+            var team = await _context.Teams
+                .FirstOrDefaultAsync(t => t.ApiTeamId == sofascoreTeamId);
+
+            if (team == null)
+            {
+                return new List<Player>();
+            }
+
+            return await _context.Players
+                .Where(p => p.TeamId == team.TeamId)
+                .ToListAsync();
         }
 
         public async Task<List<Player>> GetAllTeamPlayersByLeagueSeasonAsync(int tournamentId, int seasonId)
@@ -2475,9 +2611,24 @@ namespace VNFootballLeagues.Services.Services
             return await _context.PlayerSeasonStatistics.ToListAsync();
         }
 
-        public async Task<List<MatchEvent>> GetAllMatchEventsAsync()
+        public async Task<List<MatchEvent>> GetAllMatchEventsAsync(int apiFixtureId)
         {
-            return await _context.MatchEvents.ToListAsync();
+            if (apiFixtureId <= 0)
+            {
+                return new List<MatchEvent>();
+            }
+
+            var match = await _context.Matches
+                .FirstOrDefaultAsync(m => m.ApiFixtureId == apiFixtureId);
+
+            if (match == null)
+            {
+                return new List<MatchEvent>();
+            }
+
+            return await _context.MatchEvents
+                .Where(me => me.MatchId == match.MatchId)
+                .ToListAsync();
         }
 
         public async Task<List<Standing>> GetAllStandingsAsync(int tournamentId, int seasonId)
@@ -2504,7 +2655,7 @@ namespace VNFootballLeagues.Services.Services
             return _context.Matches.AnyAsync(m => m.ApiFixtureId == apiFixtureId);
         }
 
-        public async Task<List<PlayerMatchStatistic>> GetAllPlayerMatchStatisticsByApiFixtureIdAsync(int apiFixtureId, bool fetchIfEmpty = false)
+        public async Task<List<PlayerMatchStatistic>> GetAllPlayerMatchStatisticsByApiFixtureIdAsync(int apiFixtureId)
         {
             var match = await _context.Matches
                 .FirstOrDefaultAsync(m => m.ApiFixtureId == apiFixtureId);
@@ -2512,23 +2663,9 @@ namespace VNFootballLeagues.Services.Services
             if (match == null)
                 return new List<PlayerMatchStatistic>();
 
-            var list = await _context.PlayerMatchStatistics
+            return await _context.PlayerMatchStatistics
                 .Where(p => p.MatchId == match.MatchId)
                 .ToListAsync();
-
-            if (list.Count == 0 && fetchIfEmpty)
-            {
-                var fetchResult = await FetchPlayerMatchStatsByApiMatchIdAsync(apiFixtureId);
-                var ok = fetchResult.GetType().GetProperty("status")?.GetValue(fetchResult) is bool st && st;
-                if (ok)
-                {
-                    list = await _context.PlayerMatchStatistics
-                        .Where(p => p.MatchId == match.MatchId)
-                        .ToListAsync();
-                }
-            }
-
-            return list;
         }
 
         public async Task<List<PlayerMatchStatistic>> GetAllPlayerMatchStatisticsByLeagueSeasonAsync(int tournamentId, int seasonId)
