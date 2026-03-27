@@ -361,3 +361,13 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+/VNFootballLeagues.Repositories/obj/Debug/net9.0/VNFootballLeagues.Repositories.assets.cache
+/VNFootballLeagues.Services/obj/Debug/net9.0/VNFootballLeagues.Services.assets.cache
+/VNFootballLeagues.Services/obj/project.assets.json
+/VNFootballLeagues.Services/obj/VNFootballLeagues.Services.csproj.nuget.dgspec.json
+/VNFootballLeagues.Services/obj/VNFootballLeagues.Services.csproj.nuget.g.props
+/VNFootballLeaguesApp/obj/Debug/net9.0/staticwebassets.removed.txt
+/VNFootballLeaguesApp/obj/Debug/net9.0/VNFootballLeaguesApp.assets.cache
+/VNFootballLeaguesApp/obj/project.assets.json
+/VNFootballLeaguesApp/obj/VNFootballLeaguesApp.csproj.nuget.dgspec.json
+/VNFootballLeaguesApp/obj/VNFootballLeaguesApp.csproj.nuget.g.props

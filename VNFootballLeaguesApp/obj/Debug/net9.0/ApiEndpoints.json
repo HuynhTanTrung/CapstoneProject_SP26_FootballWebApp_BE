@@ -550,6 +550,22 @@
     "ReturnTypes": []
   },
   {
+    "ContainingType": "VNFootballLeaguesApp.Controllers.SePayWebhookController",
+    "Method": "ReceivePaymentWebhook",
+    "RelativePath": "api/sepay/webhook/payments",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "payload",
+        "Type": "VNFootballLeagues.Services.Models.Subscriptions.SePayWebhookPayload",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
     "ContainingType": "VNFootballLeaguesApp.Controllers.SofascoreController",
     "Method": "GetIncidents",
     "RelativePath": "api/Sofascore/incidents",
@@ -889,13 +905,7 @@
     "HttpMethod": "GET",
     "IsController": true,
     "Order": 0,
-    "Parameters": [
-      {
-        "Name": "apiFixtureId",
-        "Type": "System.Int32",
-        "IsRequired": false
-      }
-    ],
+    "Parameters": [],
     "ReturnTypes": []
   },
   {
@@ -910,22 +920,6 @@
   },
   {
     "ContainingType": "VNFootballLeagues.API.Controllers.SofascoreHybridController",
-    "Method": "GetMatchStatisticsByMatchAsync",
-    "RelativePath": "api/SofascoreHybrid/match-statistics-by-match",
-    "HttpMethod": "GET",
-    "IsController": true,
-    "Order": 0,
-    "Parameters": [
-      {
-        "Name": "apiFixtureId",
-        "Type": "System.Int32",
-        "IsRequired": false
-      }
-    ],
-    "ReturnTypes": []
-  },
-  {
-    "ContainingType": "VNFootballLeagues.API.Controllers.SofascoreHybridController",
     "Method": "GetAllMatches",
     "RelativePath": "api/SofascoreHybrid/matches",
     "HttpMethod": "GET",
@@ -936,15 +930,20 @@
   },
   {
     "ContainingType": "VNFootballLeagues.API.Controllers.SofascoreHybridController",
-    "Method": "GetAllPlayerMatchStatsByMatch",
-    "RelativePath": "api/SofascoreHybrid/player-match-statistic-by-match",
+    "Method": "GetMatchesWithTeams",
+    "RelativePath": "api/SofascoreHybrid/matches-with-teams",
     "HttpMethod": "GET",
     "IsController": true,
     "Order": 0,
     "Parameters": [
       {
-        "Name": "apiFixtureId",
-        "Type": "System.Int32",
+        "Name": "tournamentId",
+        "Type": "System.Nullable\u00601[[System.Int32, System.Private.CoreLib, Version=9.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "IsRequired": false
+      },
+      {
+        "Name": "seasonId",
+        "Type": "System.Nullable\u00601[[System.Int32, System.Private.CoreLib, Version=9.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
         "IsRequired": false
       }
     ],
@@ -953,7 +952,7 @@
   {
     "ContainingType": "VNFootballLeagues.API.Controllers.SofascoreHybridController",
     "Method": "GetAllPlayerMatchStatsByLeagueSeason",
-    "RelativePath": "api/SofascoreHybrid/player-match-stattistic-by-league",
+    "RelativePath": "api/SofascoreHybrid/player-match-stats-by-league-season",
     "HttpMethod": "GET",
     "IsController": true,
     "Order": 0,
@@ -966,6 +965,27 @@
       {
         "Name": "seasonId",
         "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "VNFootballLeagues.API.Controllers.SofascoreHybridController",
+    "Method": "GetAllPlayerMatchStatsByMatch",
+    "RelativePath": "api/SofascoreHybrid/player-match-stats-by-match",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "apiFixtureId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "fetchIfEmpty",
+        "Type": "System.Boolean",
         "IsRequired": false
       }
     ],
@@ -988,7 +1008,18 @@
     "HttpMethod": "GET",
     "IsController": true,
     "Order": 0,
-    "Parameters": [],
+    "Parameters": [
+      {
+        "Name": "leagueId",
+        "Type": "System.Nullable\u00601[[System.Int32, System.Private.CoreLib, Version=9.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "IsRequired": false
+      },
+      {
+        "Name": "tournamentId",
+        "Type": "System.Nullable\u00601[[System.Int32, System.Private.CoreLib, Version=9.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "IsRequired": false
+      }
+    ],
     "ReturnTypes": []
   },
   {
@@ -1369,8 +1400,13 @@
     "Order": 0,
     "Parameters": [
       {
+        "Name": "teamId",
+        "Type": "System.Nullable\u00601[[System.Int32, System.Private.CoreLib, Version=9.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "IsRequired": false
+      },
+      {
         "Name": "sofascoreTeamId",
-        "Type": "System.Int32",
+        "Type": "System.Nullable\u00601[[System.Int32, System.Private.CoreLib, Version=9.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
         "IsRequired": false
       }
     ],
@@ -1405,6 +1441,80 @@
         "IsRequired": false
       }
     ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "VNFootballLeaguesApp.Controllers.SubscriptionController",
+    "Method": "GetCurrentSubscription",
+    "RelativePath": "api/subscriptions/me",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "VNFootballLeaguesApp.Controllers.SubscriptionController",
+    "Method": "CreatePayment",
+    "RelativePath": "api/subscriptions/payments",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "dto",
+        "Type": "VNFootballLeaguesApp.DTOs.Subscription.CreateSubscriptionPaymentRequestDto",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "VNFootballLeaguesApp.Controllers.SubscriptionController",
+    "Method": "GetPayment",
+    "RelativePath": "api/subscriptions/payments/{paymentCode}",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "paymentCode",
+        "Type": "System.String",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "VNFootballLeaguesApp.Controllers.SubscriptionController",
+    "Method": "StreamPaymentEvents",
+    "RelativePath": "api/subscriptions/payments/{paymentCode}/events",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "paymentCode",
+        "Type": "System.String",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": [
+      {
+        "Type": "System.Void",
+        "MediaTypes": [],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "VNFootballLeaguesApp.Controllers.SubscriptionController",
+    "Method": "GetPlans",
+    "RelativePath": "api/subscriptions/plans",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
     "ReturnTypes": []
   }
 ]

@@ -21,6 +21,8 @@ namespace VNFootballLeagues.API.Controllers
             _logger = logger;
         }
 
+        // ==================== GetAll (đọc từ DB) ====================
+
         [HttpGet("leagues")]
         public async Task<IActionResult> GetAllLeagues()
         {
@@ -35,10 +37,14 @@ namespace VNFootballLeagues.API.Controllers
             }));
         }
 
+        /// <summary>
+        /// leagueId = khóa nội bộ (League.LeagueId). tournamentId = Api SofaScore (unique tournament), dùng khi không nhớ leagueId.
+        /// Nếu DB chưa có mùa, hệ thống gọi API SofaScore (cần tournamentId hoặc đã sync giải để lọc theo league).
+        /// </summary>
         [HttpGet("seasons")]
-        public async Task<IActionResult> GetAllSeasons()
+        public async Task<IActionResult> GetAllSeasons([FromQuery] int? leagueId, [FromQuery] int? tournamentId)
         {
-            var data = await _service.GetAllSeasonsAsync();
+            var data = await _service.GetAllSeasonsAsync(leagueId, tournamentId);
             return Ok(data.Select(x => new
             {
                 x.SeasonId,
@@ -64,6 +70,33 @@ namespace VNFootballLeagues.API.Controllers
                 x.National,
                 x.StadiumId,
                 x.LeagueId
+            }));
+        }
+
+        [HttpGet("matches-with-teams")]
+        public async Task<IActionResult> GetMatchesWithTeams([FromQuery] int? tournamentId = null, [FromQuery] int? seasonId = null)
+        {
+            var data = await _service.GetAllMatchesAsync(tournamentId, seasonId);
+            var teamIds = data.SelectMany(m => new[] { m.HomeTeamId, m.AwayTeamId })
+                              .Where(id => id.HasValue).Select(id => id!.Value).Distinct().ToList();
+            var teams = await _service.GetTeamsByIdsAsync(teamIds);
+            var teamMap = teams.ToDictionary(t => t.TeamId);
+
+            return Ok(data.Select(x => new
+            {
+                x.MatchId,
+                x.ApiFixtureId,
+                x.LeagueId,
+                x.SeasonId,
+                x.MatchDate,
+                x.Status,
+                x.HomeGoals,
+                x.AwayGoals,
+                x.Round,
+                HomeTeam = x.HomeTeamId.HasValue && teamMap.TryGetValue(x.HomeTeamId.Value, out var ht)
+                    ? new { ht.TeamId, ht.ApiTeamId, ht.TeamName, ht.LogoUrl } : null,
+                AwayTeam = x.AwayTeamId.HasValue && teamMap.TryGetValue(x.AwayTeamId.Value, out var at)
+                    ? new { at.TeamId, at.ApiTeamId, at.TeamName, at.LogoUrl } : null,
             }));
         }
 
@@ -130,51 +163,11 @@ namespace VNFootballLeagues.API.Controllers
             }));
         }
 
-        [HttpGet("match-statistics-by-match")]
-        public async Task<IActionResult> GetMatchStatisticsByMatchAsync([FromQuery] int apiFixtureId)
-        {
-            if (apiFixtureId <= 0)
-                return BadRequest(new { status = false, message = "Invalid apiFixtureId" });
-
-            var data = await _service.GetMatchStatisticsByMatchAsync(apiFixtureId);
-
-            if (data == null || !data.Any())
-                return NotFound(new { status = false, message = "No statistics found for this match", apiFixtureId });
-
-            return Ok(data.Select(x => new
-            {
-                x.StatId,
-                x.MatchId,
-                x.TeamId,
-                x.Possession,
-                x.Shots,
-                x.ShotsOnTarget,
-                x.Corners,
-                x.Fouls,
-                x.YellowCards,
-                x.RedCards,
-                x.Offsides,
-                x.ShotsBlocked,
-                x.ShotsInsideBox,
-                x.ShotsOutsideBox,
-                x.PassesAccuracy,
-                x.PassesKey,
-                x.DribblesAttempted,
-                x.DribblesSuccess,
-                x.DuelsWon,
-                x.DuelsTotal,
-                x.TacklesWon,
-                x.Saves,
-                x.Interceptions,
-                x.Clearances,
-                x.ExpectedGoals
-            }));
-        }
-
+        /// <summary>teamId = khóa nội bộ. sofascoreTeamId = ApiTeamId SofaScore (dùng khi sync bằng ID đội trên SofaScore).</summary>
         [HttpGet("team-players")]
-        public async Task<IActionResult> GetAllTeamPlayers([FromQuery] int sofascoreTeamId)
+        public async Task<IActionResult> GetAllTeamPlayers([FromQuery] int? teamId, [FromQuery] int? sofascoreTeamId)
         {
-            var data = await _service.GetAllPlayersAsync(sofascoreTeamId);
+            var data = await _service.GetAllPlayersAsync(teamId, sofascoreTeamId);
             return Ok(data.Select(x => new
             {
                 x.PlayerId,
@@ -197,6 +190,7 @@ namespace VNFootballLeagues.API.Controllers
             }));
         }
 
+        /// <summary>Tương ứng POST sync-all-team-players: ưu tiên đội từ BXH, sau đó từ trận đấu, cuối cùng mọi đội thuộc giải.</summary>
         [HttpGet("all-team-players")]
         public async Task<IActionResult> GetAllTeamPlayersByLeagueSeason(
             [FromQuery] int tournamentId,
@@ -270,9 +264,9 @@ namespace VNFootballLeagues.API.Controllers
         }
 
         [HttpGet("match-events")]
-        public async Task<IActionResult> GetAllMatchEvents([FromQuery] int apiFixtureId)
+        public async Task<IActionResult> GetAllMatchEvents()
         {
-            var data = await _service.GetAllMatchEventsAsync(apiFixtureId);
+            var data = await _service.GetAllMatchEventsAsync();
             return Ok(data.Select(x => new
             {
                 x.EventId,
@@ -289,6 +283,7 @@ namespace VNFootballLeagues.API.Controllers
             }));
         }
 
+        /// <summary>Bảng xếp hạng đã sync; tournamentId và seasonId là ID SofaScore (Api).</summary>
         [HttpGet("standings")]
         public async Task<IActionResult> GetAllStandings([FromQuery] int tournamentId, [FromQuery] int seasonId)
         {
@@ -320,9 +315,11 @@ namespace VNFootballLeagues.API.Controllers
             }));
         }
 
-        [HttpGet("player-match-statistic-by-match")]
+        /// <summary>Đọc stats đã lưu. fetchIfEmpty=true: kéo từ SofaScore trước khi trả (cần trận đã có trong DB + cầu thủ đã sync).</summary>
+        [HttpGet("player-match-stats-by-match")]
         public async Task<IActionResult> GetAllPlayerMatchStatsByMatch(
-        [FromQuery] int apiFixtureId)
+            [FromQuery] int apiFixtureId,
+            [FromQuery] bool fetchIfEmpty = false)
         {
             if (apiFixtureId <= 0)
                 return BadRequest(new { status = false, message = "Invalid apiFixtureId" });
@@ -337,7 +334,7 @@ namespace VNFootballLeagues.API.Controllers
                 });
             }
 
-            var data = await _service.GetAllPlayerMatchStatisticsByApiFixtureIdAsync(apiFixtureId);
+            var data = await _service.GetAllPlayerMatchStatisticsByApiFixtureIdAsync(apiFixtureId, fetchIfEmpty);
             return Ok(data.Select(x => new
             {
                 x.PlayerMatchStatId,
@@ -394,7 +391,7 @@ namespace VNFootballLeagues.API.Controllers
             }));
         }
 
-        [HttpGet("player-match-stattistic-by-league")]
+        [HttpGet("player-match-stats-by-league-season")]
         public async Task<IActionResult> GetAllPlayerMatchStatsByLeagueSeason(
             [FromQuery] int tournamentId,
             [FromQuery] int seasonId)

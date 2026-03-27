@@ -546,3 +546,4 @@ D:\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\obj\Debug\net9.0\
 D:\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\obj\Debug\net9.0\VNFootballLeaguesApp.pdb
 D:\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\obj\Debug\net9.0\VNFootballLeaguesApp.genruntimeconfig.cache
 D:\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\obj\Debug\net9.0\ref\VNFootballLeaguesApp.dll
+D:\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\obj\Debug\net9.0\VNFootballLeaguesApp.MvcApplicationPartsAssemblyInfo.cs
