@@ -137,6 +137,12 @@ namespace VNFootballLeagues.Services.Services
                     Timeout = 30000
                 });
 
+                if (response.Status == HttpStatusCode.NotFound)
+                {
+                    // 404 is definitive - no point retrying
+                    throw new HttpRequestException($"HTTP Error: {response.Status}");
+                }
+
                 if (response.Status != HttpStatusCode.OK &&
                     response.Status != HttpStatusCode.NotModified)
                 {
@@ -163,7 +169,7 @@ namespace VNFootballLeagues.Services.Services
                     throw;
                 }
             }
-            catch (Exception ex) when (retryCount > 0)
+            catch (Exception ex) when (retryCount > 0 && ex is not HttpRequestException hre || (retryCount > 0 && ex is HttpRequestException httpEx && !httpEx.Message.Contains("NotFound")))
             {
                 _logger.LogWarning(ex, "Failed to fetch {Url}, retrying...", url);
                 await Task.Delay(1000);
