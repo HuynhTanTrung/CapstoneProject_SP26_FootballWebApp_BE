@@ -2594,9 +2594,30 @@ namespace VNFootballLeagues.Services.Services
         }
 
         public async Task<List<Match>> GetTeamLastMatchesFromDbAsync(int apiTeamId, int count = 5)
-        public async Task<List<Match>> GetAllMatchesAsync()
         {
-            return await _context.Matches.ToListAsync();
+            var team = await _context.Teams.FirstOrDefaultAsync(t => t.ApiTeamId == apiTeamId);
+            if (team == null) return new List<Match>();
+            return await _context.Matches
+                .Where(m => (m.HomeTeamId == team.TeamId || m.AwayTeamId == team.TeamId) && m.Status == "finished")
+                .OrderByDescending(m => m.MatchDate)
+                .Take(count)
+                .ToListAsync();
+        }
+
+        public async Task<List<Match>> GetAllMatchesAsync(int? tournamentId = null, int? seasonId = null)
+        {
+            var query = _context.Matches.AsQueryable();
+            if (tournamentId.HasValue)
+            {
+                var league = await _context.Leagues.FirstOrDefaultAsync(l => l.ApiLeagueId == tournamentId.Value);
+                if (league != null) query = query.Where(m => m.LeagueId == league.LeagueId);
+            }
+            if (seasonId.HasValue)
+            {
+                var season = await _context.Seasons.FirstOrDefaultAsync(s => s.ApiSeasonId == seasonId.Value);
+                if (season != null) query = query.Where(m => m.SeasonId == season.SeasonId);
+            }
+            return await query.ToListAsync();
         }
 
         public async Task<List<MatchStatistic>> GetAllMatchStatisticsAsync()
