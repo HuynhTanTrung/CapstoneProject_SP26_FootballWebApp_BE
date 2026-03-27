@@ -495,6 +495,7 @@ namespace VNFootballLeagues.API.Controllers
             }
         }
 
+
         [HttpPost("sync-match-statistics")]
         public async Task<IActionResult> SyncMatchStatistics([FromQuery] int apiFixtureId)
         {
@@ -515,7 +516,15 @@ namespace VNFootballLeagues.API.Controllers
             }
         }
 
-        
+        [HttpPost("sync-match-statistics-by-league")]
+        public async Task<IActionResult> SyncMatchStatisticsByLeagueSeason(
+        [FromQuery] int tournamentId,
+        [FromQuery] int seasonId)
+        {
+            var result = await _service.SyncMatchStatisticsByLeagueAndSeasonAsync(tournamentId, seasonId);
+            return Ok(result);
+        }
+
         [HttpPost("sync-team-players")]
         public async Task<IActionResult> SyncTeamPlayers([FromQuery] int sofascoreTeamId)
         {
@@ -545,6 +554,23 @@ namespace VNFootballLeagues.API.Controllers
             var result = await _service.SyncAllPlayerStatisticsAsync(tournamentId, seasonId);
             return Ok(result);
         }
+
+        [HttpPost("sync-match-events")]
+        public async Task<IActionResult> SyncMatchEvents([FromQuery] int apiFixtureId)
+        {
+            try
+            {
+                if (apiFixtureId <= 0)
+                {
+                    return BadRequest(new { status = false, message = "Invalid apiFixtureId" });
+                }
+
+                var result = await _service.SyncMatchEventsAsync(apiFixtureId);
+
+                if (result.GetType().GetProperty("status")?.GetValue(result) is bool status && status)
+                {
+                    return Ok(result);
+                }
 
         [HttpPost("sync-match-events")]
         public async Task<IActionResult> SyncMatchEvents([FromQuery] int apiFixtureId)
