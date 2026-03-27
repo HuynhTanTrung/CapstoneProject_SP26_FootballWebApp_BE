@@ -17,6 +17,8 @@ public static class ServiceCollectionExtensions
     {
         services.Configure<JwtSettings>(config.GetSection("JwtSettings"));
         services.Configure<EmailSettings>(config.GetSection("EmailSettings"));
+        services.Configure<SePaySettings>(config.GetSection("SePaySettings"));
+        services.Configure<SubscriptionSettings>(config.GetSection("SubscriptionSettings"));
 
         var jwtSettings = config.GetSection("JwtSettings").Get<JwtSettings>() ?? new JwtSettings();
         var secretKey = string.IsNullOrWhiteSpace(jwtSettings.SecretKey)
@@ -82,22 +84,33 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddRepositories(this IServiceCollection services, IConfiguration config)
     {
         services.AddDbContext<VNFootballLeaguesDBContext>(options =>
-            options.UseSqlServer(config.GetConnectionString("DefaultConnection")));
+            options.UseSqlServer(config.GetConnectionString("DefaultConnection"),
+                sqlOptions => sqlOptions.EnableRetryOnFailure(
+                    maxRetryCount: 5,
+                    maxRetryDelay: TimeSpan.FromSeconds(10),
+                    errorNumbersToAdd: null)));
 
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
         services.AddScoped<IEmailVerificationRepository, EmailVerificationRepository>();
         services.AddScoped<IPasswordResetRepository, PasswordResetRepository>();
+        services.AddScoped<IUserSubscriptionRepository, UserSubscriptionRepository>();
+        services.AddScoped<ISubscriptionPaymentRepository, SubscriptionPaymentRepository>();
+        services.AddScoped<ISePayWebhookLogRepository, SePayWebhookLogRepository>();
 
         return services;
     }
 
     public static IServiceCollection AddApplicationServices(this IServiceCollection services)
     {
+        services.AddSingleton<ISubscriptionPaymentNotificationService, SubscriptionPaymentNotificationService>();
         services.AddScoped<IJwtService, JwtService>();
         services.AddScoped<IEmailService, EmailService>();
         services.AddScoped<IUserService, UserService>();
         services.AddScoped<IAuthService, AuthService>();
+        services.AddScoped<ISubscriptionService, SubscriptionService>();
+        services.AddScoped<ISePayWebhookService, SePayWebhookService>();
+        services.AddScoped<ISofascoreScraperService, SofascoreScraperService>();
 
         return services;
     }

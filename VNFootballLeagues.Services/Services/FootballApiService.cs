@@ -137,21 +137,6 @@ namespace VNFootballLeagues.Services.Services
                     {
                         LeagueId = league.LeagueId,
                         Year = apiSeason.year,
-
-                        StartDate = !string.IsNullOrEmpty(apiSeason.start)
-                            ? DateOnly.Parse(apiSeason.start)
-                            : null,
-
-                        EndDate = !string.IsNullOrEmpty(apiSeason.end)
-                            ? DateOnly.Parse(apiSeason.end)
-                            : null,
-
-                        IsCurrent = apiSeason.current,
-                        IsCurrentSeason = apiSeason.current,
-
-                        ApiCoverage = apiSeason.coverage != null
-                            ? System.Text.Json.JsonSerializer.Serialize(apiSeason.coverage)
-                            : null
                     };
 
                     _context.Seasons.Add(newSeason);
@@ -1015,9 +1000,31 @@ namespace VNFootballLeagues.Services.Services
             return await _context.Teams.ToListAsync();
         }
 
-        public async Task<List<Player>> GetAllPlayersAsync()
+        public async Task<Team?> GetTeamByIdAsync(int id)
         {
-            return await _context.Players.ToListAsync();
+            return await _context.Teams
+                .Include(t => t.Stadium)
+                .FirstOrDefaultAsync(t => t.TeamId == id);
+        }
+
+        public async Task<List<Player>> GetAllPlayersAsync(int? teamId = null)
+        {
+            var query = _context.Players.AsQueryable();
+            if (teamId.HasValue)
+                query = query.Where(p => p.TeamId == teamId.Value);
+            return await query.ToListAsync();
+        }
+
+        public async Task<Player?> GetPlayerByIdAsync(int id)
+        {
+            return await _context.Players.FirstOrDefaultAsync(p => p.PlayerId == id);
+        }
+
+        public async Task<List<PlayerSeasonStatistic>> GetPlayerStatsByPlayerIdAsync(int playerId)
+        {
+            return await _context.PlayerSeasonStatistics
+                .Where(s => s.PlayerId == playerId)
+                .ToListAsync();
         }
 
         public async Task<List<PlayerSeasonStatistic>> GetAllPlayerSeasonStatisticsAsync()

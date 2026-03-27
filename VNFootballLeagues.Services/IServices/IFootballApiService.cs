@@ -10,6 +10,7 @@ namespace VNFootballLeagues.Services.IServices
 {
     public interface IFootballApiService
     {
+        // Sync methods (POST)
         Task<List<Team>> SyncTeamsByLeagueAsync(int apiLeagueId, int season);
         Task<List<Season>> SyncSeasonsAsync();
         Task<List<League>> SyncLeaguesAsync();
@@ -26,7 +27,10 @@ namespace VNFootballLeagues.Services.IServices
         Task<List<League>> GetAllLeaguesAsync();
         Task<List<Season>> GetAllSeasonsAsync();
         Task<List<Team>> GetAllTeamsAsync();
-        Task<List<Player>> GetAllPlayersAsync();
+        Task<Team?> GetTeamByIdAsync(int id);
+        Task<List<Player>> GetAllPlayersAsync(int? teamId = null);
+        Task<Player?> GetPlayerByIdAsync(int id);
+        Task<List<PlayerSeasonStatistic>> GetPlayerStatsByPlayerIdAsync(int playerId);
         Task<List<PlayerSeasonStatistic>> GetAllPlayerSeasonStatisticsAsync();
         Task<List<Match>> GetAllMatchesAsync();
         Task<List<Standing>> GetAllStandingsAsync();

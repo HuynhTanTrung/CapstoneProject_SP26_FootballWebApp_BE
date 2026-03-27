@@ -9,6 +9,8 @@ public partial class MatchEvent
 {
     public int EventId { get; set; }
 
+    public int? ApiEventId { get; set; }
+    
     public int? MatchId { get; set; }
 
     public int? TeamId { get; set; }

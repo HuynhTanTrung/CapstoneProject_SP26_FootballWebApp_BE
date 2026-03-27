@@ -27,53 +27,63 @@ public partial class PlayerMatchStatistic
 
     public int? Passes { get; set; }
 
-    public int? Tackles { get; set; }
-
-    public int? YellowCards { get; set; }
-
-    public int? RedCards { get; set; }
-
-    public decimal? Rating { get; set; }
-
-    public int? Offsides { get; set; }
-
     public int? PassesAccuracy { get; set; }
 
     public int? PassesKey { get; set; }
 
-    public int? DribblesAttempted { get; set; }
+    public int? TotalCrosses { get; set; }
+    public int? AccurateCrosses { get; set; }
+    public int? TotalLongBalls { get; set; }
+    public int? AccurateLongBalls { get; set; }
+    public int? PassesOwnHalf { get; set; }
+    public int? AccuratePassesOwnHalf { get; set; }
+    public int? PassesOppositionHalf { get; set; }
+    public int? AccuratePassesOppositionHalf { get; set; }
 
+    public int? Tackles { get; set; }
+    public int? TacklesWon { get; set; }
+
+    public int? Interceptions { get; set; }
+    public int? Clearances { get; set; }
+    public int? Blocks { get; set; }
+
+    public int? DribblesAttempted { get; set; }
     public int? DribblesSuccess { get; set; }
 
     public int? DuelsWon { get; set; }
-
     public int? DuelsTotal { get; set; }
 
-    public int? TacklesWon { get; set; }
-
-    public int? Blocks { get; set; }
-
-    public int? Interceptions { get; set; }
-
-    public int? Clearances { get; set; }
-
-    public int? FoulsDrawn { get; set; }
+    // New duel-related fields
+    public int? AerialDuelsWon { get; set; }
+    public int? AerialDuelsLost { get; set; }
+    public int? GroundDuelsWon { get; set; }
+    public int? GroundDuelsLost { get; set; }
 
     public int? FoulsCommitted { get; set; }
+    public int? FoulsDrawn { get; set; }
 
-    public int? PenaltiesWon { get; set; }
+    public int? Offsides { get; set; }
 
-    public int? PenaltiesCommitted { get; set; }
+    public int? YellowCards { get; set; }
+    public int? RedCards { get; set; }
 
     public int? PenaltiesScored { get; set; }
-
     public int? PenaltiesMissed { get; set; }
+    public int? PenaltiesWon { get; set; }
+    public int? PenaltiesCommitted { get; set; }
 
+    public decimal? Rating { get; set; }
     public decimal? ExpectedGoals { get; set; }
+    public decimal? ExpectedAssists { get; set; }
+
+    public int? Touches { get; set; }
+    public int? PossessionLost { get; set; }
+    public int? BallRecoveries { get; set; }
+    public int? Dispossessed { get; set; }
+    public int? WasFouled { get; set; }
+    public int? UnsuccessfulTouch { get; set; }
 
     public virtual Match Match { get; set; }
-
     public virtual Player Player { get; set; }
-
     public virtual Team Team { get; set; }
 }

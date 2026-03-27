@@ -13,15 +13,7 @@ public partial class Season
 
     public int? Year { get; set; }
 
-    public DateOnly? StartDate { get; set; }
-
-    public DateOnly? EndDate { get; set; }
-
-    public bool? IsCurrent { get; set; }
-
-    public bool? IsCurrentSeason { get; set; }
-
-    public string ApiCoverage { get; set; }
+    public int? ApiSeasonId { get; set; }
 
     public virtual League League { get; set; }
 
