@@ -68,9 +68,9 @@ namespace VNFootballLeagues.API.Controllers
         }
 
         [HttpGet("matches")]
-        public async Task<IActionResult> GetAllMatches()
+        public async Task<IActionResult> GetAllMatches([FromQuery] int? tournamentId = null, [FromQuery] int? seasonId = null)
         {
-            var data = await _service.GetAllMatchesAsync();
+            var data = await _service.GetAllMatchesAsync(tournamentId, seasonId);
             return Ok(data.Select(x => new
             {
                 x.MatchId,
@@ -168,6 +168,27 @@ namespace VNFootballLeagues.API.Controllers
                 x.Interceptions,
                 x.Clearances,
                 x.ExpectedGoals
+            }));
+        }
+
+        [HttpGet("team-last-matches-db")]
+        public async Task<IActionResult> GetTeamLastMatchesFromDb([FromQuery] int apiTeamId, [FromQuery] int count = 5)
+        {
+            if (apiTeamId <= 0)
+                return BadRequest(new { status = false, message = "Invalid apiTeamId" });
+
+            var data = await _service.GetTeamLastMatchesFromDbAsync(apiTeamId, count);
+            return Ok(data.Select(x => new
+            {
+                x.MatchId,
+                x.ApiFixtureId,
+                x.MatchDate,
+                x.Status,
+                x.HomeGoals,
+                x.AwayGoals,
+                x.Round,
+                HomeTeam = x.HomeTeam == null ? null : new { x.HomeTeam.TeamId, x.HomeTeam.ApiTeamId, x.HomeTeam.TeamName, x.HomeTeam.LogoUrl },
+                AwayTeam = x.AwayTeam == null ? null : new { x.AwayTeam.TeamId, x.AwayTeam.ApiTeamId, x.AwayTeam.TeamName, x.AwayTeam.LogoUrl },
             }));
         }
 
@@ -302,6 +323,9 @@ namespace VNFootballLeagues.API.Controllers
                 x.LeagueId,
                 x.SeasonId,
                 x.TeamId,
+                TeamName = x.Team != null ? x.Team.TeamName : null,
+                TeamLogo = x.Team != null ? x.Team.LogoUrl : null,
+                ApiTeamId = x.Team != null ? x.Team.ApiTeamId : (int?)null,
                 x.Rank,
                 x.Played,
                 x.Win,
