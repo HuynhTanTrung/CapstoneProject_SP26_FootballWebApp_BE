@@ -11,10 +11,13 @@ public partial class Transfer
 
     public int? PlayerId { get; set; }
 
+    public int ApiTransferId { get; set; }
+
     public int? FromTeamId { get; set; }
 
     public int? ToTeamId { get; set; }
 
+    public string TransferFee { get; set; }
     public DateTime? TransferDate { get; set; }
 
     public string TransferType { get; set; }

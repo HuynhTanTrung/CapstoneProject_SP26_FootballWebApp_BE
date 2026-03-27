@@ -459,6 +459,147 @@ namespace VNFootballLeagues.API.Controllers
             }));
         }
 
+        [HttpGet("lineups")]
+        public async Task<IActionResult> GetAllLineupsByLeagueSeason(
+        [FromQuery] int tournamentId,
+        [FromQuery] int seasonId)
+        {
+            if (tournamentId <= 0)
+            {
+                return BadRequest(new
+                {
+                    status = false,
+                    message = "Invalid tournamentId. Please provide a valid tournament ID."
+                });
+            }
+
+            if (seasonId <= 0)
+            {
+                return BadRequest(new
+                {
+                    status = false,
+                    message = "Invalid seasonId. Please provide a valid season ID."
+                });
+            }
+
+            var data = await _service.GetAllLineupsByLeagueSeasonAsync(tournamentId, seasonId);
+
+            if (!data.Any())
+            {
+                return NotFound(new
+                {
+                    status = false,
+                    message = $"No lineups found for tournament {tournamentId} and season {seasonId}. Please sync lineups first."
+                });
+            }
+
+            var result = data.Select(l => new
+            {
+                l.LineupId,
+                l.MatchId,
+                apiFixtureId = l.Match?.ApiFixtureId,
+                matchDate = l.Match?.MatchDate,
+                matchStatus = l.Match?.Status,
+                round = l.Match?.Round,
+                venue = l.Match?.Venue,
+                homeTeam = new
+                {
+                    teamId = l.Match?.HomeTeamId,
+                    teamName = l.Match?.HomeTeam?.TeamName,
+                    teamLogo = l.Match?.HomeTeam?.LogoUrl
+                },
+                awayTeam = new
+                {
+                    teamId = l.Match?.AwayTeamId,
+                    teamName = l.Match?.AwayTeam?.TeamName,
+                    teamLogo = l.Match?.AwayTeam?.LogoUrl
+                },
+                score = l.Match?.HomeGoals != null || l.Match?.AwayGoals != null
+                    ? $"{l.Match?.HomeGoals ?? 0} - {l.Match?.AwayGoals ?? 0}"
+                    : null,
+                teamId = l.TeamId,
+                teamName = l.Team?.TeamName,
+                teamLogo = l.Team?.LogoUrl,
+                isHomeTeam = l.TeamId == l.Match?.HomeTeamId,
+                l.Formation,
+            });
+
+            return Ok(new
+            {
+                status = true,
+                message = $"Found {data.Count} lineups",
+                data = result
+            });
+        }
+
+        [HttpGet("contracts")]
+        public async Task<IActionResult> GetContractsByLeagueSeason(
+        [FromQuery] int tournamentId,
+        [FromQuery] int seasonId)
+        {
+            try
+            {
+                if (tournamentId <= 0 || seasonId <= 0)
+                {
+                    return BadRequest(new { status = false, message = "Invalid tournamentId or seasonId" });
+                }
+
+                var result = await _service.GetContractsByLeagueSeasonAsync(tournamentId, seasonId);
+
+                var resultType = result.GetType();
+                var statusProp = resultType.GetProperty("status");
+                var isSuccess = statusProp != null && (bool)statusProp.GetValue(result);
+
+                if (isSuccess)
+                {
+                    return Ok(result);
+                }
+
+                var messageProp = resultType.GetProperty("message");
+                var message = messageProp?.GetValue(result)?.ToString() ?? "Unknown error";
+                return NotFound(new { status = false, message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting contracts by league and season");
+                return StatusCode(500, new { status = false, message = "Internal server error" });
+            }
+        }
+
+        [HttpGet("transfers")]
+        public async Task<IActionResult> GetTransfersByLeagueSeason(
+            [FromQuery] int tournamentId,
+            [FromQuery] int seasonId)
+        {
+            try
+            {
+                if (tournamentId <= 0 || seasonId <= 0)
+                {
+                    return BadRequest(new { status = false, message = "Invalid tournamentId or seasonId" });
+                }
+
+                var result = await _service.GetTransfersByLeagueSeasonAsync(tournamentId, seasonId);
+
+                var resultType = result.GetType();
+                var statusProp = resultType.GetProperty("status");
+                var isSuccess = statusProp != null && (bool)statusProp.GetValue(result);
+
+                if (isSuccess)
+                {
+                    return Ok(result);
+                }
+
+                var messageProp = resultType.GetProperty("message");
+                var message = messageProp?.GetValue(result)?.ToString() ?? "Unknown error";
+                return NotFound(new { status = false, message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting transfers by league and season");
+                return StatusCode(500, new { status = false, message = "Internal server error" });
+            }
+        }
+
         [HttpPost("sync-vietnamese-leagues")]
         public async Task<IActionResult> SyncVietnameseLeagues()
         {
@@ -638,7 +779,7 @@ namespace VNFootballLeagues.API.Controllers
             }
         }
 
-        [HttpPost("fetch-player-match-stats-by-match")]
+        [HttpPost("sync-player-match-stats-by-match")]
         public async Task<IActionResult> FetchPlayerMatchStatsByApiMatchId([FromQuery] int apiFixtureId)
         {
             var result = await _service.FetchPlayerMatchStatsByApiMatchIdAsync(apiFixtureId);
@@ -647,7 +788,7 @@ namespace VNFootballLeagues.API.Controllers
             return BadRequest(result);
         }
 
-        [HttpPost("fetch-player-match-stats-by-league-season")]
+        [HttpPost("sync-player-match-stats-by-league-season")]
         public async Task<IActionResult> FetchPlayerMatchStatsByLeagueSeason(
             [FromQuery] int tournamentId,
             [FromQuery] int seasonId)
@@ -657,5 +798,207 @@ namespace VNFootballLeagues.API.Controllers
                 return Ok(result);
             return BadRequest(result);
         }
+
+        [HttpPost("sync-lineups")]
+        public async Task<IActionResult> SyncMatchLineups([FromQuery] int apiFixtureId)
+        {
+            if (apiFixtureId <= 0)
+            {
+                return BadRequest(new
+                {
+                    status = false,
+                    message = "Invalid apiFixtureId. Please provide a valid fixture ID."
+                });
+            }
+
+            var result = await _service.SyncMatchLineupsAsync(apiFixtureId);
+
+            var resultType = result.GetType();
+            var statusProp = resultType.GetProperty("status");
+            var isSuccess = statusProp != null && (bool)statusProp.GetValue(result);
+
+            if (!isSuccess)
+            {
+                var messageProp = resultType.GetProperty("message");
+                var message = messageProp?.GetValue(result)?.ToString() ?? "Unknown error";
+                return NotFound(new { status = false, message });
+            }
+
+            return Ok(result);
+        }
+
+        [HttpPost("sync-all-lineups")]
+        public async Task<IActionResult> FetchLineupsByLeagueSeason(
+        [FromQuery] int tournamentId,
+        [FromQuery] int seasonId)
+        {
+            if (tournamentId <= 0)
+            {
+                return BadRequest(new
+                {
+                    status = false,
+                    message = "Invalid tournamentId. Please provide a valid tournament ID."
+                });
+            }
+
+            if (seasonId <= 0)
+            {
+                return BadRequest(new
+                {
+                    status = false,
+                    message = "Invalid seasonId. Please provide a valid season ID."
+                });
+            }
+
+            var result = await _service.FetchLineupsByLeagueSeasonAsync(tournamentId, seasonId);
+
+            var resultType = result.GetType();
+            var statusProp = resultType.GetProperty("status");
+            var isSuccess = statusProp != null && (bool)statusProp.GetValue(result);
+
+            if (!isSuccess)
+            {
+                var messageProp = resultType.GetProperty("message");
+                var message = messageProp?.GetValue(result)?.ToString() ?? "Unknown error";
+                return NotFound(new { status = false, message });
+            }
+
+            return Ok(result);
+        }
+
+        [HttpPost("sync-contracts")]
+        public async Task<IActionResult> SyncTeamContracts([FromQuery] int apiTeamId)
+        {
+            try
+            {
+                if (apiTeamId <= 0)
+                {
+                    return BadRequest(new { status = false, message = "Invalid apiTeamId" });
+                }
+
+                var result = await _service.SyncTeamContractsAsync(apiTeamId);
+
+                var resultType = result.GetType();
+                var statusProp = resultType.GetProperty("status");
+                var isSuccess = statusProp != null && (bool)statusProp.GetValue(result);
+
+                if (isSuccess)
+                {
+                    return Ok(result);
+                }
+
+                var messageProp = resultType.GetProperty("message");
+                var message = messageProp?.GetValue(result)?.ToString() ?? "Unknown error";
+                return BadRequest(new { status = false, message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error syncing contracts for team {ApiTeamId}", apiTeamId);
+                return StatusCode(500, new { status = false, message = "Internal server error" });
+            }
+        }
+
+        [HttpPost("sync-all-contracts")]
+        public async Task<IActionResult> SyncAllTeamContractsByLeagueSeason(
+        [FromQuery] int tournamentId,
+        [FromQuery] int seasonId)
+        {
+            try
+            {
+                if (tournamentId <= 0 || seasonId <= 0)
+                {
+                    return BadRequest(new { status = false, message = "Invalid tournamentId or seasonId" });
+                }
+
+                var result = await _service.SyncAllTeamContractsByLeagueSeasonAsync(tournamentId, seasonId);
+
+                var resultType = result.GetType();
+                var statusProp = resultType.GetProperty("status");
+                var isSuccess = statusProp != null && (bool)statusProp.GetValue(result);
+
+                if (isSuccess)
+                {
+                    return Ok(result);
+                }
+
+                var messageProp = resultType.GetProperty("message");
+                var message = messageProp?.GetValue(result)?.ToString() ?? "Unknown error";
+                return BadRequest(new { status = false, message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error syncing all team contracts");
+                return StatusCode(500, new { status = false, message = "Internal server error" });
+            }
+        }
+
+
+        [HttpPost("sync-transfers")]
+        public async Task<IActionResult> SyncTeamTransfers([FromQuery] int apiTeamId)
+        {
+            try
+            {
+                if (apiTeamId <= 0)
+                {
+                    return BadRequest(new { status = false, message = "Invalid apiTeamId" });
+                }
+
+                var result = await _service.SyncTeamTransfersAsync(apiTeamId);
+
+                var resultType = result.GetType();
+                var statusProp = resultType.GetProperty("status");
+                var isSuccess = statusProp != null && (bool)statusProp.GetValue(result);
+
+                if (isSuccess)
+                {
+                    return Ok(result);
+                }
+
+                var messageProp = resultType.GetProperty("message");
+                var message = messageProp?.GetValue(result)?.ToString() ?? "Unknown error";
+                return BadRequest(new { status = false, message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error syncing transfers for team {ApiTeamId}", apiTeamId);
+                return StatusCode(500, new { status = false, message = "Internal server error" });
+            }
+        }
+
+        [HttpPost("sync-all-transfers")]
+        public async Task<IActionResult> SyncAllTeamTransfersByLeagueSeason(
+        [FromQuery] int tournamentId,
+        [FromQuery] int seasonId)
+        {
+            try
+            {
+                if (tournamentId <= 0 || seasonId <= 0)
+                {
+                    return BadRequest(new { status = false, message = "Invalid tournamentId or seasonId" });
+                }
+
+                var result = await _service.SyncAllTeamTransfersByLeagueSeasonAsync(tournamentId, seasonId);
+
+                var resultType = result.GetType();
+                var statusProp = resultType.GetProperty("status");
+                var isSuccess = statusProp != null && (bool)statusProp.GetValue(result);
+
+                if (isSuccess)
+                {
+                    return Ok(result);
+                }
+
+                var messageProp = resultType.GetProperty("message");
+                var message = messageProp?.GetValue(result)?.ToString() ?? "Unknown error";
+                return BadRequest(new { status = false, message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error syncing all team transfers");
+                return StatusCode(500, new { status = false, message = "Internal server error" });
+            }
+        }
+
+
     }
 }

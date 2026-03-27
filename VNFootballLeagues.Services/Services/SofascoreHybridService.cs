@@ -470,6 +470,36 @@ namespace VNFootballLeagues.Services.Services
             }
         }
 
+        public async Task<List<Lineup>> GetAllLineupsByLeagueSeasonAsync(int apiTournamentId, int apiSeasonId)
+        {
+            var league = await _context.Leagues
+                .FirstOrDefaultAsync(l => l.ApiLeagueId == apiTournamentId);
+
+            if (league == null)
+            {
+                return new List<Lineup>();
+            }
+
+            var season = await _context.Seasons
+                .FirstOrDefaultAsync(s => s.ApiSeasonId == apiSeasonId && s.LeagueId == league.LeagueId);
+
+            if (season == null)
+            {
+                return new List<Lineup>();
+            }
+
+            return await _context.Lineups
+                .Where(l => l.Match.LeagueId == league.LeagueId && l.Match.SeasonId == season.SeasonId)
+                .Include(l => l.Match)
+                    .ThenInclude(m => m.HomeTeam)
+                .Include(l => l.Match)
+                    .ThenInclude(m => m.AwayTeam)
+                .Include(l => l.Team)
+                .OrderBy(l => l.Match.MatchDate)
+                .ThenBy(l => l.Team.TeamName)
+                .ToListAsync();
+        }
+
         private async Task<(int added, int updated)> ProcessStatisticsPeriod(JsonElement period, int matchId)
         {
             int added = 0;
@@ -1432,7 +1462,8 @@ namespace VNFootballLeagues.Services.Services
             }
         }
 
-        public async Task<object> GetTeamsByTournamentAsync(int tournamentId) {
+        public async Task<object> GetTeamsByTournamentAsync(int tournamentId)
+        {
             try
             {
                 var teams = await _context.Teams
@@ -1476,8 +1507,8 @@ namespace VNFootballLeagues.Services.Services
                 var leaguesToSync = new List<(int apiId, string name, string type)>
         {
             (626, "V-League 1", "Professional"),
-            (771, "V-League 2", "Professional"),     
-            (3087, "Vietnam Cup", "Cup")           
+            (771, "V-League 2", "Professional"),
+            (3087, "Vietnam Cup", "Cup")
         };
 
                 int added = 0;
@@ -2867,6 +2898,1452 @@ namespace VNFootballLeagues.Services.Services
             if (newStats.PenaltiesScored.HasValue) existing.PenaltiesScored = newStats.PenaltiesScored;
             if (newStats.PenaltiesMissed.HasValue) existing.PenaltiesMissed = newStats.PenaltiesMissed;
             if (newStats.ExpectedGoals.HasValue) existing.ExpectedGoals = newStats.ExpectedGoals;
+        }
+
+        public async Task<object> SyncMatchLineupsAsync(int apiFixtureId)
+        {
+            try
+            {
+                var match = await _context.Matches
+                    .FirstOrDefaultAsync(m => m.ApiFixtureId == apiFixtureId);
+
+                if (match == null)
+                {
+                    return new
+                    {
+                        status = false,
+                        message = $"Match with ApiFixtureId {apiFixtureId} not found. Please sync matches first.",
+                        data = (object)null
+                    };
+                }
+
+                string url = $"https://www.sofascore.com/api/v1/event/{apiFixtureId}/lineups";
+                _logger.LogInformation("Fetching lineups for event {EventId}", apiFixtureId);
+
+                var json = await FetchJson(url);
+
+                using var doc = JsonDocument.Parse(json);
+
+                int homeAdded = 0;
+                int homeUpdated = 0;
+                if (doc.RootElement.TryGetProperty("home", out var homeLineup))
+                {
+                    var result = await ProcessTeamLineup(homeLineup, match.MatchId, match.HomeTeamId);
+                    homeAdded = result.added;
+                    homeUpdated = result.updated;
+                }
+
+                int awayAdded = 0;
+                int awayUpdated = 0;
+                if (doc.RootElement.TryGetProperty("away", out var awayLineup))
+                {
+                    var result = await ProcessTeamLineup(awayLineup, match.MatchId, match.AwayTeamId);
+                    awayAdded = result.added;
+                    awayUpdated = result.updated;
+                }
+
+                await _context.SaveChangesAsync();
+
+                int totalAdded = homeAdded + awayAdded;
+                int totalUpdated = homeUpdated + awayUpdated;
+
+                return new
+                {
+                    status = true,
+                    message = $"Synced lineups for match {apiFixtureId}: {totalAdded} added, {totalUpdated} updated",
+                    data = new
+                    {
+                        added = totalAdded,
+                        updated = totalUpdated,
+                        matchId = match.MatchId,
+                        apiFixtureId,
+                        home = new { added = homeAdded, updated = homeUpdated },
+                        away = new { added = awayAdded, updated = awayUpdated }
+                    }
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error syncing match lineups for fixture {ApiFixtureId}", apiFixtureId);
+                return new
+                {
+                    status = false,
+                    message = ex.Message,
+                    data = ex.StackTrace
+                };
+            }
+        }
+
+        private async Task<(int added, int updated)> ProcessTeamLineup(JsonElement teamLineup, int matchId, int? teamId)
+        {
+            int added = 0;
+            int updated = 0;
+
+            if (teamId == null)
+            {
+                _logger.LogWarning("Team ID is null for match {MatchId}", matchId);
+                return (0, 0);
+            }
+
+            string formation = null;
+            if (teamLineup.TryGetProperty("formation", out var formationEl))
+            {
+                formation = formationEl.GetString();
+            }
+
+            var existingLineup = await _context.Lineups
+                .FirstOrDefaultAsync(l => l.MatchId == matchId && l.TeamId == teamId);
+
+            if (existingLineup == null)
+            {
+                var newLineup = new Lineup
+                {
+                    MatchId = matchId,
+                    TeamId = teamId,
+                    Formation = formation,
+                };
+
+                _context.Lineups.Add(newLineup);
+                added = 1;
+                _logger.LogDebug("Added lineup for team {TeamId} in match {MatchId}", teamId, matchId);
+            }
+            else
+            {
+                existingLineup.Formation = formation;
+
+                _context.Lineups.Update(existingLineup);
+                updated = 1;
+                _logger.LogDebug("Updated lineup for team {TeamId} in match {MatchId}", teamId, matchId);
+            }
+
+            return (added, updated);
+        }
+
+        public async Task<object> FetchLineupsByLeagueSeasonAsync(int apiTournamentId, int apiSeasonId)
+        {
+            try
+            {
+                var league = await _context.Leagues
+                    .FirstOrDefaultAsync(l => l.ApiLeagueId == apiTournamentId);
+
+                if (league == null)
+                {
+                    return new
+                    {
+                        status = false,
+                        message = $"League with API ID {apiTournamentId} not found.",
+                        data = (object)null
+                    };
+                }
+
+                var season = await _context.Seasons
+                    .FirstOrDefaultAsync(s => s.ApiSeasonId == apiSeasonId && s.LeagueId == league.LeagueId);
+
+                if (season == null)
+                {
+                    return new
+                    {
+                        status = false,
+                        message = $"Season with API ID {apiSeasonId} not found.",
+                        data = (object)null
+                    };
+                }
+
+                var matches = await _context.Matches
+                    .Where(m => m.LeagueId == league.LeagueId &&
+                               m.SeasonId == season.SeasonId &&
+                               m.ApiFixtureId.HasValue &&
+                               m.ApiFixtureId > 0)
+                    .Select(m => new { m.MatchId, m.ApiFixtureId })
+                    .ToListAsync();
+
+                if (!matches.Any())
+                {
+                    return new
+                    {
+                        status = false,
+                        message = $"No matches found for {league.LeagueName} season {season.Year}",
+                        data = (object)null
+                    };
+                }
+
+                int totalAdded = 0;
+                int totalUpdated = 0;
+                int totalFailed = 0;
+
+                foreach (var match in matches)
+                {
+                    try
+                    {
+                        var result = await SyncMatchLineupsAsync(match.ApiFixtureId.Value);
+
+                        var resultType = result.GetType();
+                        var statusProp = resultType.GetProperty("status");
+                        var isSuccess = statusProp != null && (bool)statusProp.GetValue(result);
+
+                        if (isSuccess)
+                        {
+                            var dataProp = resultType.GetProperty("data");
+                            if (dataProp != null)
+                            {
+                                var data = dataProp.GetValue(result);
+                                var dataType = data?.GetType();
+
+                                var addedProp = dataType?.GetProperty("added");
+                                var updatedProp = dataType?.GetProperty("updated");
+
+                                if (addedProp != null)
+                                    totalAdded += (int)addedProp.GetValue(data);
+                                if (updatedProp != null)
+                                    totalUpdated += (int)updatedProp.GetValue(data);
+                            }
+                        }
+                        else
+                        {
+                            totalFailed++;
+                        }
+
+                        await Task.Delay(500);
+                    }
+                    catch (Exception ex)
+                    {
+                        totalFailed++;
+                        _logger.LogWarning(ex, "Failed to sync lineup for match {ApiFixtureId}", match.ApiFixtureId);
+                    }
+                }
+
+                return new
+                {
+                    status = true,
+                    message = $"Fetched lineups for {league.LeagueName} {season.Year}: {totalAdded} added, {totalUpdated} updated, {totalFailed} failed",
+                    data = new
+                    {
+                        added = totalAdded,
+                        updated = totalUpdated,
+                        failed = totalFailed,
+                        totalMatches = matches.Count
+                    }
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error fetching lineups");
+                return new
+                {
+                    status = false,
+                    message = ex.Message,
+                    data = ex.StackTrace
+                };
+            }
+        }
+
+        public async Task<object> SyncTeamContractsAsync(int apiTeamId)
+        {
+            try
+            {
+                var team = await _context.Teams
+                    .FirstOrDefaultAsync(t => t.ApiTeamId == apiTeamId);
+
+                if (team == null)
+                {
+                    return new
+                    {
+                        status = false,
+                        message = $"Team with API ID {apiTeamId} not found. Please sync teams first.",
+                        data = (object)null
+                    };
+                }
+
+                string playersUrl = $"https://www.sofascore.com/api/v1/team/{apiTeamId}/players";
+                _logger.LogInformation("Fetching players for team {ApiTeamId}", apiTeamId);
+                var playersJson = await FetchJson(playersUrl);
+                using var playersDoc = JsonDocument.Parse(playersJson);
+
+                if (!playersDoc.RootElement.TryGetProperty("players", out var players))
+                {
+                    return new
+                    {
+                        status = false,
+                        message = "No players found in response",
+                        data = (object)null
+                    };
+                }
+
+                int added = 0;
+                int updated = 0;
+                int skipped = 0;
+
+                foreach (var playerEl in players.EnumerateArray())
+                {
+                    if (!playerEl.TryGetProperty("player", out var player))
+                    {
+                        skipped++;
+                        continue;
+                    }
+
+                    if (!player.TryGetProperty("id", out var playerIdEl))
+                    {
+                        skipped++;
+                        continue;
+                    }
+
+                    int apiPlayerId = playerIdEl.GetInt32();
+
+                    var dbPlayer = await _context.Players
+                        .FirstOrDefaultAsync(p => p.ApiPlayerId == apiPlayerId);
+
+                    if (dbPlayer == null)
+                    {
+                        _logger.LogWarning("Player with API ID {ApiPlayerId} not found in database", apiPlayerId);
+                        skipped++;
+                        continue;
+                    }
+
+                    DateOnly? endDate = null;
+                    if (player.TryGetProperty("contractUntilTimestamp", out var contractUntil))
+                    {
+                        long timestamp = contractUntil.GetInt64();
+                        if (timestamp > 0)
+                        {
+                            endDate = DateOnly.FromDateTime(
+                                DateTimeOffset.FromUnixTimeSeconds(timestamp).DateTime);
+                        }
+                    }
+
+                    DateOnly? startDate = null;
+
+                    try
+                    {
+                        string transfersUrl = $"https://www.sofascore.com/api/v1/player/{apiPlayerId}/transfer-history";
+                        var transfersJson = await FetchJson(transfersUrl);
+                        using var transfersDoc = JsonDocument.Parse(transfersJson);
+
+                        if (transfersDoc.RootElement.TryGetProperty("transferHistory", out var transferHistory))
+                        {
+                            foreach (var transfer in transferHistory.EnumerateArray())
+                            {
+                                if (transfer.TryGetProperty("transferTo", out var transferTo) &&
+                                    transferTo.TryGetProperty("id", out var toTeamIdEl) &&
+                                    toTeamIdEl.GetInt32() == apiTeamId)
+                                {
+                                    if (transfer.TryGetProperty("transferDateTimestamp", out var transferDateTs))
+                                    {
+                                        long timestamp = transferDateTs.GetInt64();
+                                        startDate = DateOnly.FromDateTime(
+                                            DateTimeOffset.FromUnixTimeSeconds(timestamp).DateTime);
+                                    }
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Could not fetch transfer history for player {ApiPlayerId}", apiPlayerId);
+                    }
+
+                    bool? isActive = null;
+                    if (endDate.HasValue)
+                    {
+                        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+                        isActive = endDate.Value >= today;
+                    }
+                    else
+                    {
+                        isActive = true;
+                    }
+
+                    var existingContract = await _context.Contracts
+                        .FirstOrDefaultAsync(c => c.PlayerId == dbPlayer.PlayerId &&
+                                                  c.TeamId == team.TeamId);
+
+                    if (existingContract == null)
+                    {
+                        var newContract = new Contract
+                        {
+                            PlayerId = dbPlayer.PlayerId,
+                            TeamId = team.TeamId,
+                            StartDate = startDate,
+                            EndDate = endDate,
+                            IsActive = isActive
+                        };
+
+                        _context.Contracts.Add(newContract);
+                        added++;
+                        _logger.LogDebug("Added contract for player {PlayerName} (Start: {StartDate}, End: {EndDate})",
+                            dbPlayer.FullName, startDate, endDate);
+                    }
+                    else
+                    {
+                        existingContract.StartDate = startDate ?? existingContract.StartDate;
+                        existingContract.EndDate = endDate ?? existingContract.EndDate;
+                        existingContract.IsActive = isActive;
+                        existingContract.TeamId = team.TeamId;
+
+                        _context.Contracts.Update(existingContract);
+                        updated++;
+                        _logger.LogDebug("Updated contract for player {PlayerName}", dbPlayer.FullName);
+                    }
+                }
+
+                await _context.SaveChangesAsync();
+
+                return new
+                {
+                    status = true,
+                    message = $"Synced contracts for team {team.TeamName}: {added} added, {updated} updated, {skipped} skipped",
+                    data = new
+                    {
+                        added,
+                        updated,
+                        skipped,
+                        teamId = team.TeamId,
+                        teamName = team.TeamName,
+                        apiTeamId = apiTeamId
+                    }
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error syncing contracts for team {ApiTeamId}", apiTeamId);
+                return new
+                {
+                    status = false,
+                    message = ex.Message,
+                    data = ex.StackTrace
+                };
+            }
+        }
+
+        public async Task<object> SyncTeamTransfersAsync(int apiTeamId)
+        {
+            try
+            {
+                var team = await _context.Teams
+                    .FirstOrDefaultAsync(t => t.ApiTeamId == apiTeamId);
+
+                if (team == null)
+                {
+                    return new
+                    {
+                        status = false,
+                        message = $"Team with API ID {apiTeamId} not found. Please sync teams first.",
+                        data = (object)null
+                    };
+                }
+
+                var players = await _context.Players
+                    .Where(p => p.TeamId == team.TeamId && p.ApiPlayerId.HasValue)
+                    .Select(p => new { p.PlayerId, p.ApiPlayerId, p.FullName })
+                    .ToListAsync();
+
+                if (!players.Any())
+                {
+                    return new
+                    {
+                        status = false,
+                        message = $"No players found for team {team.TeamName}. Sync players first.",
+                        data = (object)null
+                    };
+                }
+
+                int added = 0;
+                int updated = 0;
+                int skipped = 0;
+
+                foreach (var player in players)
+                {
+                    try
+                    {
+                        string transfersUrl = $"https://www.sofascore.com/api/v1/player/{player.ApiPlayerId}/transfer-history";
+                        var transfersJson = await FetchJson(transfersUrl);
+                        using var doc = JsonDocument.Parse(transfersJson);
+
+                        if (!doc.RootElement.TryGetProperty("transferHistory", out var transferHistory))
+                        {
+                            skipped++;
+                            continue;
+                        }
+
+                        foreach (var transferEl in transferHistory.EnumerateArray())
+                        {
+                            if (!transferEl.TryGetProperty("id", out var transferIdEl))
+                            {
+                                _logger.LogWarning("Transfer without ID for player {PlayerId}", player.PlayerId);
+                                continue;
+                            }
+
+                            int apiTransferId = transferIdEl.GetInt32();
+
+                            int? fromTeamId = null;
+                            int? toTeamId = null;
+                            DateTime? transferDate = null;
+                            string transferType = null;
+                            string transferFee = null;
+
+                            if (transferEl.TryGetProperty("transferDateTimestamp", out var dateTs))
+                            {
+                                long timestamp = dateTs.GetInt64();
+                                transferDate = DateTimeOffset.FromUnixTimeSeconds(timestamp).DateTime;
+                            }
+
+                            if (transferEl.TryGetProperty("type", out var typeEl))
+                            {
+                                int type = typeEl.GetInt32();
+                                transferType = type switch
+                                {
+                                    1 => "Loan",
+                                    2 => "Loan Return",
+                                    3 => "Transfer",
+                                    4 => "Retirement",
+                                    _ => "Unknown"
+                                };
+                            }
+
+                            if (transferEl.TryGetProperty("transferFeeDescription", out var feeDescEl))
+                            {
+                                transferFee = feeDescEl.GetString();
+                            }
+                            else if (transferEl.TryGetProperty("transferFeeRaw", out var feeRaw) &&
+                                     feeRaw.TryGetProperty("value", out var feeValue))
+                            {
+                                decimal value = feeValue.GetDecimal();
+                                transferFee = value == 0 ? "Free" : $"{value:N0} €";
+                            }
+
+                            if (transferEl.TryGetProperty("transferFrom", out var transferFrom))
+                            {
+                                if (transferFrom.TryGetProperty("id", out var fromIdEl))
+                                {
+                                    int apiFromTeamId = fromIdEl.GetInt32();
+                                    var fromTeam = await _context.Teams
+                                        .FirstOrDefaultAsync(t => t.ApiTeamId == apiFromTeamId);
+                                    fromTeamId = fromTeam?.TeamId;
+                                }
+                            }
+
+                            if (transferEl.TryGetProperty("transferTo", out var transferTo))
+                            {
+                                if (transferTo.TryGetProperty("id", out var toIdEl))
+                                {
+                                    int apiToTeamId = toIdEl.GetInt32();
+                                    var toTeam = await _context.Teams
+                                        .FirstOrDefaultAsync(t => t.ApiTeamId == apiToTeamId);
+                                    toTeamId = toTeam?.TeamId;
+                                }
+                            }
+
+                            var existingTransfer = await _context.Transfers
+                                .FirstOrDefaultAsync(t => t.ApiTransferId == apiTransferId);
+
+                            if (existingTransfer == null)
+                            {
+                                var newTransfer = new Transfer
+                                {
+                                    ApiTransferId = apiTransferId,
+                                    PlayerId = player.PlayerId,
+                                    FromTeamId = fromTeamId,
+                                    ToTeamId = toTeamId,
+                                    TransferDate = transferDate,
+                                    TransferType = transferType,
+                                    TransferFee = transferFee
+                                };
+
+                                _context.Transfers.Add(newTransfer);
+                                added++;
+                                _logger.LogDebug("Added transfer {ApiTransferId} for player {PlayerName}",
+                                    apiTransferId, player.FullName);
+                            }
+                            else
+                            {
+                                existingTransfer.PlayerId = player.PlayerId;
+                                existingTransfer.FromTeamId = fromTeamId ?? existingTransfer.FromTeamId;
+                                existingTransfer.ToTeamId = toTeamId ?? existingTransfer.ToTeamId;
+                                existingTransfer.TransferDate = transferDate ?? existingTransfer.TransferDate;
+                                existingTransfer.TransferType = transferType ?? existingTransfer.TransferType;
+                                existingTransfer.TransferFee = transferFee ?? existingTransfer.TransferFee;
+
+                                _context.Transfers.Update(existingTransfer);
+                                updated++;
+                                _logger.LogDebug("Updated transfer {ApiTransferId} for player {PlayerName}",
+                                    apiTransferId, player.FullName);
+                            }
+                        }
+
+                        await _context.SaveChangesAsync();
+                        await Task.Delay(300);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Failed to sync transfers for player {PlayerId} ({PlayerName})",
+                            player.PlayerId, player.FullName);
+                        skipped++;
+                    }
+                }
+
+                return new
+                {
+                    status = true,
+                    message = $"Synced transfers for team {team.TeamName}: {added} added, {updated} updated, {skipped} skipped",
+                    data = new
+                    {
+                        added,
+                        updated,
+                        skipped,
+                        teamId = team.TeamId,
+                        teamName = team.TeamName,
+                        apiTeamId = apiTeamId
+                    }
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error syncing transfers for team {ApiTeamId}", apiTeamId);
+                return new
+                {
+                    status = false,
+                    message = ex.Message,
+                    data = ex.StackTrace
+                };
+            }
+        }
+
+        public async Task<object> SyncAllTeamContractsByLeagueSeasonAsync(int apiTournamentId, int apiSeasonId)
+        {
+            try
+            {
+                var league = await _context.Leagues
+                    .FirstOrDefaultAsync(l => l.ApiLeagueId == apiTournamentId);
+
+                if (league == null)
+                {
+                    return new
+                    {
+                        status = false,
+                        message = $"League with API ID {apiTournamentId} not found. Please sync leagues first.",
+                        data = (object)null
+                    };
+                }
+
+                var season = await _context.Seasons
+                    .FirstOrDefaultAsync(s => s.ApiSeasonId == apiSeasonId && s.LeagueId == league.LeagueId);
+
+                if (season == null)
+                {
+                    return new
+                    {
+                        status = false,
+                        message = $"Season with API ID {apiSeasonId} not found for league {league.LeagueName}. Please sync seasons first.",
+                        data = (object)null
+                    };
+                }
+
+                string standingsUrl = $"https://www.sofascore.com/api/v1/unique-tournament/{apiTournamentId}/season/{apiSeasonId}/standings/total";
+                _logger.LogInformation("Fetching standings for tournament {TournamentId}, season {SeasonId}",
+                    apiTournamentId, apiSeasonId);
+
+                var standingsJson = await FetchJson(standingsUrl);
+                using var standingsDoc = JsonDocument.Parse(standingsJson);
+
+                if (!standingsDoc.RootElement.TryGetProperty("standings", out var standings))
+                {
+                    return new
+                    {
+                        status = false,
+                        message = "No standings data found",
+                        data = (object)null
+                    };
+                }
+
+                var teamApiIds = new List<int>();
+
+                foreach (var standingGroup in standings.EnumerateArray())
+                {
+                    if (!standingGroup.TryGetProperty("rows", out var rows))
+                        continue;
+
+                    foreach (var row in rows.EnumerateArray())
+                    {
+                        if (row.TryGetProperty("team", out var teamEl) &&
+                            teamEl.TryGetProperty("id", out var teamIdEl))
+                        {
+                            int apiTeamId = teamIdEl.GetInt32();
+                            if (!teamApiIds.Contains(apiTeamId))
+                            {
+                                teamApiIds.Add(apiTeamId);
+                            }
+                        }
+                    }
+                }
+
+                if (!teamApiIds.Any())
+                {
+                    return new
+                    {
+                        status = false,
+                        message = "No teams found in standings",
+                        data = (object)null
+                    };
+                }
+
+                _logger.LogInformation("Found {TeamCount} teams in league {LeagueName} season {SeasonYear}",
+                    teamApiIds.Count, league.LeagueName, season.Year);
+
+                int totalAdded = 0;
+                int totalUpdated = 0;
+                int totalSkipped = 0;
+                int totalTeamsProcessed = 0;
+                var teamResults = new List<object>();
+
+                foreach (int apiTeamId in teamApiIds)
+                {
+                    try
+                    {
+                        var team = await _context.Teams
+                            .FirstOrDefaultAsync(t => t.ApiTeamId == apiTeamId);
+
+                        if (team == null)
+                        {
+                            _logger.LogWarning("Team with API ID {ApiTeamId} not found in database", apiTeamId);
+                            totalSkipped++;
+                            teamResults.Add(new
+                            {
+                                apiTeamId = apiTeamId,
+                                teamName = "Unknown",
+                                success = false,
+                                message = "Team not found in database"
+                            });
+                            continue;
+                        }
+
+                        var result = await SyncTeamContractsAsync(apiTeamId);
+
+                        var resultType = result.GetType();
+                        var statusProp = resultType.GetProperty("status");
+                        var isSuccess = statusProp != null && (bool)statusProp.GetValue(result);
+
+                        if (isSuccess)
+                        {
+                            var dataProp = resultType.GetProperty("data");
+                            var data = dataProp?.GetValue(result);
+                            var dataType = data?.GetType();
+
+                            var added = dataType?.GetProperty("added")?.GetValue(data) as int? ?? 0;
+                            var updated = dataType?.GetProperty("updated")?.GetValue(data) as int? ?? 0;
+                            var skipped = dataType?.GetProperty("skipped")?.GetValue(data) as int? ?? 0;
+
+                            totalAdded += added;
+                            totalUpdated += updated;
+                            totalSkipped += skipped;
+                            totalTeamsProcessed++;
+
+                            teamResults.Add(new
+                            {
+                                teamId = team.TeamId,
+                                teamName = team.TeamName,
+                                apiTeamId = apiTeamId,
+                                added,
+                                updated,
+                                skipped,
+                                success = true
+                            });
+
+                            _logger.LogDebug("Processed contracts for team {TeamName}: +{Added} added, +{Updated} updated, {Skipped} skipped",
+                                team.TeamName, added, updated, skipped);
+                        }
+                        else
+                        {
+                            var messageProp = resultType.GetProperty("message");
+                            var errorMessage = messageProp?.GetValue(result)?.ToString() ?? "Unknown error";
+
+                            teamResults.Add(new
+                            {
+                                teamId = team.TeamId,
+                                teamName = team.TeamName,
+                                apiTeamId = apiTeamId,
+                                success = false,
+                                message = errorMessage
+                            });
+                            totalSkipped++;
+                        }
+
+                        await Task.Delay(500);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Failed to sync contracts for team API ID {ApiTeamId}", apiTeamId);
+                        totalSkipped++;
+                        teamResults.Add(new
+                        {
+                            apiTeamId = apiTeamId,
+                            success = false,
+                            error = ex.Message
+                        });
+                    }
+                }
+
+                return new
+                {
+                    status = true,
+                    message = $"Synced contracts for {totalTeamsProcessed} teams in {league.LeagueName} {season.Year}: " +
+                              $"{totalAdded} contracts added, {totalUpdated} updated, {totalSkipped} skipped",
+                    data = new
+                    {
+                        added = totalAdded,
+                        updated = totalUpdated,
+                        skipped = totalSkipped,
+                        totalTeams = teamApiIds.Count,
+                        teamsProcessed = totalTeamsProcessed,
+                        leagueId = league.LeagueId,
+                        leagueName = league.LeagueName,
+                        seasonId = season.SeasonId,
+                        seasonYear = season.Year,
+                        tournamentId = apiTournamentId,
+                        seasonIdParam = apiSeasonId,
+                        results = teamResults
+                    }
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error syncing all team contracts for tournament {TournamentId}, season {SeasonId}",
+                    apiTournamentId, apiSeasonId);
+                return new
+                {
+                    status = false,
+                    message = ex.Message,
+                    data = ex.StackTrace
+                };
+            }
+        }
+
+        public async Task<object> SyncAllTeamTransfersByLeagueSeasonAsync(int apiTournamentId, int apiSeasonId)
+        {
+            try
+            {
+                var league = await _context.Leagues
+                    .FirstOrDefaultAsync(l => l.ApiLeagueId == apiTournamentId);
+
+                if (league == null)
+                {
+                    return new
+                    {
+                        status = false,
+                        message = $"League with API ID {apiTournamentId} not found. Please sync leagues first.",
+                        data = (object)null
+                    };
+                }
+
+                var season = await _context.Seasons
+                    .FirstOrDefaultAsync(s => s.ApiSeasonId == apiSeasonId && s.LeagueId == league.LeagueId);
+
+                if (season == null)
+                {
+                    return new
+                    {
+                        status = false,
+                        message = $"Season with API ID {apiSeasonId} not found for league {league.LeagueName}. Please sync seasons first.",
+                        data = (object)null
+                    };
+                }
+
+                string standingsUrl = $"https://www.sofascore.com/api/v1/unique-tournament/{apiTournamentId}/season/{apiSeasonId}/standings/total";
+                _logger.LogInformation("Fetching standings for tournament {TournamentId}, season {SeasonId}",
+                    apiTournamentId, apiSeasonId);
+
+                var standingsJson = await FetchJson(standingsUrl);
+                using var standingsDoc = JsonDocument.Parse(standingsJson);
+
+                if (!standingsDoc.RootElement.TryGetProperty("standings", out var standings))
+                {
+                    return new
+                    {
+                        status = false,
+                        message = "No standings data found",
+                        data = (object)null
+                    };
+                }
+
+                var teamApiIds = new List<int>();
+
+                foreach (var standingGroup in standings.EnumerateArray())
+                {
+                    if (!standingGroup.TryGetProperty("rows", out var rows))
+                        continue;
+
+                    foreach (var row in rows.EnumerateArray())
+                    {
+                        if (row.TryGetProperty("team", out var teamEl) &&
+                            teamEl.TryGetProperty("id", out var teamIdEl))
+                        {
+                            int apiTeamId = teamIdEl.GetInt32();
+                            if (!teamApiIds.Contains(apiTeamId))
+                            {
+                                teamApiIds.Add(apiTeamId);
+                            }
+                        }
+                    }
+                }
+
+                if (!teamApiIds.Any())
+                {
+                    return new
+                    {
+                        status = false,
+                        message = "No teams found in standings",
+                        data = (object)null
+                    };
+                }
+
+                _logger.LogInformation("Found {TeamCount} teams in league {LeagueName} season {SeasonYear}",
+                    teamApiIds.Count, league.LeagueName, season.Year);
+
+                int totalAdded = 0;
+                int totalUpdated = 0;
+                int totalSkipped = 0;
+                int totalTeamsProcessed = 0;
+                var teamResults = new List<object>();
+
+                foreach (int apiTeamId in teamApiIds)
+                {
+                    try
+                    {
+                        var team = await _context.Teams
+                            .FirstOrDefaultAsync(t => t.ApiTeamId == apiTeamId);
+
+                        if (team == null)
+                        {
+                            _logger.LogWarning("Team with API ID {ApiTeamId} not found in database", apiTeamId);
+                            totalSkipped++;
+                            teamResults.Add(new
+                            {
+                                apiTeamId = apiTeamId,
+                                teamName = "Unknown",
+                                success = false,
+                                message = "Team not found in database"
+                            });
+                            continue;
+                        }
+
+                        var result = await SyncTeamTransfersAsync(apiTeamId);
+
+                        var resultType = result.GetType();
+                        var statusProp = resultType.GetProperty("status");
+                        var isSuccess = statusProp != null && (bool)statusProp.GetValue(result);
+
+                        if (isSuccess)
+                        {
+                            var dataProp = resultType.GetProperty("data");
+                            var data = dataProp?.GetValue(result);
+                            var dataType = data?.GetType();
+
+                            var added = dataType?.GetProperty("added")?.GetValue(data) as int? ?? 0;
+                            var updated = dataType?.GetProperty("updated")?.GetValue(data) as int? ?? 0;
+                            var skipped = dataType?.GetProperty("skipped")?.GetValue(data) as int? ?? 0;
+
+                            totalAdded += added;
+                            totalUpdated += updated;
+                            totalSkipped += skipped;
+                            totalTeamsProcessed++;
+
+                            teamResults.Add(new
+                            {
+                                teamId = team.TeamId,
+                                teamName = team.TeamName,
+                                apiTeamId = apiTeamId,
+                                added,
+                                updated,
+                                skipped,
+                                success = true
+                            });
+
+                            _logger.LogDebug("Processed transfers for team {TeamName}: +{Added} added, +{Updated} updated, {Skipped} skipped",
+                                team.TeamName, added, updated, skipped);
+                        }
+                        else
+                        {
+                            var messageProp = resultType.GetProperty("message");
+                            var errorMessage = messageProp?.GetValue(result)?.ToString() ?? "Unknown error";
+
+                            teamResults.Add(new
+                            {
+                                teamId = team.TeamId,
+                                teamName = team.TeamName,
+                                apiTeamId = apiTeamId,
+                                success = false,
+                                message = errorMessage
+                            });
+                            totalSkipped++;
+                        }
+
+                        await Task.Delay(500);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Failed to sync transfers for team API ID {ApiTeamId}", apiTeamId);
+                        totalSkipped++;
+                        teamResults.Add(new
+                        {
+                            apiTeamId = apiTeamId,
+                            success = false,
+                            error = ex.Message
+                        });
+                    }
+                }
+
+                return new
+                {
+                    status = true,
+                    message = $"Synced transfers for {totalTeamsProcessed} teams in {league.LeagueName} {season.Year}: " +
+                              $"{totalAdded} transfers added, {totalUpdated} updated, {totalSkipped} skipped",
+                    data = new
+                    {
+                        added = totalAdded,
+                        updated = totalUpdated,
+                        skipped = totalSkipped,
+                        totalTeams = teamApiIds.Count,
+                        teamsProcessed = totalTeamsProcessed,
+                        leagueId = league.LeagueId,
+                        leagueName = league.LeagueName,
+                        seasonId = season.SeasonId,
+                        seasonYear = season.Year,
+                        tournamentId = apiTournamentId,
+                        seasonIdParam = apiSeasonId,
+                        results = teamResults
+                    }
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error syncing all team transfers for tournament {TournamentId}, season {SeasonId}",
+                    apiTournamentId, apiSeasonId);
+                return new
+                {
+                    status = false,
+                    message = ex.Message,
+                    data = ex.StackTrace
+                };
+            }
+        }
+
+        public async Task<object> GetTransfersByLeagueSeasonAsync(int apiTournamentId, int apiSeasonId)
+        {
+            try
+            {
+                var league = await _context.Leagues
+                    .FirstOrDefaultAsync(l => l.ApiLeagueId == apiTournamentId);
+
+                if (league == null)
+                {
+                    return new
+                    {
+                        status = false,
+                        message = $"League with API ID {apiTournamentId} not found.",
+                        data = (object)null
+                    };
+                }
+
+                var season = await _context.Seasons
+                    .FirstOrDefaultAsync(s => s.ApiSeasonId == apiSeasonId && s.LeagueId == league.LeagueId);
+
+                if (season == null)
+                {
+                    return new
+                    {
+                        status = false,
+                        message = $"Season with API ID {apiSeasonId} not found for league {league.LeagueName}.",
+                        data = (object)null
+                    };
+                }
+
+                var teamIds = await _context.Standings
+                    .Where(s => s.LeagueId == league.LeagueId && s.SeasonId == season.SeasonId && s.TeamId != null)
+                    .Select(s => s.TeamId.Value)
+                    .Distinct()
+                    .ToListAsync();
+
+                if (!teamIds.Any())
+                {
+                    teamIds = await _context.Matches
+                        .Where(m => m.LeagueId == league.LeagueId && m.SeasonId == season.SeasonId)
+                        .SelectMany(m => new int?[] { m.HomeTeamId, m.AwayTeamId })
+                        .Where(id => id.HasValue)
+                        .Select(id => id.Value)
+                        .Distinct()
+                        .ToListAsync();
+                }
+
+                if (!teamIds.Any())
+                {
+                    return new
+                    {
+                        status = false,
+                        message = $"No teams found for {league.LeagueName} season {season.Year}",
+                        data = (object)null
+                    };
+                }
+
+                var playerIds = await _context.Players
+                    .Where(p => p.TeamId != null && teamIds.Contains(p.TeamId.Value))
+                    .Select(p => p.PlayerId)
+                    .ToListAsync();
+
+                if (!playerIds.Any())
+                {
+                    return new
+                    {
+                        status = false,
+                        message = $"No players found for teams in {league.LeagueName} season {season.Year}",
+                        data = (object)null
+                    };
+                }
+
+                var transfers = await _context.Transfers
+                    .Include(t => t.Player)
+                    .Include(t => t.FromTeam)
+                    .Include(t => t.ToTeam)
+                    .Where(t => t.PlayerId != null && playerIds.Contains(t.PlayerId.Value))
+                    .Select(t => new
+                    {
+                        t.TransferId,
+                        t.ApiTransferId,
+                        t.PlayerId,
+                        t.FromTeamId,
+                        t.ToTeamId,
+                        t.TransferDate,
+                        t.TransferType,
+                        t.TransferFee,
+                        Player = t.Player != null ? new
+                        {
+                            t.Player.PlayerId,
+                            t.Player.FullName,
+                            t.Player.Position,
+                            t.Player.Number,
+                            t.Player.Nationality,
+                            t.Player.ApiPlayerId
+                        } : null,
+                        FromTeam = t.FromTeam != null ? new
+                        {
+                            t.FromTeam.TeamId,
+                            t.FromTeam.TeamName,
+                            t.FromTeam.ShortName,
+                            t.FromTeam.ApiTeamId
+                        } : null,
+                        ToTeam = t.ToTeam != null ? new
+                        {
+                            t.ToTeam.TeamId,
+                            t.ToTeam.TeamName,
+                            t.ToTeam.ShortName,
+                            t.ToTeam.ApiTeamId
+                        } : null
+                    })
+                    .OrderByDescending(t => t.TransferDate)
+                    .ToListAsync();
+
+                var transfersByPlayer = transfers
+                    .Where(t => t.Player != null)
+                    .GroupBy(t => new { t.Player.PlayerId, t.Player.FullName, t.Player.Position, t.Player.Number, t.Player.Nationality, t.Player.ApiPlayerId })
+                    .Select(g => new
+                    {
+                        playerId = g.Key.PlayerId,
+                        playerName = g.Key.FullName,
+                        playerPosition = g.Key.Position,
+                        playerNumber = g.Key.Number,
+                        playerNationality = g.Key.Nationality,
+                        apiPlayerId = g.Key.ApiPlayerId,
+                        transferHistory = g.Select(t => new
+                        {
+                            transferId = t.TransferId,
+                            apiTransferId = t.ApiTransferId,
+                            transferDate = t.TransferDate,
+                            transferType = t.TransferType,
+                            transferFee = t.TransferFee,
+                            fromTeamId = t.FromTeamId,
+                            fromTeamName = t.FromTeam?.TeamName,
+                            fromTeamShortName = t.FromTeam?.ShortName,
+                            toTeamId = t.ToTeamId,
+                            toTeamName = t.ToTeam?.TeamName,
+                            toTeamShortName = t.ToTeam?.ShortName
+                        }).OrderByDescending(t => t.transferDate).ToList()
+                    })
+                    .OrderBy(p => p.playerName)
+                    .ToList();
+
+                var transfersInByTeam = transfers
+                    .Where(t => t.ToTeam != null && teamIds.Contains(t.ToTeam.TeamId))
+                    .GroupBy(t => new { t.ToTeam.TeamId, t.ToTeam.TeamName, t.ToTeam.ApiTeamId })
+                    .Select(g => new
+                    {
+                        teamId = g.Key.TeamId,
+                        teamName = g.Key.TeamName,
+                        apiTeamId = g.Key.ApiTeamId,
+                        transfersIn = g.Count(),
+                        players = g.Select(t => new
+                        {
+                            playerId = t.PlayerId,
+                            playerName = t.Player != null ? t.Player.FullName : "Unknown",
+                            fromTeam = t.FromTeam?.TeamName,
+                            transferDate = t.TransferDate,
+                            transferType = t.TransferType,
+                            transferFee = t.TransferFee
+                        }).OrderByDescending(t => t.transferDate).ToList()
+                    })
+                    .OrderBy(t => t.teamName)
+                    .ToList();
+
+                var transfersOutByTeam = transfers
+                    .Where(t => t.FromTeam != null && teamIds.Contains(t.FromTeam.TeamId))
+                    .GroupBy(t => new { t.FromTeam.TeamId, t.FromTeam.TeamName, t.FromTeam.ApiTeamId })
+                    .Select(g => new
+                    {
+                        teamId = g.Key.TeamId,
+                        teamName = g.Key.TeamName,
+                        apiTeamId = g.Key.ApiTeamId,
+                        transfersOut = g.Count(),
+                        players = g.Select(t => new
+                        {
+                            playerId = t.PlayerId,
+                            playerName = t.Player != null ? t.Player.FullName : "Unknown",
+                            toTeam = t.ToTeam?.TeamName,
+                            transferDate = t.TransferDate,
+                            transferType = t.TransferType,
+                            transferFee = t.TransferFee
+                        }).OrderByDescending(t => t.transferDate).ToList()
+                    })
+                    .OrderBy(t => t.teamName)
+                    .ToList();
+
+                int totalTransfers = transfers.Count;
+                int transfersIn = transfers.Count(t => t.ToTeamId != null && teamIds.Contains(t.ToTeamId.Value));
+                int transfersOut = transfers.Count(t => t.FromTeamId != null && teamIds.Contains(t.FromTeamId.Value));
+                int transfersWithFee = transfers.Count(t => !string.IsNullOrEmpty(t.TransferFee) && t.TransferFee != "-" && t.TransferFee != "Unknown");
+                int loans = transfers.Count(t => t.TransferType == "Loan");
+                int permanentTransfers = transfers.Count(t => t.TransferType == "Transfer");
+
+                return new
+                {
+                    status = true,
+                    message = $"Retrieved {totalTransfers} transfers for {league.LeagueName} season {season.Year}",
+                    data = new
+                    {
+                        leagueId = league.LeagueId,
+                        leagueName = league.LeagueName,
+                        seasonId = season.SeasonId,
+                        seasonYear = season.Year,
+                        tournamentId = apiTournamentId,
+                        seasonIdParam = apiSeasonId,
+                        summary = new
+                        {
+                            totalTransfers,
+                            transfersIn,
+                            transfersOut,
+                            transfersWithFee,
+                            loans,
+                            permanentTransfers,
+                            totalPlayersWithTransfers = transfersByPlayer.Count,
+                            totalTeamsWithTransfersIn = transfersInByTeam.Count,
+                            totalTeamsWithTransfersOut = transfersOutByTeam.Count
+                        },
+                        transfersByPlayer,
+                        transfersInByTeam,
+                        transfersOutByTeam
+                    }
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting transfers for tournament {TournamentId}, season {SeasonId}",
+                    apiTournamentId, apiSeasonId);
+                return new
+                {
+                    status = false,
+                    message = ex.Message,
+                    data = ex.StackTrace
+                };
+            }
+        }
+
+        public async Task<object> GetContractsByLeagueSeasonAsync(int apiTournamentId, int apiSeasonId)
+        {
+            try
+            {
+                var league = await _context.Leagues
+                    .FirstOrDefaultAsync(l => l.ApiLeagueId == apiTournamentId);
+
+                if (league == null)
+                {
+                    return new
+                    {
+                        status = false,
+                        message = $"League with API ID {apiTournamentId} not found.",
+                        data = (object)null
+                    };
+                }
+
+                var season = await _context.Seasons
+                    .FirstOrDefaultAsync(s => s.ApiSeasonId == apiSeasonId && s.LeagueId == league.LeagueId);
+
+                if (season == null)
+                {
+                    return new
+                    {
+                        status = false,
+                        message = $"Season with API ID {apiSeasonId} not found for league {league.LeagueName}.",
+                        data = (object)null
+                    };
+                }
+
+                var teamIds = await _context.Standings
+                    .Where(s => s.LeagueId == league.LeagueId && s.SeasonId == season.SeasonId && s.TeamId != null)
+                    .Select(s => s.TeamId)
+                    .Distinct()
+                    .ToListAsync();
+
+                if (!teamIds.Any())
+                {                var homeTeamIds = await _context.Matches
+                        .Where(m => m.LeagueId == league.LeagueId && m.SeasonId == season.SeasonId && m.HomeTeamId != null)
+                        .Select(m => m.HomeTeamId)
+                        .Distinct()
+                        .ToListAsync();
+
+                    var awayTeamIds = await _context.Matches
+                        .Where(m => m.LeagueId == league.LeagueId && m.SeasonId == season.SeasonId && m.AwayTeamId != null)
+                        .Select(m => m.AwayTeamId)
+                        .Distinct()
+                        .ToListAsync();
+
+                    teamIds = homeTeamIds.Concat(awayTeamIds).Distinct().ToList();
+                }
+
+                if (!teamIds.Any())
+                {
+                    return new
+                    {
+                        status = false,
+                        message = $"No teams found for {league.LeagueName} season {season.Year}",
+                        data = (object)null
+                    };
+                }
+
+                var contractsQuery = from c in _context.Contracts
+                                     join t in _context.Teams on c.TeamId equals t.TeamId
+                                     join p in _context.Players on c.PlayerId equals p.PlayerId
+                                     where teamIds.Contains(c.TeamId)
+                                     select new
+                                     {
+                                         c.ContractId,
+                                         c.PlayerId,
+                                         c.TeamId,
+                                         c.StartDate,
+                                         c.EndDate,
+                                         c.ContractType,
+                                         c.Salary,
+                                         c.IsActive,
+                                         Player = new
+                                         {
+                                             p.PlayerId,
+                                             p.FullName,
+                                             p.Position,
+                                             p.Number,
+                                             p.Nationality,
+                                             p.PhotoUrl,
+                                             p.DateOfBirth,
+                                             p.HeightCm,
+                                             p.ApiPlayerId
+                                         },
+                                         Team = new
+                                         {
+                                             t.TeamId,
+                                             t.TeamName,
+                                             t.ShortName,
+                                             t.LogoUrl,
+                                             t.ApiTeamId
+                                         }
+                                     };
+
+                var contracts = await contractsQuery.ToListAsync();
+
+                var orderedContracts = contracts
+                    .OrderBy(c => c.Team.TeamName)
+                    .ThenBy(c => c.Player.FullName)
+                    .ToList();
+
+                var contractsByTeam = orderedContracts
+                    .GroupBy(c => new { c.Team.TeamId, c.Team.TeamName, c.Team.ShortName, c.Team.LogoUrl, c.Team.ApiTeamId })
+                    .Select(g => new
+                    {
+                        teamId = g.Key.TeamId,
+                        teamName = g.Key.TeamName,
+                        shortName = g.Key.ShortName,
+                        logoUrl = g.Key.LogoUrl,
+                        apiTeamId = g.Key.ApiTeamId,
+                        contracts = g.Select(c => new
+                        {
+                            contractId = c.ContractId,
+                            playerId = c.PlayerId,
+                            playerName = c.Player.FullName,
+                            playerPosition = c.Player.Position,
+                            playerNumber = c.Player.Number,
+                            playerNationality = c.Player.Nationality,
+                            playerPhotoUrl = c.Player.PhotoUrl,
+                            playerDateOfBirth = c.Player.DateOfBirth,
+                            playerHeightCm = c.Player.HeightCm,
+                            apiPlayerId = c.Player.ApiPlayerId,
+                            startDate = c.StartDate,
+                            endDate = c.EndDate,
+                            contractType = c.ContractType,
+                            salary = c.Salary,
+                            isActive = c.IsActive,
+                            contractStatus = c.IsActive == true ? "Active" : (c.IsActive == false ? "Expired" : "Unknown")
+                        }).OrderBy(c => c.playerName).ToList()
+                    })
+                    .OrderBy(g => g.teamName)
+                    .ToList();
+
+                int totalContracts = contracts.Count;
+                int activeContracts = contracts.Count(c => c.IsActive == true);
+                int expiredContracts = contracts.Count(c => c.IsActive == false);
+                int contractsWithoutEndDate = contracts.Count(c => !c.EndDate.HasValue);
+                int contractsWithType = contracts.Count(c => !string.IsNullOrEmpty(c.ContractType));
+                int contractsWithSalary = contracts.Count(c => c.Salary.HasValue);
+
+                return new
+                {
+                    status = true,
+                    message = $"Retrieved {totalContracts} contracts for {league.LeagueName} season {season.Year}",
+                    data = new
+                    {
+                        leagueId = league.LeagueId,
+                        leagueName = league.LeagueName,
+                        seasonId = season.SeasonId,
+                        seasonYear = season.Year,
+                        tournamentId = apiTournamentId,
+                        seasonIdParam = apiSeasonId,
+                        summary = new
+                        {
+                            totalContracts,
+                            activeContracts,
+                            expiredContracts,
+                            contractsWithoutEndDate,
+                            contractsWithType,
+                            contractsWithSalary,
+                            totalTeams = contractsByTeam.Count
+                        },
+                        contractsByTeam
+                    }
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting contracts for tournament {TournamentId}, season {SeasonId}",
+                    apiTournamentId, apiSeasonId);
+                return new
+                {
+                    status = false,
+                    message = ex.Message,
+                    data = ex.StackTrace
+                };
+            }
         }
     }
 }

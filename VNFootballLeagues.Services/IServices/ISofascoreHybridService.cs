@@ -25,6 +25,7 @@ namespace VNFootballLeagues.Services.IServices
         Task<bool> MatchExistsByApiFixtureIdAsync(int apiFixtureId);
         Task<List<PlayerMatchStatistic>> GetAllPlayerMatchStatisticsByLeagueSeasonAsync(int tournamentId, int seasonId);
         Task<List<MatchStatistic>> GetMatchStatisticsByMatchAsync(int apiFixtureId);
+        Task<List<Lineup>> GetAllLineupsByLeagueSeasonAsync(int apiTournamentId, int apiSeasonId);
         Task<object> SyncMatchesByRoundAsync(int tournamentId, int seasonId);
         Task<object> SyncMatchStatisticsAsync(int apiFixtureId);
         Task<object> GetTeamsByTournamentAsync(int tournamentId);
@@ -39,5 +40,13 @@ namespace VNFootballLeagues.Services.IServices
         Task<object> FetchPlayerMatchStatsByLeagueSeasonAsync(int apiTournamentId, int apiSeasonId);
         Task<object> FetchPlayerMatchStatsByApiMatchIdAsync(int apiFixtureId);
         Task<object> SyncMatchStatisticsByLeagueAndSeasonAsync(int apiTournamentId, int apiSeasonId);
+        Task<object> SyncMatchLineupsAsync(int apiFixtureId);
+        Task<object> FetchLineupsByLeagueSeasonAsync(int apiTournamentId, int apiSeasonId);
+        Task<object> SyncTeamContractsAsync(int apiTeamId);
+        Task<object> SyncTeamTransfersAsync(int apiTeamId);
+        Task<object> SyncAllTeamContractsByLeagueSeasonAsync(int apiTournamentId, int apiSeasonId);
+        Task<object> SyncAllTeamTransfersByLeagueSeasonAsync(int apiTournamentId, int apiSeasonId);
+        Task<object> GetContractsByLeagueSeasonAsync(int apiTournamentId, int apiSeasonId);
+        Task<object> GetTransfersByLeagueSeasonAsync(int apiTournamentId, int apiSeasonId);
     }
 }
