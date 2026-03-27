@@ -1709,88 +1709,6 @@ namespace VNFootballLeagues.Services.Services
                     };
                 }
 
-                int added = 0;
-                int updated = 0;
-                int skipped = 0;
-
-                foreach (var incident in incidents.EnumerateArray())
-                {
-                    if (!incident.TryGetProperty("id", out var idEl))
-                    {
-                        skipped++;
-                        continue;
-                    }
-
-                    int apiEventId = idEl.GetInt32();
-
-                    var existingEvent = await _context.MatchEvents
-                        .FirstOrDefaultAsync(e => e.ApiEventId == apiEventId);
-
-                    string incidentType = incident.TryGetProperty("incidentType", out var typeEl)
-                        ? typeEl.GetString()
-                        : null;
-
-                    if (incidentType == "period")
-                    {
-                        _logger.LogDebug("Skipping period event {ApiEventId}", apiEventId);
-                        continue;
-                    }
-
-                    if (incidentType == "injuryTime")
-                    {
-                        _logger.LogDebug("Skipping injury time event {ApiEventId}", apiEventId);
-                        continue;
-                    }
-
-                    var matchEvent = new MatchEvent
-                    {
-                        ApiEventId = apiEventId,
-                        MatchId = match.MatchId,
-                        EventType = incidentType,
-                        Detail = incident.TryGetProperty("incidentClass", out var classEl)
-                            ? classEl.GetString()
-                            : null,
-                        EventTime = incident.TryGetProperty("time", out var timeEl)
-                            ? timeEl.GetInt32()
-                            : null,
-                        ExtraTime = incident.TryGetProperty("addedTime", out var addedTimeEl)
-                            ? addedTimeEl.GetInt32()
-                            : null,
-                        Period = incident.TryGetProperty("reversedPeriodTime", out var periodEl)
-                            ? (periodEl.GetInt32() == 1 ? "1st Half" : "2nd Half")
-                            : "REGULAR",
-                        Comments = incident.TryGetProperty("text", out var textEl)
-                            ? textEl.GetString()
-                            : null
-                    };
-
-                    if (incident.TryGetProperty("isHome", out var isHomeEl))
-                    {
-                        bool isHome = isHomeEl.GetBoolean();
-                        matchEvent.TeamId = isHome ? match.HomeTeamId : match.AwayTeamId;
-                    }
-
-                    if (incidentType == "substitution")
-                    {
-
-                        if (incident.TryGetProperty("playerOut", out var playerOutEl))
-                        {
-                            if (playerOutEl.TryGetProperty("id", out var playerOutIdEl))
-                            {
-                                int apiPlayerOutId = playerOutIdEl.GetInt32();
-                                var playerOut = await _context.Players
-                                    .FirstOrDefaultAsync(p => p.ApiPlayerId == apiPlayerOutId);
-
-                                matchEvent.PlayerId = playerOut?.PlayerId;
-
-                                if (playerOut != null)
-                                {
-                                    _logger.LogDebug("Player OUT: {PlayerName} (API ID: {ApiId})",
-                                        playerOut.FullName, apiPlayerOutId);
-                                }
-                            }
-                        }
-
                 string url = $"https://www.sofascore.com/api/v1/event/{apiFixtureId}/incidents";
                 _logger.LogInformation("Fetching incidents for event {EventId}", apiFixtureId);
 
@@ -1814,219 +1732,220 @@ namespace VNFootballLeagues.Services.Services
 
                 foreach (var incident in incidents.EnumerateArray())
                 {
-                    if (!incident.TryGetProperty("id", out var idEl))
-                    {
-                        skipped++;
-                        continue;
-                    }
-
-                    int apiEventId = idEl.GetInt32();
-
-                    var existingEvent = await _context.MatchEvents
-                        .FirstOrDefaultAsync(e => e.ApiEventId == apiEventId);
-
-                    string incidentType = incident.TryGetProperty("incidentType", out var typeEl)
-                        ? typeEl.GetString()
-                        : null;
-
-                    if (incidentType == "period")
-                    {
-                        _logger.LogDebug("Skipping period event {ApiEventId}", apiEventId);
-                        continue;
-                    }
-
-                    if (incidentType == "injuryTime")
-                    {
-                        _logger.LogDebug("Skipping injury time event {ApiEventId}", apiEventId);
-                        continue;
-                    }
-
-                    var matchEvent = new MatchEvent
-                    {
-                        ApiEventId = apiEventId,
-                        MatchId = match.MatchId,
-                        EventType = incidentType,
-                        Detail = incident.TryGetProperty("incidentClass", out var classEl)
-                            ? classEl.GetString()
-                            : null,
-                        EventTime = incident.TryGetProperty("time", out var timeEl)
-                            ? timeEl.GetInt32()
-                            : null,
-                        ExtraTime = incident.TryGetProperty("addedTime", out var addedTimeEl)
-                            ? addedTimeEl.GetInt32()
-                            : null,
-                        Period = incident.TryGetProperty("reversedPeriodTime", out var periodEl)
-                            ? (periodEl.GetInt32() == 1 ? "1st Half" : "2nd Half")
-                            : "REGULAR",
-                        Comments = incident.TryGetProperty("text", out var textEl)
-                            ? textEl.GetString()
-                            : null
-                    };
-
-                    if (incident.TryGetProperty("isHome", out var isHomeEl))
-                    {
-                        bool isHome = isHomeEl.GetBoolean();
-                        matchEvent.TeamId = isHome ? match.HomeTeamId : match.AwayTeamId;
-                    }
-
-                    if (incidentType == "substitution")
-                    {
-
-                        if (incident.TryGetProperty("playerOut", out var playerOutEl))
-                        {
-                            if (playerOutEl.TryGetProperty("id", out var playerOutIdEl))
+                            if (!incident.TryGetProperty("id", out var idEl))
                             {
-                                int apiPlayerOutId = playerOutIdEl.GetInt32();
-                                var playerOut = await _context.Players
-                                    .FirstOrDefaultAsync(p => p.ApiPlayerId == apiPlayerOutId);
+                                skipped++;
+                                continue;
+                            }
 
-                                matchEvent.PlayerId = playerOut?.PlayerId;
+                            int apiEventId = idEl.GetInt32();
 
-                                if (playerOut != null)
+                            var existingEvent = await _context.MatchEvents
+                                .FirstOrDefaultAsync(e => e.ApiEventId == apiEventId);
+
+                            string incidentType = incident.TryGetProperty("incidentType", out var typeEl)
+                                ? typeEl.GetString()
+                                : null;
+
+                            if (incidentType == "period")
+                            {
+                                _logger.LogDebug("Skipping period event {ApiEventId}", apiEventId);
+                                continue;
+                            }
+
+                            if (incidentType == "injuryTime")
+                            {
+                                _logger.LogDebug("Skipping injury time event {ApiEventId}", apiEventId);
+                                continue;
+                            }
+
+                            var matchEvent = new MatchEvent
+                            {
+                                ApiEventId = apiEventId,
+                                MatchId = match.MatchId,
+                                EventType = incidentType,
+                                Detail = incident.TryGetProperty("incidentClass", out var classEl)
+                                    ? classEl.GetString()
+                                    : null,
+                                EventTime = incident.TryGetProperty("time", out var timeEl)
+                                    ? timeEl.GetInt32()
+                                    : null,
+                                ExtraTime = incident.TryGetProperty("addedTime", out var addedTimeEl)
+                                    ? addedTimeEl.GetInt32()
+                                    : null,
+                                Period = incident.TryGetProperty("reversedPeriodTime", out var periodEl)
+                                    ? (periodEl.GetInt32() == 1 ? "1st Half" : "2nd Half")
+                                    : "REGULAR",
+                                Comments = incident.TryGetProperty("text", out var textEl)
+                                    ? textEl.GetString()
+                                    : null
+                            };
+
+                            if (incident.TryGetProperty("isHome", out var isHomeEl))
+                            {
+                                bool isHome = isHomeEl.GetBoolean();
+                                matchEvent.TeamId = isHome ? match.HomeTeamId : match.AwayTeamId;
+                            }
+
+                            if (incidentType == "substitution")
+                            {
+
+                                if (incident.TryGetProperty("playerOut", out var playerOutEl))
                                 {
-                                    _logger.LogDebug("Player OUT: {PlayerName} (API ID: {ApiId})",
-                                        playerOut.FullName, apiPlayerOutId);
+                                    if (playerOutEl.TryGetProperty("id", out var playerOutIdEl))
+                                    {
+                                        int apiPlayerOutId = playerOutIdEl.GetInt32();
+                                        var playerOut = await _context.Players
+                                            .FirstOrDefaultAsync(p => p.ApiPlayerId == apiPlayerOutId);
+
+                                        matchEvent.PlayerId = playerOut?.PlayerId;
+
+                                        if (playerOut != null)
+                                        {
+                                            _logger.LogDebug("Player OUT: {PlayerName} (API ID: {ApiId})",
+                                                playerOut.FullName, apiPlayerOutId);
+                                        }
+                                    }
                                 }
+
+                                if (incident.TryGetProperty("playerIn", out var playerInEl))
+                                {
+                                    if (playerInEl.TryGetProperty("id", out var playerInIdEl))
+                                    {
+                                        int apiPlayerInId = playerInIdEl.GetInt32();
+                                        var playerIn = await _context.Players
+                                            .FirstOrDefaultAsync(p => p.ApiPlayerId == apiPlayerInId);
+
+                                        matchEvent.AssistPlayerId = playerIn?.PlayerId;
+
+                                        if (playerIn != null)
+                                        {
+                                            _logger.LogDebug("Player IN: {PlayerName} (API ID: {ApiId})",
+                                                playerIn.FullName, apiPlayerInId);
+                                        }
+                                    }
+                                }
+
+                                if (matchEvent.PlayerId.HasValue && matchEvent.AssistPlayerId.HasValue)
+                                {
+                                    matchEvent.Comments = $"Substitution: Player out (ID: {matchEvent.PlayerId}) replaced by Player in (ID: {matchEvent.AssistPlayerId})";
+                                }
+                            }
+                            else if (incidentType == "goal")
+                            {
+                                if (incident.TryGetProperty("player", out var scorerEl))
+                                {
+                                    if (scorerEl.TryGetProperty("id", out var scorerIdEl))
+                                    {
+                                        int apiScorerId = scorerIdEl.GetInt32();
+                                        var scorer = await _context.Players
+                                            .FirstOrDefaultAsync(p => p.ApiPlayerId == apiScorerId);
+
+                                        matchEvent.PlayerId = scorer?.PlayerId;
+
+                                        if (scorer != null)
+                                        {
+                                            _logger.LogDebug("Goal scorer: {PlayerName} (API ID: {ApiId})",
+                                                scorer.FullName, apiScorerId);
+                                        }
+                                    }
+                                }
+
+                                if (incident.TryGetProperty("assist", out var assistEl))
+                                {
+                                    if (assistEl.TryGetProperty("id", out var assistIdEl))
+                                    {
+                                        int apiAssistId = assistIdEl.GetInt32();
+                                        var assistPlayer = await _context.Players
+                                            .FirstOrDefaultAsync(p => p.ApiPlayerId == apiAssistId);
+
+                                        matchEvent.AssistPlayerId = assistPlayer?.PlayerId;
+
+                                        if (assistPlayer != null)
+                                        {
+                                            _logger.LogDebug("Goal assist: {PlayerName} (API ID: {ApiId})",
+                                                assistPlayer.FullName, apiAssistId);
+                                        }
+                                    }
+                                }
+
+                                if (incident.TryGetProperty("from", out var fromEl))
+                                {
+                                    string goalType = fromEl.GetString();
+                                    matchEvent.Comments = $"Goal from {goalType}";
+                                }
+                            }
+                            else if (incidentType == "card")
+                            {
+                                if (incident.TryGetProperty("player", out var playerEl))
+                                {
+                                    if (playerEl.TryGetProperty("id", out var playerIdEl))
+                                    {
+                                        int apiPlayerId = playerIdEl.GetInt32();
+                                        var player = await _context.Players
+                                            .FirstOrDefaultAsync(p => p.ApiPlayerId == apiPlayerId);
+
+                                        matchEvent.PlayerId = player?.PlayerId;
+
+                                        if (player != null)
+                                        {
+                                            _logger.LogDebug("Card for player: {PlayerName} (API ID: {ApiId})",
+                                                player.FullName, apiPlayerId);
+                                        }
+                                    }
+                                }
+
+                                if (incident.TryGetProperty("reason", out var reasonEl))
+                                {
+                                    string reason = reasonEl.GetString();
+                                    matchEvent.Comments = $"Reason: {reason}";
+                                }
+                            }
+
+                            if (existingEvent == null)
+                            {
+                                _context.MatchEvents.Add(matchEvent);
+                                added++;
+                                _logger.LogDebug("Added event {ApiEventId} for match {MatchId}: {EventType} at {Time} minute",
+                                    apiEventId, match.MatchId, matchEvent.EventType, matchEvent.EventTime);
+                            }
+                            else
+                            {
+                                existingEvent.MatchId = matchEvent.MatchId;
+                                existingEvent.TeamId = matchEvent.TeamId;
+                                existingEvent.PlayerId = matchEvent.PlayerId;
+                                existingEvent.AssistPlayerId = matchEvent.AssistPlayerId;
+                                existingEvent.EventType = matchEvent.EventType;
+                                existingEvent.Detail = matchEvent.Detail;
+                                existingEvent.EventTime = matchEvent.EventTime;
+                                existingEvent.ExtraTime = matchEvent.ExtraTime;
+                                existingEvent.Period = matchEvent.Period;
+                                existingEvent.Comments = matchEvent.Comments ?? existingEvent.Comments;
+
+                                _context.MatchEvents.Update(existingEvent);
+                                updated++;
+                                _logger.LogDebug("Updated event {ApiEventId} for match {MatchId}",
+                                    apiEventId, match.MatchId);
                             }
                         }
 
-                        if (incident.TryGetProperty("playerIn", out var playerInEl))
+                        await _context.SaveChangesAsync();
+
+                        return new
                         {
-                            if (playerInEl.TryGetProperty("id", out var playerInIdEl))
+                            status = true,
+                            message = $"Synced events for match {apiFixtureId}: {added} added, {updated} updated, {skipped} skipped",
+                            data = new
                             {
-                                int apiPlayerInId = playerInIdEl.GetInt32();
-                                var playerIn = await _context.Players
-                                    .FirstOrDefaultAsync(p => p.ApiPlayerId == apiPlayerInId);
-
-                                matchEvent.AssistPlayerId = playerIn?.PlayerId;
-
-                                if (playerIn != null)
-                                {
-                                    _logger.LogDebug("Player IN: {PlayerName} (API ID: {ApiId})",
-                                        playerIn.FullName, apiPlayerInId);
-                                }
+                                added,
+                                updated,
+                                skipped,
+                                matchId = match.MatchId,
+                                apiFixtureId
                             }
-                        }
-
-                        if (matchEvent.PlayerId.HasValue && matchEvent.AssistPlayerId.HasValue)
-                        {
-                            matchEvent.Comments = $"Substitution: Player out (ID: {matchEvent.PlayerId}) replaced by Player in (ID: {matchEvent.AssistPlayerId})";
-                        }
+                        };
                     }
-                    else if (incidentType == "goal")
-                    {
-                        if (incident.TryGetProperty("player", out var scorerEl))
-                        {
-                            if (scorerEl.TryGetProperty("id", out var scorerIdEl))
-                            {
-                                int apiScorerId = scorerIdEl.GetInt32();
-                                var scorer = await _context.Players
-                                    .FirstOrDefaultAsync(p => p.ApiPlayerId == apiScorerId);
-
-                                matchEvent.PlayerId = scorer?.PlayerId;
-
-                                if (scorer != null)
-                                {
-                                    _logger.LogDebug("Goal scorer: {PlayerName} (API ID: {ApiId})",
-                                        scorer.FullName, apiScorerId);
-                                }
-                            }
-                        }
-
-                        if (incident.TryGetProperty("assist", out var assistEl))
-                        {
-                            if (assistEl.TryGetProperty("id", out var assistIdEl))
-                            {
-                                int apiAssistId = assistIdEl.GetInt32();
-                                var assistPlayer = await _context.Players
-                                    .FirstOrDefaultAsync(p => p.ApiPlayerId == apiAssistId);
-
-                                matchEvent.AssistPlayerId = assistPlayer?.PlayerId;
-
-                                if (assistPlayer != null)
-                                {
-                                    _logger.LogDebug("Goal assist: {PlayerName} (API ID: {ApiId})",
-                                        assistPlayer.FullName, apiAssistId);
-                                }
-                            }
-                        }
-
-                        if (incident.TryGetProperty("from", out var fromEl))
-                        {
-                            string goalType = fromEl.GetString();
-                            matchEvent.Comments = $"Goal from {goalType}";
-                        }
-                    }
-                    else if (incidentType == "card")
-                    {
-                        if (incident.TryGetProperty("player", out var playerEl))
-                        {
-                            if (playerEl.TryGetProperty("id", out var playerIdEl))
-                            {
-                                int apiPlayerId = playerIdEl.GetInt32();
-                                var player = await _context.Players
-                                    .FirstOrDefaultAsync(p => p.ApiPlayerId == apiPlayerId);
-
-                                matchEvent.PlayerId = player?.PlayerId;
-
-                                if (player != null)
-                                {
-                                    _logger.LogDebug("Card for player: {PlayerName} (API ID: {ApiId})",
-                                        player.FullName, apiPlayerId);
-                                }
-                            }
-                        }
-
-                        if (incident.TryGetProperty("reason", out var reasonEl))
-                        {
-                            string reason = reasonEl.GetString();
-                            matchEvent.Comments = $"Reason: {reason}";
-                        }
-                    }
-
-                    if (existingEvent == null)
-                    {
-                        _context.MatchEvents.Add(matchEvent);
-                        added++;
-                        _logger.LogDebug("Added event {ApiEventId} for match {MatchId}: {EventType} at {Time} minute",
-                            apiEventId, match.MatchId, matchEvent.EventType, matchEvent.EventTime);
-                    }
-                    else
-                    {
-                        existingEvent.MatchId = matchEvent.MatchId;
-                        existingEvent.TeamId = matchEvent.TeamId;
-                        existingEvent.PlayerId = matchEvent.PlayerId;
-                        existingEvent.AssistPlayerId = matchEvent.AssistPlayerId;
-                        existingEvent.EventType = matchEvent.EventType;
-                        existingEvent.Detail = matchEvent.Detail;
-                        existingEvent.EventTime = matchEvent.EventTime;
-                        existingEvent.ExtraTime = matchEvent.ExtraTime;
-                        existingEvent.Period = matchEvent.Period;
-                        existingEvent.Comments = matchEvent.Comments ?? existingEvent.Comments;
-
-                        _context.MatchEvents.Update(existingEvent);
-                        updated++;
-                        _logger.LogDebug("Updated event {ApiEventId} for match {MatchId}",
-                            apiEventId, match.MatchId);
-                    }
-                }
-
-                await _context.SaveChangesAsync();
-
-                return new
-                {
-                    status = true,
-                    message = $"Synced events for match {apiFixtureId}: {added} added, {updated} updated, {skipped} skipped",
-                    data = new
-                    {
-                        added,
-                        updated,
-                        skipped,
-                        matchId = match.MatchId,
-                        apiFixtureId
-                    }
-                };
-            }
+                
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error syncing match events for fixture {ApiFixtureId}", apiFixtureId);

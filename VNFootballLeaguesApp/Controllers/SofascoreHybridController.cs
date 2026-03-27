@@ -572,23 +572,6 @@ namespace VNFootballLeagues.API.Controllers
                     return Ok(result);
                 }
 
-        [HttpPost("sync-match-events")]
-        public async Task<IActionResult> SyncMatchEvents([FromQuery] int apiFixtureId)
-        {
-            try
-            {
-                if (apiFixtureId <= 0)
-                {
-                    return BadRequest(new { status = false, message = "Invalid apiFixtureId" });
-                }
-
-                var result = await _service.SyncMatchEventsAsync(apiFixtureId);
-
-                if (result.GetType().GetProperty("status")?.GetValue(result) is bool status && status)
-                {
-                    return Ok(result);
-                }
-
                 return BadRequest(result);
             }
             catch (Exception ex)
