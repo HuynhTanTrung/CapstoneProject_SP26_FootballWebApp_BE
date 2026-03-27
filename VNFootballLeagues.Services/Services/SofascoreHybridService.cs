@@ -642,7 +642,7 @@ namespace VNFootballLeagues.Services.Services
             return true;
         }
 
-        private int SafeScore(JsonElement ev, string key)
+        private int? SafeScore(JsonElement ev, string key)
         {
             try
             {
@@ -657,7 +657,7 @@ namespace VNFootballLeagues.Services.Services
             {
                 _logger.LogWarning(ex, "Error parsing score for key {Key}", key);
             }
-            return 0;
+            return null;
         }
 
         private int? ParseInt(string value)
@@ -2051,29 +2051,17 @@ namespace VNFootballLeagues.Services.Services
                         processedTeams.Add(team.TeamId);
 
                         string homeRecord = null;
-                        if (row.TryGetProperty("home", out var homeRecordEl))
-                        {
-                            int homeWins = homeRecordEl.TryGetProperty("wins", out var hw) ? hw.GetInt32() : 0;
-                            int homeDraws = homeRecordEl.TryGetProperty("draws", out var hd) ? hd.GetInt32() : 0;
-                            int homeLosses = homeRecordEl.TryGetProperty("losses", out var hl) ? hl.GetInt32() : 0;
-                            homeRecord = $"{homeWins}-{homeDraws}-{homeLosses}";
-                        }
-
                         string awayRecord = null;
-                        if (row.TryGetProperty("away", out var awayRecordEl))
-                        {
-                            int awayWins = awayRecordEl.TryGetProperty("wins", out var aw) ? aw.GetInt32() : 0;
-                            int awayDraws = awayRecordEl.TryGetProperty("draws", out var ad) ? ad.GetInt32() : 0;
-                            int awayLosses = awayRecordEl.TryGetProperty("losses", out var al) ? al.GetInt32() : 0;
-                            awayRecord = $"{awayWins}-{awayDraws}-{awayLosses}";
-                        }
+                        // Note: Sofascore standings/total endpoint does not provide home/away breakdown
 
                         var standing = new Standing
                         {
                             LeagueId = league.LeagueId,
                             SeasonId = season.SeasonId,
                             TeamId = team.TeamId,
-                            Rank = row.TryGetProperty("rank", out var rank) ? rank.GetInt32() : null,
+                            // Sofascore uses "position" not "rank"
+                            Rank = row.TryGetProperty("position", out var position) ? position.GetInt32()
+                                 : row.TryGetProperty("rank", out var rank) ? rank.GetInt32() : null,
                             Played = row.TryGetProperty("matches", out var matches) ? matches.GetInt32() : null,
                             Win = row.TryGetProperty("wins", out var wins) ? wins.GetInt32() : null,
                             Draw = row.TryGetProperty("draws", out var draws) ? draws.GetInt32() : null,
@@ -2081,10 +2069,15 @@ namespace VNFootballLeagues.Services.Services
                             GoalsFor = row.TryGetProperty("scoresFor", out var scoresFor) ? scoresFor.GetInt32() : null,
                             GoalsAgainst = row.TryGetProperty("scoresAgainst", out var scoresAgainst) ? scoresAgainst.GetInt32() : null,
                             Points = row.TryGetProperty("points", out var points) ? points.GetInt32() : null,
-                            Form = row.TryGetProperty("form", out var form) ? form.GetString() : null,
-                            Description = row.TryGetProperty("description", out var description) ? description.GetString() : null,
-                            HomeRecord = homeRecord,
-                            AwayRecord = awayRecord,
+                            // form not provided by Sofascore standings/total endpoint
+                            Form = null,
+                            // "promotion" object has the description text (e.g. "Champions League", "Relegation")
+                            Description = row.TryGetProperty("promotion", out var promo) && promo.ValueKind == JsonValueKind.Object
+                                ? (promo.TryGetProperty("text", out var promoText) ? promoText.GetString() : null)
+                                : null,
+                            // home/away records not provided in this endpoint
+                            HomeRecord = null,
+                            AwayRecord = null,
                             ApiLastUpdated = DateTime.UtcNow
                         };
 
@@ -2124,6 +2117,36 @@ namespace VNFootballLeagues.Services.Services
                             updated++;
                         }
                     }
+                }
+
+                await _context.SaveChangesAsync();
+
+                // Calculate form from last 5 finished matches in DB for this league/season
+                var allStandings = await _context.Standings
+                    .Where(s => s.LeagueId == league.LeagueId && s.SeasonId == season.SeasonId)
+                    .ToListAsync();
+
+                var finishedMatches = await _context.Matches
+                    .Where(m => m.LeagueId == league.LeagueId && m.SeasonId == season.SeasonId
+                                && (m.Status == "finished" || m.Status == "ended" || m.Status == "afterextratime" || m.Status == "afterpenalties"))
+                    .OrderByDescending(m => m.MatchDate)
+                    .ToListAsync();
+
+                foreach (var s in allStandings)
+                {
+                    if (s.TeamId == null) continue;
+                    var teamMatches = finishedMatches
+                        .Where(m => m.HomeTeamId == s.TeamId || m.AwayTeamId == s.TeamId)
+                        .Take(5)
+                        .ToList();
+
+                    s.Form = string.Concat(teamMatches.Select(m =>
+                    {
+                        bool isHome = m.HomeTeamId == s.TeamId;
+                        int scored = isHome ? (m.HomeGoals ?? 0) : (m.AwayGoals ?? 0);
+                        int conceded = isHome ? (m.AwayGoals ?? 0) : (m.HomeGoals ?? 0);
+                        return scored > conceded ? "W" : scored < conceded ? "L" : "D";
+                    }));
                 }
 
                 await _context.SaveChangesAsync();
@@ -2511,9 +2534,43 @@ namespace VNFootballLeagues.Services.Services
             return await _context.Teams.ToListAsync();
         }
 
-        public async Task<List<Match>> GetAllMatchesAsync()
+        public async Task<List<Match>> GetTeamLastMatchesFromDbAsync(int apiTeamId, int count = 5)
         {
-            return await _context.Matches.ToListAsync();
+            var team = await _context.Teams.FirstOrDefaultAsync(t => t.ApiTeamId == apiTeamId);
+            if (team == null) return new List<Match>();
+
+            return await _context.Matches
+                .Include(m => m.HomeTeam)
+                .Include(m => m.AwayTeam)
+                .Where(m => (m.HomeTeamId == team.TeamId || m.AwayTeamId == team.TeamId)
+                            && (m.Status == "finished" || m.Status == "ended"
+                                || m.Status == "afterextratime" || m.Status == "afterpenalties"))
+                .OrderByDescending(m => m.MatchDate)
+                .Take(count)
+                .ToListAsync();
+        }
+
+        public async Task<List<Match>> GetAllMatchesAsync(int? tournamentId = null, int? seasonId = null)
+        {
+            var query = _context.Matches.AsQueryable();
+
+            if (tournamentId.HasValue && tournamentId.Value > 0)
+            {
+                var league = await _context.Leagues
+                    .FirstOrDefaultAsync(l => l.ApiLeagueId == tournamentId.Value);
+                if (league != null)
+                    query = query.Where(m => m.LeagueId == league.LeagueId);
+            }
+
+            if (seasonId.HasValue && seasonId.Value > 0)
+            {
+                var season = await _context.Seasons
+                    .FirstOrDefaultAsync(s => s.ApiSeasonId == seasonId.Value);
+                if (season != null)
+                    query = query.Where(m => m.SeasonId == season.SeasonId);
+            }
+
+            return await query.ToListAsync();
         }
 
         public async Task<List<MatchStatistic>> GetAllMatchStatisticsAsync()
@@ -2646,6 +2703,7 @@ namespace VNFootballLeagues.Services.Services
                 return new List<Standing>();
 
             return await _context.Standings
+                .Include(s => s.Team)
                 .Where(s => s.LeagueId == league.LeagueId && s.SeasonId == season.SeasonId)
                 .ToListAsync();
         }

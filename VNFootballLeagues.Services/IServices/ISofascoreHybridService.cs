@@ -14,7 +14,7 @@ namespace VNFootballLeagues.Services.IServices
         Task<List<League>> GetAllLeaguesAsync();
         Task<List<SeasonListItemDto>> GetAllSeasonsAsync();
         Task<List<Team>> GetAllTeamsAsync();
-        Task<List<Match>> GetAllMatchesAsync();
+        Task<List<Match>> GetAllMatchesAsync(int? tournamentId = null, int? seasonId = null);
         Task<List<MatchStatistic>> GetAllMatchStatisticsAsync();
         Task<List<Player>> GetAllPlayersAsync(int sofascoreTeamId);
         Task<List<Player>> GetAllTeamPlayersByLeagueSeasonAsync(int tournamentId, int seasonId);
@@ -39,5 +39,6 @@ namespace VNFootballLeagues.Services.IServices
         Task<object> FetchPlayerMatchStatsByLeagueSeasonAsync(int apiTournamentId, int apiSeasonId);
         Task<object> FetchPlayerMatchStatsByApiMatchIdAsync(int apiFixtureId);
         Task<object> SyncMatchStatisticsByLeagueAndSeasonAsync(int apiTournamentId, int apiSeasonId);
+        Task<List<Match>> GetTeamLastMatchesFromDbAsync(int apiTeamId, int count);
     }
 }
