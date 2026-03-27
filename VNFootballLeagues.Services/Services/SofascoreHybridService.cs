@@ -441,9 +441,17 @@ namespace VNFootballLeagues.Services.Services
 
                 if (statistics.ValueKind == JsonValueKind.Array)
                 {
-                    foreach (var period in statistics.EnumerateArray())
+                    // Only process the "ALL" period (first period) — merge all groups into one row per team
+                    var allPeriod = statistics.EnumerateArray()
+                        .FirstOrDefault(p => p.TryGetProperty("period", out var per) && per.GetString() == "ALL");
+
+                    // Fallback to first period if "ALL" not found
+                    if (allPeriod.ValueKind == JsonValueKind.Undefined)
+                        allPeriod = statistics.EnumerateArray().FirstOrDefault();
+
+                    if (allPeriod.ValueKind != JsonValueKind.Undefined)
                     {
-                        var result = await ProcessStatisticsPeriod(period, match.MatchId);
+                        var result = await ProcessStatisticsPeriod(allPeriod, match.MatchId);
                         added += result.added;
                         updated += result.updated;
                     }
@@ -475,32 +483,83 @@ namespace VNFootballLeagues.Services.Services
             int added = 0;
             int updated = 0;
 
-            if (period.TryGetProperty("groups", out var groups))
-            {
-                foreach (var group in groups.EnumerateArray())
-                {
-                    if (group.TryGetProperty("statisticsItems", out var statisticsItems))
-                    {
-                        var homeStats = ExtractTeamStatistics(statisticsItems, "home");
-                        if (homeStats != null)
-                        {
-                            homeStats.MatchId = matchId;
-                            var result = await SaveOrUpdateStatisticsAsync(homeStats, matchId, "home");
-                            if (result) added++;
-                        }
+            if (!period.TryGetProperty("groups", out var groups))
+                return (added, updated);
 
-                        var awayStats = ExtractTeamStatistics(statisticsItems, "away");
-                        if (awayStats != null)
-                        {
-                            awayStats.MatchId = matchId;
-                            var result = await SaveOrUpdateStatisticsAsync(awayStats, matchId, "away");
-                            if (result) added++;
-                        }
-                    }
+            // Merge all groups into one stat object per team
+            var homeStats = new MatchStatistic { MatchId = matchId };
+            var awayStats = new MatchStatistic { MatchId = matchId };
+            bool homeHasData = false;
+            bool awayHasData = false;
+
+            foreach (var group in groups.EnumerateArray())
+            {
+                if (!group.TryGetProperty("statisticsItems", out var statisticsItems)) continue;
+
+                foreach (var stat in statisticsItems.EnumerateArray())
+                {
+                    string statName = stat.TryGetProperty("name", out var n) ? n.GetString() : null;
+                    if (string.IsNullOrEmpty(statName)) continue;
+
+                    string homeVal = null, awayVal = null;
+                    if (stat.TryGetProperty("home", out var hv))
+                        homeVal = hv.ValueKind == JsonValueKind.String ? hv.GetString()
+                                : hv.ValueKind == JsonValueKind.Number ? hv.GetRawText() : null;
+                    if (stat.TryGetProperty("away", out var av))
+                        awayVal = av.ValueKind == JsonValueKind.String ? av.GetString()
+                                : av.ValueKind == JsonValueKind.Number ? av.GetRawText() : null;
+
+                    ApplyStatToMatchStatistic(homeStats, statName, homeVal, ref homeHasData);
+                    ApplyStatToMatchStatistic(awayStats, statName, awayVal, ref awayHasData);
                 }
             }
 
+            if (homeHasData)
+            {
+                if (await SaveOrUpdateStatisticsAsync(homeStats, matchId, "home")) added++;
+            }
+            if (awayHasData)
+            {
+                if (await SaveOrUpdateStatisticsAsync(awayStats, matchId, "away")) added++;
+            }
+
             return (added, updated);
+        }
+
+        private void ApplyStatToMatchStatistic(MatchStatistic stats, string statName, string value, ref bool hasData)
+        {
+            if (string.IsNullOrEmpty(value)) return;
+            hasData = true;
+            switch (statName.ToLower())
+            {
+                case "ball possession":       stats.Possession = ParseIntPercentage(value); break;
+                case "expected goals":        stats.ExpectedGoals = ParseDecimal(value); break;
+                case "total shots":           stats.Shots = ParseInt(value); break;
+                case "shots on target":       stats.ShotsOnTarget = ParseInt(value); break;
+                case "corner kicks":          stats.Corners = ParseInt(value); break;
+                case "fouls":                 stats.Fouls = ParseInt(value); break;
+                case "yellow cards":          stats.YellowCards = ParseInt(value); break;
+                case "red cards":             stats.RedCards = ParseInt(value); break;
+                case "offsides":              stats.Offsides = ParseInt(value); break;
+                case "blocked shots":         stats.ShotsBlocked = ParseInt(value); break;
+                case "shots inside box":      stats.ShotsInsideBox = ParseInt(value); break;
+                case "shots outside box":     stats.ShotsOutsideBox = ParseInt(value); break;
+                case "total saves":
+                case "goalkeeper saves":      stats.Saves = ParseInt(value); break;
+                case "interceptions":         stats.Interceptions = ParseInt(value); break;
+                case "clearances":            stats.Clearances = ParseInt(value); break;
+                case "total tackles":         stats.TacklesWon = ParseInt(value); break;
+                case "passes":
+                case "total passes":          if (stats.PassesAccuracy == null) stats.PassesAccuracy = ParseInt(value); break;
+                case "accurate passes":       stats.PassesAccuracy = ParseInt(value); break;
+                case "key passes":            stats.PassesKey = ParseInt(value); break;
+                case "dribbles":
+                case "successful dribbles":   stats.DribblesSuccess = ParseInt(value); break;
+                case "dribble attempts":      stats.DribblesAttempted = ParseInt(value); break;
+                case "duels won":             stats.DuelsWon = ParseInt(value); break;
+                case "duels":
+                case "total duels":           stats.DuelsTotal = ParseInt(value); break;
+            }
         }
 
         private MatchStatistic ExtractTeamStatistics(JsonElement statisticsItems, string teamType)
@@ -604,41 +663,15 @@ namespace VNFootballLeagues.Services.Services
 
             stats.TeamId = teamId;
 
-            var existingStats = await _context.MatchStatistics
-                .FirstOrDefaultAsync(s => s.MatchId == matchId && s.TeamId == teamId);
+            // Remove ALL existing rows for this match+team (handles duplicates from old syncs)
+            var existingRows = await _context.MatchStatistics
+                .Where(s => s.MatchId == matchId && s.TeamId == teamId)
+                .ToListAsync();
 
-            if (existingStats != null)
-            {
-                existingStats.Possession = stats.Possession ?? existingStats.Possession;
-                existingStats.Shots = stats.Shots ?? existingStats.Shots;
-                existingStats.ShotsOnTarget = stats.ShotsOnTarget ?? existingStats.ShotsOnTarget;
-                existingStats.Corners = stats.Corners ?? existingStats.Corners;
-                existingStats.Fouls = stats.Fouls ?? existingStats.Fouls;
-                existingStats.YellowCards = stats.YellowCards ?? existingStats.YellowCards;
-                existingStats.RedCards = stats.RedCards ?? existingStats.RedCards;
-                existingStats.Offsides = stats.Offsides ?? existingStats.Offsides;
-                existingStats.ShotsBlocked = stats.ShotsBlocked ?? existingStats.ShotsBlocked;
-                existingStats.ShotsInsideBox = stats.ShotsInsideBox ?? existingStats.ShotsInsideBox;
-                existingStats.ShotsOutsideBox = stats.ShotsOutsideBox ?? existingStats.ShotsOutsideBox;
-                existingStats.PassesAccuracy = stats.PassesAccuracy ?? existingStats.PassesAccuracy;
-                existingStats.PassesKey = stats.PassesKey ?? existingStats.PassesKey;
-                existingStats.DribblesAttempted = stats.DribblesAttempted ?? existingStats.DribblesAttempted;
-                existingStats.DribblesSuccess = stats.DribblesSuccess ?? existingStats.DribblesSuccess;
-                existingStats.DuelsWon = stats.DuelsWon ?? existingStats.DuelsWon;
-                existingStats.DuelsTotal = stats.DuelsTotal ?? existingStats.DuelsTotal;
-                existingStats.TacklesWon = stats.TacklesWon ?? existingStats.TacklesWon;
-                existingStats.Saves = stats.Saves ?? existingStats.Saves;
-                existingStats.Interceptions = stats.Interceptions ?? existingStats.Interceptions;
-                existingStats.Clearances = stats.Clearances ?? existingStats.Clearances;
-                existingStats.ExpectedGoals = stats.ExpectedGoals ?? existingStats.ExpectedGoals;
+            if (existingRows.Count > 0)
+                _context.MatchStatistics.RemoveRange(existingRows);
 
-                _context.MatchStatistics.Update(existingStats);
-            }
-            else
-            {
-                await _context.MatchStatistics.AddAsync(stats);
-            }
-
+            await _context.MatchStatistics.AddAsync(stats);
             return true;
         }
 
@@ -1335,9 +1368,15 @@ namespace VNFootballLeagues.Services.Services
                             int matchAdded = 0;
                             int matchUpdated = 0;
 
-                            foreach (var period in statistics.EnumerateArray())
+                            // Only process "ALL" period — merge all groups into one row per team
+                            var allPeriod = statistics.EnumerateArray()
+                                .FirstOrDefault(p => p.TryGetProperty("period", out var per) && per.GetString() == "ALL");
+                            if (allPeriod.ValueKind == JsonValueKind.Undefined)
+                                allPeriod = statistics.EnumerateArray().FirstOrDefault();
+
+                            if (allPeriod.ValueKind != JsonValueKind.Undefined)
                             {
-                                var result = await ProcessStatisticsPeriod(period, match.MatchId);
+                                var result = await ProcessStatisticsPeriod(allPeriod, match.MatchId);
                                 matchAdded += result.added;
                                 matchUpdated += result.updated;
                             }
@@ -2532,6 +2571,12 @@ namespace VNFootballLeagues.Services.Services
         public async Task<List<Team>> GetAllTeamsAsync()
         {
             return await _context.Teams.ToListAsync();
+        }
+
+        public async Task<List<Team>> GetTeamsByIdsAsync(List<int> teamIds)
+        {
+            if (teamIds == null || teamIds.Count == 0) return new List<Team>();
+            return await _context.Teams.Where(t => teamIds.Contains(t.TeamId)).ToListAsync();
         }
 
         public async Task<List<Match>> GetTeamLastMatchesFromDbAsync(int apiTeamId, int count = 5)

@@ -67,6 +67,33 @@ namespace VNFootballLeagues.API.Controllers
             }));
         }
 
+        [HttpGet("matches-with-teams")]
+        public async Task<IActionResult> GetMatchesWithTeams([FromQuery] int? tournamentId = null, [FromQuery] int? seasonId = null)
+        {
+            var data = await _service.GetAllMatchesAsync(tournamentId, seasonId);
+            var teamIds = data.SelectMany(m => new[] { m.HomeTeamId, m.AwayTeamId })
+                              .Where(id => id.HasValue).Select(id => id!.Value).Distinct().ToList();
+            var teams = await _service.GetTeamsByIdsAsync(teamIds);
+            var teamMap = teams.ToDictionary(t => t.TeamId);
+
+            return Ok(data.Select(x => new
+            {
+                x.MatchId,
+                x.ApiFixtureId,
+                x.LeagueId,
+                x.SeasonId,
+                x.MatchDate,
+                x.Status,
+                x.HomeGoals,
+                x.AwayGoals,
+                x.Round,
+                HomeTeam = x.HomeTeamId.HasValue && teamMap.TryGetValue(x.HomeTeamId.Value, out var ht)
+                    ? new { ht.TeamId, ht.ApiTeamId, ht.TeamName, ht.LogoUrl } : null,
+                AwayTeam = x.AwayTeamId.HasValue && teamMap.TryGetValue(x.AwayTeamId.Value, out var at)
+                    ? new { at.TeamId, at.ApiTeamId, at.TeamName, at.LogoUrl } : null,
+            }));
+        }
+
         [HttpGet("matches")]
         public async Task<IActionResult> GetAllMatches([FromQuery] int? tournamentId = null, [FromQuery] int? seasonId = null)
         {
