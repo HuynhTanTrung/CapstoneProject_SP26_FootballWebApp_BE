@@ -17,7 +17,7 @@ namespace VNFootballLeagues.Services.IServices
         /// <param name="tournamentId">ApiLeagueId SofaScore (unique tournament). Nếu DB chưa có mùa, gọi API SofaScore.</param>
         Task<List<SeasonListItemDto>> GetAllSeasonsAsync(int? leagueId = null, int? tournamentId = null);
         Task<List<Team>> GetAllTeamsAsync();
-        Task<List<Match>> GetAllMatchesAsync();
+        Task<List<Match>> GetAllMatchesAsync(int? tournamentId = null, int? seasonId = null);
         Task<List<MatchStatistic>> GetAllMatchStatisticsAsync();
         /// <param name="teamId">Khóa nội bộ Team.TeamId.</param>
         /// <param name="sofascoreTeamId">ApiTeamId SofaScore (giống POST sync-team-players).</param>
@@ -47,5 +47,7 @@ namespace VNFootballLeagues.Services.IServices
         Task<object> SyncMatchEventsAsync(int apiFixtureId);
         Task<object> FetchPlayerMatchStatsByLeagueSeasonAsync(int apiTournamentId, int apiSeasonId);
         Task<object> FetchPlayerMatchStatsByApiMatchIdAsync(int apiFixtureId);
+        Task<List<Match>> GetTeamLastMatchesFromDbAsync(int apiTeamId, int count);
+        Task<List<Team>> GetTeamsByIdsAsync(List<int> teamIds);
     }
 }
