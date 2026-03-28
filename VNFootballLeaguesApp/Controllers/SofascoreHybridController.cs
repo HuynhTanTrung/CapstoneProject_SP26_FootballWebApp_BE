@@ -785,6 +785,20 @@ namespace VNFootballLeagues.API.Controllers
             return BadRequest(result);
         }
 
+        [HttpPost("sync-player-match-stats-by-round")]
+        public async Task<IActionResult> FetchPlayerMatchStatsByRound(
+            [FromQuery] int tournamentId,
+            [FromQuery] int seasonId,
+            [FromQuery] string round)
+        {
+            if (tournamentId <= 0 || seasonId <= 0 || string.IsNullOrWhiteSpace(round))
+                return BadRequest(new { status = false, message = "Invalid parameters" });
+            var result = await _service.FetchPlayerMatchStatsByRoundAsync(tournamentId, seasonId, round);
+            if (result.GetType().GetProperty("status")?.GetValue(result) is bool status2 && status2)
+                return Ok(result);
+            return BadRequest(result);
+        }
+
         [HttpPost("sync-player-match-stats-by-league-season")]
         public async Task<IActionResult> FetchPlayerMatchStatsByLeagueSeason(
             [FromQuery] int tournamentId,
@@ -995,7 +1009,5 @@ namespace VNFootballLeagues.API.Controllers
                 return StatusCode(500, new { status = false, message = "Internal server error" });
             }
         }
-
-
     }
 }

@@ -2493,6 +2493,88 @@ namespace VNFootballLeagues.Services.Services
                 };
             }
         }
+        public async Task<object> FetchPlayerMatchStatsByRoundAsync(int apiTournamentId, int apiSeasonId, string round)
+                {
+                    try
+                    {
+                        var league = await _context.Leagues.FirstOrDefaultAsync(l => l.ApiLeagueId == apiTournamentId);
+                        if (league == null)
+                            return new { status = false, message = $"League with API ID {apiTournamentId} not found.", data = (object)null };
+
+                        var season = await _context.Seasons.FirstOrDefaultAsync(s => s.ApiSeasonId == apiSeasonId);
+                        if (season == null)
+                            return new { status = false, message = $"Season with API ID {apiSeasonId} not found.", data = (object)null };
+
+                        var matches = await _context.Matches
+                            .Include(m => m.HomeTeam)
+                            .Include(m => m.AwayTeam)
+                            .Where(m => m.LeagueId == league.LeagueId &&
+                                        m.SeasonId == season.SeasonId &&
+                                        m.Status == "finished" &&
+                                        m.ApiFixtureId.HasValue &&
+                                        m.Round == round)
+                            .OrderBy(m => m.MatchDate)
+                            .ToListAsync();
+
+                        if (!matches.Any())
+                            return new { status = false, message = $"No finished matches found for round '{round}'", data = (object)null };
+
+                        int totalMatchesProcessed = 0, totalSuccess = 0, totalFailed = 0;
+                        var matchResults = new List<object>();
+
+                        foreach (var match in matches)
+                        {
+                            var resultObject = await FetchPlayerMatchStatsByApiMatchIdAsync(match.ApiFixtureId!.Value);
+                            var resultType = resultObject.GetType();
+                            var isSuccess = resultType.GetProperty("status") is { } sp && (bool)sp.GetValue(resultObject);
+
+                            if (isSuccess)
+                            {
+                                var data = resultType.GetProperty("data")?.GetValue(resultObject);
+                                var dataType = data?.GetType();
+                                if (dataType?.GetProperty("successCount")?.GetValue(data) is int sc) totalSuccess += sc;
+                                if (dataType?.GetProperty("failCount")?.GetValue(data) is int fc) totalFailed += fc;
+                                totalMatchesProcessed++;
+                            }
+
+                            matchResults.Add(new
+                            {
+                                matchId = match.MatchId,
+                                apiFixtureId = match.ApiFixtureId!.Value,
+                                matchDate = match.MatchDate,
+                                homeTeam = match.HomeTeam?.TeamName,
+                                awayTeam = match.AwayTeam?.TeamName,
+                                success = isSuccess
+                            });
+
+                            await Task.Delay(1000);
+                        }
+
+                        return new
+                        {
+                            status = true,
+                            message = $"Round '{round}' — {league.LeagueName} {season.Year}: {totalMatchesProcessed} matches, {totalSuccess} stats saved, {totalFailed} failed",
+                            data = new
+                            {
+                                leagueId = league.LeagueId,
+                                leagueName = league.LeagueName,
+                                seasonId = season.SeasonId,
+                                seasonYear = season.Year,
+                                round,
+                                totalMatches = matches.Count,
+                                totalMatchesProcessed,
+                                totalSuccess,
+                                totalFailed,
+                                matchResults
+                            }
+                        };
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Error fetching player match stats for round {Round}", round);
+                        return new { status = false, message = ex.Message, data = ex.StackTrace };
+                    }
+                }
 
         // ==================== GetAll (đọc từ DB) ====================
 
