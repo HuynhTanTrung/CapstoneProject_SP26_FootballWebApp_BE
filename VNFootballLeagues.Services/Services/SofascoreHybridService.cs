@@ -2760,6 +2760,8 @@ namespace VNFootballLeagues.Services.Services
             var team = await _context.Teams.FirstOrDefaultAsync(t => t.ApiTeamId == apiTeamId);
             if (team == null) return new List<Match>();
             return await _context.Matches
+                .Include(m => m.HomeTeam)
+                .Include(m => m.AwayTeam)
                 .Where(m => (m.HomeTeamId == team.TeamId || m.AwayTeamId == team.TeamId) && m.Status == "finished")
                 .OrderByDescending(m => m.MatchDate)
                 .Take(count)
@@ -2883,6 +2885,7 @@ namespace VNFootballLeagues.Services.Services
                 return new List<Standing>();
 
             return await _context.Standings
+                .Include(s => s.Team)
                 .Where(s => s.LeagueId == league.LeagueId && s.SeasonId == season.SeasonId)
                 .ToListAsync();
         }
