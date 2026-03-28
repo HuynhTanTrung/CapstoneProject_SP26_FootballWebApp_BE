@@ -1003,7 +1003,7 @@ namespace VNFootballLeagues.Services.Services
                 int added = 0, updated = 0, skipped = 0;
 
                 var playerDataList = new List<(int apiId, string name, string shortName, string position, int? number,
-                    string nationality, string photoUrl, int? age, DateOnly? dob, decimal? height)>();
+                    string nationality, string birthCountry, string photoUrl, int? age, DateOnly? dob, decimal? height)>();
 
                 foreach (var item in playersEl.EnumerateArray())
                 {
@@ -1012,15 +1012,25 @@ namespace VNFootballLeagues.Services.Services
                     var name = p.TryGetProperty("name", out var n) ? n.GetString() : null;
                     var shortName = p.TryGetProperty("shortName", out var sn) ? sn.GetString() : null;
                     var position = p.TryGetProperty("position", out var pos) ? pos.GetString() : null;
-                    var number = item.TryGetProperty("shirtNumber", out var num) ? (int?)num.GetInt32() : null;
+                    var number = p.TryGetProperty("shirtNumber", out var num) ? (int?)num.GetInt32() : null;
                     var nationality = p.TryGetProperty("country", out var country) && country.TryGetProperty("name", out var cn) ? cn.GetString() : null;
+                    var birthCountry = nationality; // same source from Sofascore
                     var photoUrl = $"https://api.sofascore.app/api/v1/player/{apiId}/image";
                     int? age = p.TryGetProperty("age", out var ageEl) ? (int?)ageEl.GetInt32() : null;
                     DateOnly? dob = null;
                     if (p.TryGetProperty("dateOfBirthTimestamp", out var dobTs))
+                    {
                         dob = DateOnly.FromDateTime(DateTimeOffset.FromUnixTimeSeconds(dobTs.GetInt64()).DateTime);
+                        if (age == null)
+                        {
+                            var today = DateTime.Today;
+                            var dobDate = dob.Value.ToDateTime(TimeOnly.MinValue);
+                            age = today.Year - dobDate.Year;
+                            if (dobDate.AddYears(age.Value) > today) age--;
+                        }
+                    }
                     decimal? height = p.TryGetProperty("height", out var h) ? (decimal?)h.GetDecimal() : null;
-                    playerDataList.Add((apiId, name, shortName, position, number, nationality, photoUrl, age, dob, height));
+                    playerDataList.Add((apiId, name, shortName, position, number, nationality, birthCountry, photoUrl, age, dob, height));
                 }
 
                 foreach (var pd in playerDataList)
@@ -1039,6 +1049,7 @@ namespace VNFootballLeagues.Services.Services
                                 Position = pd.position,
                                 Number = pd.number,
                                 Nationality = pd.nationality,
+                                BirthCountry = pd.birthCountry,
                                 PhotoUrl = pd.photoUrl,
                                 Age = pd.age,
                                 DateOfBirth = pd.dob,
@@ -1056,11 +1067,12 @@ namespace VNFootballLeagues.Services.Services
                                 .ExecuteUpdateAsync(s => s
                                     .SetProperty(pl => pl.FullName, pd.name ?? existing.FullName)
                                     .SetProperty(pl => pl.Position, pd.position ?? existing.Position)
-                                    .SetProperty(pl => pl.Number, pd.number ?? existing.Number)
+                                    .SetProperty(pl => pl.Number, pd.number)
                                     .SetProperty(pl => pl.Nationality, pd.nationality ?? existing.Nationality)
+                                    .SetProperty(pl => pl.BirthCountry, pd.birthCountry ?? existing.BirthCountry)
                                     .SetProperty(pl => pl.PhotoUrl, pd.photoUrl)
-                                    .SetProperty(pl => pl.Age, pd.age ?? existing.Age)
-                                    .SetProperty(pl => pl.DateOfBirth, pd.dob ?? existing.DateOfBirth)
+                                    .SetProperty(pl => pl.Age, pd.age)
+                                    .SetProperty(pl => pl.DateOfBirth, pd.dob)
                                     .SetProperty(pl => pl.HeightCm, pd.height ?? existing.HeightCm)
                                     .SetProperty(pl => pl.TeamId, teamId));
                             updated++;
