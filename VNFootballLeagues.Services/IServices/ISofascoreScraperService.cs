@@ -91,4 +91,9 @@ public interface ISofascoreScraperService
     /// Fetches squad/players for a team from SofaScore
     /// </summary>
     Task<string> GetTeamPlayersAsync(int teamId);
+
+    /// <summary>
+    /// Fetches player match statistics for a specific event
+    /// </summary>
+    Task<string> GetPlayerMatchStatisticsAsync(int eventId, int playerId);
 }

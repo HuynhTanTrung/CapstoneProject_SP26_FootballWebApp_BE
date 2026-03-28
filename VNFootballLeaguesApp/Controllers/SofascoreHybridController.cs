@@ -361,6 +361,7 @@ namespace VNFootballLeagues.API.Controllers
                 x.PlayerMatchStatId,
                 x.MatchId,
                 x.PlayerId,
+                ApiPlayerId = x.Player != null ? x.Player.ApiPlayerId : (int?)null,
                 x.TeamId,
                 x.Minutes,
                 x.Goals,
@@ -408,7 +409,16 @@ namespace VNFootballLeagues.API.Controllers
                 x.BallRecoveries,
                 x.Dispossessed,
                 x.WasFouled,
-                x.UnsuccessfulTouch
+                x.UnsuccessfulTouch,
+                // GK stats
+                x.Saves,
+                x.SavesInsideBox,
+                x.Punches,
+                x.RunsOut,
+                x.RunsOutSuccessful,
+                x.HighClaims,
+                x.GoalsConceded,
+                x.PenaltiesSaved
             }));
         }
 
@@ -473,7 +483,16 @@ namespace VNFootballLeagues.API.Controllers
                 x.BallRecoveries,
                 x.Dispossessed,
                 x.WasFouled,
-                x.UnsuccessfulTouch
+                x.UnsuccessfulTouch,
+                // GK stats
+                x.Saves,
+                x.SavesInsideBox,
+                x.Punches,
+                x.RunsOut,
+                x.RunsOutSuccessful,
+                x.HighClaims,
+                x.GoalsConceded,
+                x.PenaltiesSaved
             }));
         }
 

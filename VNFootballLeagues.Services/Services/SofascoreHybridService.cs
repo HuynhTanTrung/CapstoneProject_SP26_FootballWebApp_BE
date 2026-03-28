@@ -2904,6 +2904,7 @@ namespace VNFootballLeagues.Services.Services
                 return new List<PlayerMatchStatistic>();
 
             var list = await _context.PlayerMatchStatistics
+                .Include(p => p.Player)
                 .Where(p => p.MatchId == match.MatchId)
                 .ToListAsync();
 
@@ -2914,6 +2915,7 @@ namespace VNFootballLeagues.Services.Services
                 if (ok)
                 {
                     list = await _context.PlayerMatchStatistics
+                        .Include(p => p.Player)
                         .Where(p => p.MatchId == match.MatchId)
                         .ToListAsync();
                 }
@@ -3110,6 +3112,31 @@ namespace VNFootballLeagues.Services.Services
             if (statistics.TryGetProperty("unsuccessfulTouch", out var unsuccessfulTouch))
                 playerStats.UnsuccessfulTouch = unsuccessfulTouch.GetInt32();
 
+            // GK stats
+            if (statistics.TryGetProperty("saves", out var saves))
+                playerStats.Saves = saves.GetInt32();
+
+            if (statistics.TryGetProperty("savedShotsFromInsideTheBox", out var savesInsideBox))
+                playerStats.SavesInsideBox = savesInsideBox.GetInt32();
+
+            if (statistics.TryGetProperty("punches", out var punches))
+                playerStats.Punches = punches.GetInt32();
+
+            if (statistics.TryGetProperty("totalKeeperSweeper", out var runsOut))
+                playerStats.RunsOut = runsOut.GetInt32();
+
+            if (statistics.TryGetProperty("keeperSweeper", out var runsOutSuccessful))
+                playerStats.RunsOutSuccessful = runsOutSuccessful.GetInt32();
+
+            if (statistics.TryGetProperty("goodHighClaim", out var highClaims))
+                playerStats.HighClaims = highClaims.GetInt32();
+
+            if (statistics.TryGetProperty("goalsConceded", out var goalsConceded))
+                playerStats.GoalsConceded = goalsConceded.GetInt32();
+
+            if (statistics.TryGetProperty("penaltySave", out var penaltySave))
+                playerStats.PenaltiesSaved = penaltySave.GetInt32();
+
             if (playerStats.Minutes == null && playerStats.Goals == null &&
                 playerStats.Assists == null && playerStats.Rating == null)
             {
@@ -3163,6 +3190,15 @@ namespace VNFootballLeagues.Services.Services
             if (newStats.AccurateCrosses.HasValue) existing.AccurateCrosses = newStats.AccurateCrosses;
             if (newStats.TotalLongBalls.HasValue) existing.TotalLongBalls = newStats.TotalLongBalls;
             if (newStats.AccurateLongBalls.HasValue) existing.AccurateLongBalls = newStats.AccurateLongBalls;
+            // GK stats
+            if (newStats.Saves.HasValue) existing.Saves = newStats.Saves;
+            if (newStats.SavesInsideBox.HasValue) existing.SavesInsideBox = newStats.SavesInsideBox;
+            if (newStats.Punches.HasValue) existing.Punches = newStats.Punches;
+            if (newStats.RunsOut.HasValue) existing.RunsOut = newStats.RunsOut;
+            if (newStats.RunsOutSuccessful.HasValue) existing.RunsOutSuccessful = newStats.RunsOutSuccessful;
+            if (newStats.HighClaims.HasValue) existing.HighClaims = newStats.HighClaims;
+            if (newStats.GoalsConceded.HasValue) existing.GoalsConceded = newStats.GoalsConceded;
+            if (newStats.PenaltiesSaved.HasValue) existing.PenaltiesSaved = newStats.PenaltiesSaved;
         }
 
         public async Task<object> SyncMatchLineupsAsync(int apiFixtureId)

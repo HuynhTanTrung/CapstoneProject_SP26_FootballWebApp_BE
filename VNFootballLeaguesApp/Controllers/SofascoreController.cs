@@ -262,9 +262,23 @@ public class SofascoreController : ControllerBase
         }
     }
 
-    /// <summary>
-    /// Get raw incidents data for debugging
-    /// </summary>
+    [HttpGet("player-match-statistics")]
+    public async Task<IActionResult> GetPlayerMatchStatistics([FromQuery] int eventId, [FromQuery] int playerId)
+    {
+        if (eventId <= 0 || playerId <= 0)
+            return BadRequest(new { error = "Invalid eventId or playerId" });
+        try
+        {
+            string jsonResponse = await _sofascoreScraperService.GetPlayerMatchStatisticsAsync(eventId, playerId);
+            return Content(jsonResponse, "application/json");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to fetch player {PlayerId} statistics for event {EventId}", playerId, eventId);
+            return StatusCode(500, new { error = "Failed to retrieve player match statistics", details = ex.Message });
+        }
+    }
+
     [HttpGet("incidents")]
     public async Task<IActionResult> GetIncidents([FromQuery] int eventId)
     {

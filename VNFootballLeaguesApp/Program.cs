@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.HttpsPolicy;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
+using VNFootballLeagues.Repositories.Models;
 using VNFootballLeagues.Services.IServices;
 using VNFootballLeagues.Services.Services;
 using VNFootballLeaguesApp.Extensions;
@@ -106,6 +108,13 @@ builder.Services.AddScoped<ISofascoreHybridService, SofascoreHybridService>();
 
 
 var app = builder.Build();
+
+// Auto-apply pending migrations on startup
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<VNFootballLeaguesDBContext>();
+    db.Database.Migrate();
+}
 
 app.UseMiddleware<GlobalExceptionHandlerMiddleware>();
 

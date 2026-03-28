@@ -83,6 +83,16 @@ public partial class PlayerMatchStatistic
     public int? WasFouled { get; set; }
     public int? UnsuccessfulTouch { get; set; }
 
+    // GK stats
+    public int? Saves { get; set; }
+    public int? SavesInsideBox { get; set; }
+    public int? Punches { get; set; }
+    public int? RunsOut { get; set; }
+    public int? RunsOutSuccessful { get; set; }
+    public int? HighClaims { get; set; }
+    public int? GoalsConceded { get; set; }
+    public int? PenaltiesSaved { get; set; }
+
     public virtual Match Match { get; set; }
     public virtual Player Player { get; set; }
     public virtual Team Team { get; set; }
