@@ -2273,6 +2273,35 @@ namespace VNFootballLeagues.Services.Services
                 int failCount = 0;
                 var results = new List<object>();
 
+                // Fetch shotmap once for the whole match, group by player API ID
+                var penaltyScored = new Dictionary<int, int>();
+                var penaltyMissed = new Dictionary<int, int>();
+                var penaltyWon = new Dictionary<int, int>();
+                try
+                {
+                    var shotmapJson = await FetchJson($"https://www.sofascore.com/api/v1/event/{apiFixtureId}/shotmap");
+                    using var shotmapDoc = JsonDocument.Parse(shotmapJson);
+                    if (shotmapDoc.RootElement.TryGetProperty("shotmap", out var shots))
+                    {
+                        foreach (var shot in shots.EnumerateArray())
+                        {
+                            if (!shot.TryGetProperty("player", out var sp) || !sp.TryGetProperty("id", out var pid)) continue;
+                            int playerId = pid.GetInt32();
+                            string situation = shot.TryGetProperty("situation", out var sit) ? sit.GetString() ?? "" : "";
+                            string shotType = shot.TryGetProperty("shotType", out var st) ? st.GetString() ?? "" : "";
+
+                            if (situation == "penalty")
+                            {
+                                if (shotType == "goal")
+                                    penaltyScored[playerId] = penaltyScored.GetValueOrDefault(playerId) + 1;
+                                else
+                                    penaltyMissed[playerId] = penaltyMissed.GetValueOrDefault(playerId) + 1;
+                            }
+                        }
+                    }
+                }
+                catch { /* shotmap optional, continue without it */ }
+
                 foreach (var player in players)
                 {
                     try
@@ -2282,6 +2311,14 @@ namespace VNFootballLeagues.Services.Services
 
                         using var doc = JsonDocument.Parse(statsJson);
                         var playerStats = ExtractPlayerMatchStatisticsFromJson(doc.RootElement, match, player);
+
+                        // Apply shotmap penalty data
+                        if (playerStats != null && player.ApiPlayerId.HasValue)
+                        {
+                            int apiId = player.ApiPlayerId.Value;
+                            if (penaltyScored.TryGetValue(apiId, out int ps)) playerStats.PenaltiesScored = ps;
+                            if (penaltyMissed.TryGetValue(apiId, out int pm)) playerStats.PenaltiesMissed = pm;
+                        }
 
                         if (playerStats != null)
                         {
@@ -2983,7 +3020,7 @@ namespace VNFootballLeagues.Services.Services
                 playerStats.DuelsWon = duelsWon.GetInt32();
 
             if (statistics.TryGetProperty("duelLost", out var duelsLost))
-                playerStats.DuelsTotal = (duelsWon.GetInt32() + duelsLost.GetInt32());
+                playerStats.DuelsTotal = (playerStats.DuelsWon ?? 0) + duelsLost.GetInt32();
 
             if (statistics.TryGetProperty("aerialWon", out var aerialWon))
                 playerStats.AerialDuelsWon = aerialWon.GetInt32();
@@ -2991,14 +3028,27 @@ namespace VNFootballLeagues.Services.Services
             if (statistics.TryGetProperty("aerialLost", out var aerialLost))
                 playerStats.AerialDuelsLost = aerialLost.GetInt32();
 
+            // GroundDuels = total - aerial
+            playerStats.GroundDuelsWon = (playerStats.DuelsWon ?? 0) - (playerStats.AerialDuelsWon ?? 0);
+            playerStats.GroundDuelsLost = ((playerStats.DuelsTotal ?? 0) - (playerStats.DuelsWon ?? 0)) - (playerStats.AerialDuelsLost ?? 0);
+
+            if (statistics.TryGetProperty("groundDuelWon", out var groundDuelWon))
+                playerStats.GroundDuelsWon = groundDuelWon.GetInt32();
+
+            if (statistics.TryGetProperty("groundDuelLost", out var groundDuelLost))
+                playerStats.GroundDuelsLost = groundDuelLost.GetInt32();
+
             if (statistics.TryGetProperty("totalTackle", out var tackles))
                 playerStats.Tackles = tackles.GetInt32();
 
             if (statistics.TryGetProperty("wonTackle", out var tacklesWon))
                 playerStats.TacklesWon = tacklesWon.GetInt32();
 
-            if (statistics.TryGetProperty("ballRecovery", out var ballRecoveries))
-                playerStats.Interceptions = ballRecoveries.GetInt32();
+            if (statistics.TryGetProperty("interceptionWon", out var interceptions))
+                playerStats.Interceptions = interceptions.GetInt32();
+
+            if (statistics.TryGetProperty("ballRecovery", out var ballRecovery))
+                playerStats.BallRecoveries = ballRecovery.GetInt32();
 
             if (statistics.TryGetProperty("totalClearance", out var clearances))
                 playerStats.Clearances = clearances.GetInt32();
@@ -3006,14 +3056,29 @@ namespace VNFootballLeagues.Services.Services
             if (statistics.TryGetProperty("outfielderBlock", out var blocks))
                 playerStats.Blocks = blocks.GetInt32();
 
-            if (statistics.TryGetProperty("ballRecovery", out var ballRecovery))
-                playerStats.BallRecoveries = ballRecovery.GetInt32();
-
             if (statistics.TryGetProperty("fouls", out var fouls))
                 playerStats.FoulsCommitted = fouls.GetInt32();
 
             if (statistics.TryGetProperty("wasFouled", out var wasFouled))
+            {
                 playerStats.FoulsDrawn = wasFouled.GetInt32();
+                playerStats.WasFouled = wasFouled.GetInt32();
+            }
+
+            if (statistics.TryGetProperty("yellowCard", out var yellowCard))
+                playerStats.YellowCards = yellowCard.GetInt32();
+
+            if (statistics.TryGetProperty("redCard", out var redCard))
+                playerStats.RedCards = redCard.GetInt32();
+
+            if (statistics.TryGetProperty("penaltyWon", out var penaltyWon))
+                playerStats.PenaltiesWon = penaltyWon.GetInt32();
+
+            if (statistics.TryGetProperty("penaltyConceded", out var penaltyConceded))
+                playerStats.PenaltiesCommitted = penaltyConceded.GetInt32();
+
+            if (statistics.TryGetProperty("penaltyMiss", out var penaltyMiss))
+                playerStats.PenaltiesMissed = penaltyMiss.GetInt32();
 
             if (statistics.TryGetProperty("totalOffside", out var offsides))
                 playerStats.Offsides = offsides.GetInt32();
@@ -3069,6 +3134,20 @@ namespace VNFootballLeagues.Services.Services
             if (newStats.PenaltiesScored.HasValue) existing.PenaltiesScored = newStats.PenaltiesScored;
             if (newStats.PenaltiesMissed.HasValue) existing.PenaltiesMissed = newStats.PenaltiesMissed;
             if (newStats.ExpectedGoals.HasValue) existing.ExpectedGoals = newStats.ExpectedGoals;
+            if (newStats.ExpectedAssists.HasValue) existing.ExpectedAssists = newStats.ExpectedAssists;
+            if (newStats.GroundDuelsWon.HasValue) existing.GroundDuelsWon = newStats.GroundDuelsWon;
+            if (newStats.GroundDuelsLost.HasValue) existing.GroundDuelsLost = newStats.GroundDuelsLost;
+            if (newStats.AerialDuelsWon.HasValue) existing.AerialDuelsWon = newStats.AerialDuelsWon;
+            if (newStats.AerialDuelsLost.HasValue) existing.AerialDuelsLost = newStats.AerialDuelsLost;
+            if (newStats.WasFouled.HasValue) existing.WasFouled = newStats.WasFouled;
+            if (newStats.Touches.HasValue) existing.Touches = newStats.Touches;
+            if (newStats.PossessionLost.HasValue) existing.PossessionLost = newStats.PossessionLost;
+            if (newStats.Dispossessed.HasValue) existing.Dispossessed = newStats.Dispossessed;
+            if (newStats.BallRecoveries.HasValue) existing.BallRecoveries = newStats.BallRecoveries;
+            if (newStats.TotalCrosses.HasValue) existing.TotalCrosses = newStats.TotalCrosses;
+            if (newStats.AccurateCrosses.HasValue) existing.AccurateCrosses = newStats.AccurateCrosses;
+            if (newStats.TotalLongBalls.HasValue) existing.TotalLongBalls = newStats.TotalLongBalls;
+            if (newStats.AccurateLongBalls.HasValue) existing.AccurateLongBalls = newStats.AccurateLongBalls;
         }
 
         public async Task<object> SyncMatchLineupsAsync(int apiFixtureId)
