@@ -19,6 +19,7 @@ namespace VNFootballLeagues.Services.IServices
         Task<List<Player>> GetAllPlayersAsync(int? teamId = null, int? sofascoreTeamId = null);
         Task<List<Player>> GetAllTeamPlayersByLeagueSeasonAsync(int tournamentId, int seasonId);
         Task<List<PlayerSeasonStatistic>> GetAllPlayerSeasonStatisticsAsync();
+        Task<object> AggregateSeasonStatsFromMatchStatsAsync(int? leagueId = null, int? seasonId = null, int? playerId = null);
         Task<List<MatchEvent>> GetAllMatchEventsAsync();
         Task<List<Standing>> GetAllStandingsAsync(int tournamentId, int seasonId);
         Task<List<PlayerMatchStatistic>> GetAllPlayerMatchStatisticsByApiFixtureIdAsync(int apiFixtureId, bool fetchIfEmpty = false);
@@ -33,6 +34,7 @@ namespace VNFootballLeagues.Services.IServices
         Task<object> SyncTeamPlayersAsync(int sofascoreTeamId);
         Task<object> SyncAllTeamPlayersAsync(int tournamentId, int seasonId);
         Task<object> SyncAllPlayerStatisticsAsync(int tournamentId, int seasonId);
+        Task<object> SyncPlayerStatsByPlayerIdAsync(int playerId);
         Task<object> SyncVietnameseLeaguesAsync();
         Task<object> SyncSeasonsByLeagueAsync(int apiTournamentId);
         Task<object> SyncStandingsAsync(int apiTournamentId, int apiSeasonId);

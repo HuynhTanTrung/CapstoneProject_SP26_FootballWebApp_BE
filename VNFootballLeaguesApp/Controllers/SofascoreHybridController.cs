@@ -277,7 +277,17 @@ namespace VNFootballLeagues.API.Controllers
                 x.FoulsDrawn,
                 x.FoulsCommitted,
                 x.PenaltiesScored,
-                x.PenaltiesMissed
+                x.PenaltiesMissed,
+                // GK stats
+                x.Saves,
+                x.SavesInsideBox,
+                x.Punches,
+                x.RunsOut,
+                x.RunsOutSuccessful,
+                x.HighClaims,
+                x.GoalsConceded,
+                x.PenaltiesSaved,
+                x.CleanSheets
             }));
         }
 
@@ -761,6 +771,16 @@ namespace VNFootballLeagues.API.Controllers
 
             var result = await _service.SyncAllPlayerStatisticsAsync(tournamentId, seasonId);
             return Ok(result);
+        }
+
+        [HttpPost("sync-player-season-stats-by-player")]
+        public async Task<IActionResult> SyncPlayerStatsByPlayerId([FromQuery] int playerId)
+        {
+            if (playerId <= 0) return BadRequest(new { status = false, message = "Invalid playerId" });
+            var result = await _service.SyncPlayerStatsByPlayerIdAsync(playerId);
+            if (result.GetType().GetProperty("status")?.GetValue(result) is bool status && status)
+                return Ok(result);
+            return BadRequest(result);
         }
 
         [HttpPost("sync-match-events")]

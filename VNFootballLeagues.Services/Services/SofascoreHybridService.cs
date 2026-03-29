@@ -1254,6 +1254,16 @@ namespace VNFootballLeagues.Services.Services
                             int? subsIn = s.TryGetProperty("substitutionsIn", out var si) ? (int?)si.GetInt32() : null;
                             int? subsOut = s.TryGetProperty("substitutionsOut", out var so) ? (int?)so.GetInt32() : null;
 
+                            // GK stats
+                            int? saves = s.TryGetProperty("saves", out var sv) ? (int?)sv.GetInt32() : null;
+                            int? savesInsideBox = s.TryGetProperty("savedShotsFromInsideTheBox", out var sib) ? (int?)sib.GetInt32() : null;
+                            int? punches = s.TryGetProperty("punches", out var pn) ? (int?)pn.GetInt32() : null;
+                            int? runsOut = s.TryGetProperty("totalKeeperSweeper", out var ro) ? (int?)ro.GetInt32() : null;
+                            int? runsOutSuccessful = s.TryGetProperty("keeperSweeper", out var ros) ? (int?)ros.GetInt32() : null;
+                            int? highClaims = s.TryGetProperty("goodHighClaim", out var hc) ? (int?)hc.GetInt32() : null;
+                            int? goalsConceded = s.TryGetProperty("goalsConceded", out var gc) ? (int?)gc.GetInt32() : null;
+                            int? penaltiesSaved = s.TryGetProperty("penaltySave", out var ps) ? (int?)ps.GetInt32() : null;
+                            int? cleanSheets = s.TryGetProperty("cleanSheet", out var cs) ? (int?)cs.GetInt32() : null;
                             var existing = await _context.PlayerSeasonStatistics
                                 .FirstOrDefaultAsync(x =>
                                     x.PlayerId == player.PlayerId &&
@@ -1289,6 +1299,15 @@ namespace VNFootballLeagues.Services.Services
                                     Interceptions = interceptions,
                                     FoulsCommitted = foulsCommitted,
                                     PenaltiesScored = penaltiesScored,
+                                    Saves = saves,
+                                    SavesInsideBox = savesInsideBox,
+                                    Punches = punches,
+                                    RunsOut = runsOut,
+                                    RunsOutSuccessful = runsOutSuccessful,
+                                    HighClaims = highClaims,
+                                    GoalsConceded = goalsConceded,
+                                    PenaltiesSaved = penaltiesSaved,
+                                    CleanSheets = cleanSheets,
                                 });
                                 added++;
                             }
@@ -1316,6 +1335,15 @@ namespace VNFootballLeagues.Services.Services
                                 existing.Interceptions = interceptions;
                                 existing.FoulsCommitted = foulsCommitted;
                                 existing.PenaltiesScored = penaltiesScored;
+                                existing.Saves = saves;
+                                existing.SavesInsideBox = savesInsideBox;
+                                existing.Punches = punches;
+                                existing.RunsOut = runsOut;
+                                existing.RunsOutSuccessful = runsOutSuccessful;
+                                existing.HighClaims = highClaims;
+                                existing.GoalsConceded = goalsConceded;
+                                existing.PenaltiesSaved = penaltiesSaved;
+                                existing.CleanSheets = cleanSheets;
                                 updated++;
                             }
 
@@ -1329,6 +1357,9 @@ namespace VNFootballLeagues.Services.Services
                         }
                     }
                 }
+
+                // After syncing from Sofascore, aggregate defensive stats from match stats
+                await AggregateSeasonStatsFromMatchStatsAsync(leagueId: league.LeagueId, seasonId: season.SeasonId);
 
                 return new
                 {
@@ -2863,6 +2894,211 @@ namespace VNFootballLeagues.Services.Services
         public async Task<List<PlayerSeasonStatistic>> GetAllPlayerSeasonStatisticsAsync()
         {
             return await _context.PlayerSeasonStatistics.ToListAsync();
+        }
+
+        public async Task<object> AggregateSeasonStatsFromMatchStatsAsync(int? leagueId = null, int? seasonId = null, int? playerId = null)
+        {
+            try
+            {
+                // Get all matches for the given league/season
+                var matchQuery = _context.Matches
+                    .Include(m => m.Season)
+                    .AsQueryable();
+
+                if (leagueId.HasValue)
+                    matchQuery = matchQuery.Where(m => m.Season != null && m.Season.LeagueId == leagueId.Value);
+                if (seasonId.HasValue)
+                    matchQuery = matchQuery.Where(m => m.Season != null && m.Season.SeasonId == seasonId.Value);
+
+                var matchIds = await matchQuery.Select(m => new { m.MatchId, m.Season.SeasonId, m.Season.LeagueId }).ToListAsync();
+                if (!matchIds.Any())
+                    return new { status = false, message = "No matches found for given filters" };
+
+                // Get all player match stats for these matches
+                var matchIdSet = matchIds.Select(m => m.MatchId).ToHashSet();
+                var matchStats = await _context.PlayerMatchStatistics
+                    .Where(s => s.MatchId.HasValue && matchIdSet.Contains(s.MatchId.Value))
+                    .Where(s => !playerId.HasValue || s.PlayerId == playerId.Value)
+                    .ToListAsync();
+
+                // Build a lookup: matchId → (seasonId, leagueId)
+                var matchSeasonMap = matchIds.ToDictionary(m => m.MatchId, m => (m.SeasonId, m.LeagueId));
+
+                // Group by (playerId, teamId, seasonId, leagueId) and aggregate
+                var groups = matchStats
+                    .Where(s => s.PlayerId.HasValue && s.MatchId.HasValue && matchSeasonMap.ContainsKey(s.MatchId.Value))
+                    .GroupBy(s => (
+                        PlayerId: s.PlayerId!.Value,
+                        TeamId: s.TeamId,
+                        SeasonId: matchSeasonMap[s.MatchId!.Value].SeasonId,
+                        LeagueId: matchSeasonMap[s.MatchId!.Value].LeagueId
+                    ));
+
+                int updated = 0;
+                foreach (var g in groups)
+                {
+                    var existing = await _context.PlayerSeasonStatistics
+                        .FirstOrDefaultAsync(x =>
+                            x.PlayerId == g.Key.PlayerId &&
+                            x.SeasonId == g.Key.SeasonId &&
+                            x.LeagueId == g.Key.LeagueId);
+
+                    if (existing == null) continue; // Only update existing rows, don't create new ones
+
+                    // Aggregate all stats from match stats that Sofascore season API doesn't provide
+                    existing.Tackles            = g.Sum(s => s.Tackles ?? 0);
+                    existing.Interceptions      = g.Sum(s => s.Interceptions ?? 0);
+                    existing.DuelsWon           = g.Sum(s => s.DuelsWon ?? 0);
+                    existing.DuelsTotal         = g.Sum(s => s.DuelsTotal ?? 0);
+                    existing.DuelsWonRate       = existing.DuelsTotal > 0
+                        ? Math.Round((decimal)existing.DuelsWon.Value / existing.DuelsTotal.Value * 100, 2)
+                        : null;
+                    existing.FoulsDrawn         = g.Sum(s => s.FoulsDrawn ?? 0);
+                    existing.DribblesAttempted  = g.Sum(s => s.DribblesAttempted ?? 0);
+                    var dribblesSuccess         = g.Sum(s => s.DribblesSuccess ?? 0);
+                    existing.DribblesSuccessRate = existing.DribblesAttempted > 0
+                        ? Math.Round((decimal)dribblesSuccess / existing.DribblesAttempted.Value * 100, 2)
+                        : null;
+                    existing.PenaltiesMissed    = g.Sum(s => s.PenaltiesMissed ?? 0);
+                    // GK stats from match stats
+                    existing.SavesInsideBox     = g.Sum(s => s.SavesInsideBox ?? 0) > 0 ? g.Sum(s => s.SavesInsideBox ?? 0) : existing.SavesInsideBox;
+                    existing.Punches            = g.Sum(s => s.Punches ?? 0) > 0 ? g.Sum(s => s.Punches ?? 0) : existing.Punches;
+                    existing.RunsOut            = g.Sum(s => s.RunsOut ?? 0) > 0 ? g.Sum(s => s.RunsOut ?? 0) : existing.RunsOut;
+                    existing.RunsOutSuccessful  = g.Sum(s => s.RunsOutSuccessful ?? 0) > 0 ? g.Sum(s => s.RunsOutSuccessful ?? 0) : existing.RunsOutSuccessful;
+                    existing.HighClaims         = g.Sum(s => s.HighClaims ?? 0) > 0 ? g.Sum(s => s.HighClaims ?? 0) : existing.HighClaims;
+                    existing.PenaltiesSaved     = g.Sum(s => s.PenaltiesSaved ?? 0) > 0 ? g.Sum(s => s.PenaltiesSaved ?? 0) : existing.PenaltiesSaved;
+
+                    _context.PlayerSeasonStatistics.Update(existing);
+                    updated++;
+                }
+
+                await _context.SaveChangesAsync();
+                return new { status = true, message = $"Aggregated match stats into {updated} season stat rows" };
+            }
+            catch (Exception ex)
+            {
+                return new { status = false, message = ex.Message };
+            }
+        }
+
+        public async Task<object> SyncPlayerStatsByPlayerIdAsync(int playerId)
+        {
+            try
+            {
+                var player = await _context.Players.FirstOrDefaultAsync(p => p.PlayerId == playerId);
+                if (player == null)
+                    return new { status = false, message = $"Player {playerId} not found in DB" };
+                if (!player.ApiPlayerId.HasValue)
+                    return new { status = false, message = $"Player {playerId} has no ApiPlayerId" };
+
+                // Get all league-season combos from DB
+                var leagueSeasons = await _context.Seasons
+                    .Include(s => s.League)
+                    .Where(s => s.League != null && s.League.ApiLeagueId > 0 && s.ApiSeasonId > 0)
+                    .Select(s => new { 
+                        ApiLeagueId = s.League.ApiLeagueId ?? 0, 
+                        ApiSeasonId = s.ApiSeasonId ?? 0, 
+                        s.SeasonId, s.LeagueId, s.Year 
+                    })
+                    .Where(s => s.ApiLeagueId > 0 && s.ApiSeasonId > 0)
+                    .ToListAsync();
+
+                int added = 0, updated = 0, skipped = 0;
+                var details = new List<object>();
+
+                foreach (var ls in leagueSeasons)
+                {
+                    try
+                    {
+                        var url = $"https://www.sofascore.com/api/v1/player/{player.ApiPlayerId}/unique-tournament/{ls.ApiLeagueId}/season/{ls.ApiSeasonId}/statistics/overall";
+                        var json = await FetchJson(url);
+                        using var doc = JsonDocument.Parse(json);
+                        if (!doc.RootElement.TryGetProperty("statistics", out var s)) { skipped++; continue; }
+
+                        var stat = new PlayerSeasonStatistic
+                        {
+                            PlayerId = player.PlayerId,
+                            TeamId = player.TeamId,
+                            LeagueId = ls.LeagueId,
+                            SeasonId = ls.SeasonId,
+                            Appearances   = s.TryGetProperty("appearances", out var ap) ? ap.GetInt32() : null,
+                            Lineups       = s.TryGetProperty("matchesStarted", out var ms) ? ms.GetInt32() : null,
+                            Minutes       = s.TryGetProperty("minutesPlayed", out var mp) ? mp.GetInt32() : null,
+                            Goals         = s.TryGetProperty("goals", out var g) ? g.GetInt32() : null,
+                            Assists       = s.TryGetProperty("assists", out var a) ? a.GetInt32() : null,
+                            YellowCards   = s.TryGetProperty("yellowCards", out var yc) ? yc.GetInt32() : null,
+                            RedCards      = s.TryGetProperty("redCards", out var rc) ? rc.GetInt32() : null,
+                            Rating        = s.TryGetProperty("rating", out var r) ? (decimal?)r.GetDecimal() : null,
+                            SubstitutionsIn  = s.TryGetProperty("substitutionsIn", out var si) ? si.GetInt32() : null,
+                            SubstitutionsOut = s.TryGetProperty("substitutionsOut", out var so) ? so.GetInt32() : null,
+                            ShotsTotal    = s.TryGetProperty("totalShots", out var ts) ? ts.GetInt32() : null,
+                            ShotsOnTarget = s.TryGetProperty("shotsOnTarget", out var sot) ? sot.GetInt32() : null,
+                            PassesTotal   = s.TryGetProperty("totalPasses", out var pt) ? pt.GetInt32() : null,
+                            PassesKey     = s.TryGetProperty("keyPasses", out var kp) ? kp.GetInt32() : null,
+                            PassesAccuracy = s.TryGetProperty("accuratePasses", out var pac) ? (decimal?)pac.GetDecimal() : null,
+                            DribblesAttempted = s.TryGetProperty("totalDribbleAttempts", out var da) ? da.GetInt32() : null,
+                            DribblesSuccess   = s.TryGetProperty("successfulDribbles", out var ds) ? ds.GetInt32() : null,
+                            Tackles       = s.TryGetProperty("tackles", out var tk) ? tk.GetInt32() : null,
+                            Interceptions = s.TryGetProperty("interceptions", out var ic) ? ic.GetInt32() : null,
+                            FoulsCommitted = s.TryGetProperty("fouls", out var fc) ? fc.GetInt32() : null,
+                            PenaltiesScored = s.TryGetProperty("penaltyGoals", out var pg) ? pg.GetInt32() : null,
+                            // GK
+                            Saves         = s.TryGetProperty("saves", out var sv) ? sv.GetInt32() : null,
+                            GoalsConceded = s.TryGetProperty("goalsConceded", out var gc2) ? gc2.GetInt32() : null,
+                            CleanSheets   = s.TryGetProperty("cleanSheet", out var cs) ? cs.GetInt32() : null,
+                            PenaltiesSaved = s.TryGetProperty("penaltySave", out var ps) ? ps.GetInt32() : null,
+                        };
+
+                        // Skip if no meaningful data
+                        if (stat.Appearances == null && stat.Minutes == null && stat.Rating == null)
+                        { skipped++; continue; }
+
+                        var existing = await _context.PlayerSeasonStatistics
+                            .FirstOrDefaultAsync(x => x.PlayerId == player.PlayerId && x.SeasonId == ls.SeasonId && x.LeagueId == ls.LeagueId);
+
+                        if (existing == null) { _context.PlayerSeasonStatistics.Add(stat); added++; }
+                        else
+                        {
+                            existing.TeamId = stat.TeamId; existing.Appearances = stat.Appearances;
+                            existing.Lineups = stat.Lineups; existing.Minutes = stat.Minutes;
+                            existing.Goals = stat.Goals; existing.Assists = stat.Assists;
+                            existing.YellowCards = stat.YellowCards; existing.RedCards = stat.RedCards;
+                            existing.Rating = stat.Rating; existing.SubstitutionsIn = stat.SubstitutionsIn;
+                            existing.SubstitutionsOut = stat.SubstitutionsOut; existing.ShotsTotal = stat.ShotsTotal;
+                            existing.ShotsOnTarget = stat.ShotsOnTarget; existing.PassesTotal = stat.PassesTotal;
+                            existing.PassesKey = stat.PassesKey; existing.PassesAccuracy = stat.PassesAccuracy;
+                            existing.DribblesAttempted = stat.DribblesAttempted; existing.DribblesSuccess = stat.DribblesSuccess;
+                            existing.Tackles = stat.Tackles; existing.Interceptions = stat.Interceptions;
+                            existing.FoulsCommitted = stat.FoulsCommitted; existing.PenaltiesScored = stat.PenaltiesScored;
+                            existing.Saves = stat.Saves; existing.GoalsConceded = stat.GoalsConceded;
+                            existing.CleanSheets = stat.CleanSheets; existing.PenaltiesSaved = stat.PenaltiesSaved;
+                            updated++;
+                        }
+                        await _context.SaveChangesAsync();
+                        details.Add(new { leagueId = ls.LeagueId, seasonId = ls.SeasonId, year = ls.Year, status = "ok" });
+                        await Task.Delay(300);
+                    }
+                    catch (Exception ex)
+                    {
+                        skipped++;
+                        details.Add(new { leagueId = ls.LeagueId, seasonId = ls.SeasonId, year = ls.Year, status = "skipped", reason = ex.Message });
+                    }
+                }
+
+                // Aggregate defensive stats from match stats for this player
+                await AggregateSeasonStatsFromMatchStatsAsync(playerId: player.PlayerId);
+
+                return new
+                {
+                    status = true,
+                    message = $"Synced stats for player {player.FullName} — {added} added, {updated} updated, {skipped} skipped",
+                    data = new { added, updated, skipped, details }
+                };
+            }
+            catch (Exception ex)
+            {
+                return new { status = false, message = ex.Message };
+            }
         }
 
         public async Task<List<MatchEvent>> GetAllMatchEventsAsync()

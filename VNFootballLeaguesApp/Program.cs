@@ -112,8 +112,16 @@ var app = builder.Build();
 // Auto-apply pending migrations on startup
 using (var scope = app.Services.CreateScope())
 {
-    var db = scope.ServiceProvider.GetRequiredService<VNFootballLeaguesDBContext>();
-    db.Database.Migrate();
+    try
+    {
+        var db = scope.ServiceProvider.GetRequiredService<VNFootballLeaguesDBContext>();
+        db.Database.Migrate();
+    }
+    catch (Exception ex)
+    {
+        var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+        logger.LogError(ex, "Migration failed on startup — continuing anyway");
+    }
 }
 
 app.UseMiddleware<GlobalExceptionHandlerMiddleware>();
