@@ -77,6 +77,8 @@ public partial class VNFootballLeaguesDBContext
             entity.Property(e => e.QrUrl)
                 .IsRequired()
                 .HasMaxLength(500);
+            entity.Property(e => e.ManualUpdatedByName).HasMaxLength(150);
+            entity.Property(e => e.ManualUpdateReason).HasMaxLength(500);
             entity.Property(e => e.SePayReferenceCode).HasMaxLength(255);
             entity.Property(e => e.Gateway).HasMaxLength(100);
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("(getutcdate())");

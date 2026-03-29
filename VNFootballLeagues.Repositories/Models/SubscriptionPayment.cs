@@ -40,6 +40,14 @@ public partial class SubscriptionPayment
 
     public DateTime? SePayTransactionDate { get; set; }
 
+    public Guid? ManualUpdatedByUserId { get; set; }
+
+    public string? ManualUpdatedByName { get; set; }
+
+    public DateTime? ManualUpdatedAt { get; set; }
+
+    public string? ManualUpdateReason { get; set; }
+
     public DateTime? PaidAt { get; set; }
 
     public DateTime ExpiresAt { get; set; }
