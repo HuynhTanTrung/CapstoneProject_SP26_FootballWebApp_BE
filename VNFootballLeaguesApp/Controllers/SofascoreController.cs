@@ -141,6 +141,26 @@ public class SofascoreController : ControllerBase
     }
 
     /// <summary>
+    /// Get cup tree (knockout bracket) for a tournament season
+    /// </summary>
+    [HttpGet("tournament/cuptrees")]
+    public async Task<IActionResult> GetTournamentCupTrees([FromQuery] int uniqueTournamentId, [FromQuery] int seasonId)
+    {
+        if (uniqueTournamentId <= 0 || seasonId <= 0)
+            return BadRequest(new { error = "Invalid parameters" });
+        try
+        {
+            string jsonResponse = await _sofascoreScraperService.GetTournamentCupTreesAsync(uniqueTournamentId, seasonId);
+            return Content(jsonResponse, "application/json");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to fetch cup trees for tournament {TournamentId} season {SeasonId}", uniqueTournamentId, seasonId);
+            return StatusCode(500, new { error = "Failed to retrieve cup trees", details = ex.Message });
+        }
+    }
+
+    /// <summary>
     /// Get matches for a specific round in a tournament
     /// </summary>
     [HttpGet("tournament/round-matches")]

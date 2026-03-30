@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using VNFootballLeagues.Repositories.Models;
 
@@ -11,9 +12,11 @@ using VNFootballLeagues.Repositories.Models;
 namespace VNFootballLeagues.Repositories.Migrations
 {
     [DbContext(typeof(VNFootballLeaguesDBContext))]
-    partial class VNFootballLeaguesDBContextModelSnapshot : ModelSnapshot
+    [Migration("20260330074908_AddCupTreeTable")]
+    partial class AddCupTreeTable
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

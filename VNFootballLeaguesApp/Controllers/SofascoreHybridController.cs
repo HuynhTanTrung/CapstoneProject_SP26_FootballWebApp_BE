@@ -1,7 +1,9 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using System.Linq;
 using System.Threading.Tasks;
+using VNFootballLeagues.Repositories.Models;
 using VNFootballLeagues.Services.IServices;
 
 namespace VNFootballLeagues.API.Controllers
@@ -11,13 +13,19 @@ namespace VNFootballLeagues.API.Controllers
     public class SofascoreHybridController : ControllerBase
     {
         private readonly ISofascoreHybridService _service;
+        private readonly ISofascoreScraperService _sofascoreScraperService;
+        private readonly VNFootballLeaguesDBContext _context;
         private readonly ILogger<SofascoreHybridController> _logger;
 
         public SofascoreHybridController(
             ISofascoreHybridService service,
+            ISofascoreScraperService sofascoreScraperService,
+            VNFootballLeaguesDBContext context,
             ILogger<SofascoreHybridController> logger)
         {
             _service = service;
+            _sofascoreScraperService = sofascoreScraperService;
+            _context = context;
             _logger = logger;
         }
 
@@ -238,6 +246,21 @@ namespace VNFootballLeagues.API.Controllers
                 x.Position,
                 x.Number
             }));
+        }
+
+        [HttpGet("cuptree")]
+        public async Task<IActionResult> GetCupTree([FromQuery] int tournamentId, [FromQuery] int seasonId)
+        {
+            if (tournamentId <= 0 || seasonId <= 0)
+                return BadRequest(new { error = "Invalid parameters" });
+
+            var cached = await _context.CupTrees
+                .FirstOrDefaultAsync(c => c.TournamentId == tournamentId && c.SeasonId == seasonId);
+
+            if (cached != null)
+                return Content(cached.Data, "application/json");
+
+            return NotFound(new { message = "Cup tree not synced yet. Call POST sync-cuptree first." });
         }
 
         [HttpGet("player-season-statistics")]
@@ -1068,6 +1091,31 @@ namespace VNFootballLeagues.API.Controllers
                 _logger.LogError(ex, "Error syncing all team transfers");
                 return StatusCode(500, new { status = false, message = "Internal server error" });
             }
+        }
+
+        [HttpPost("sync-cuptree")]
+        public async Task<IActionResult> SyncCupTree([FromQuery] int tournamentId, [FromQuery] int seasonId)
+        {
+            if (tournamentId <= 0 || seasonId <= 0)
+                return BadRequest(new { error = "Invalid parameters" });
+            try
+            {
+                var json = await _sofascoreScraperService.GetTournamentCupTreesAsync(tournamentId, seasonId);
+                var existing = await _context.CupTrees
+                    .FirstOrDefaultAsync(c => c.TournamentId == tournamentId && c.SeasonId == seasonId);
+                if (existing == null)
+                {
+                    _context.CupTrees.Add(new VNFootballLeagues.Repositories.Models.CupTree
+                    {
+                        TournamentId = tournamentId, SeasonId = seasonId,
+                        Data = json, LastUpdated = DateTime.UtcNow
+                    });
+                }
+                else { existing.Data = json; existing.LastUpdated = DateTime.UtcNow; }
+                await _context.SaveChangesAsync();
+                return Ok(new { status = true, message = "Cup tree synced successfully" });
+            }
+            catch (Exception ex) { return StatusCode(500, new { error = ex.Message }); }
         }
     }
 }

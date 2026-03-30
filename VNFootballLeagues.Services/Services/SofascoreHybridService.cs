@@ -242,9 +242,59 @@ namespace VNFootballLeagues.Services.Services
                 int skipped = 0;
                 var processedMatches = new HashSet<int>();
 
-                foreach (var r in rounds.EnumerateArray())
+                // For knockout tournaments (Cup), use page-based fetch instead of round-based
+                // Detect by league type or by checking if rounds have cupRoundType
+                bool usePageBased = league.LeagueType?.ToLower().Contains("cup") == true
+                    || league.LeagueType?.ToLower().Contains("knockout") == true
+                    || rounds.EnumerateArray().Any(r => r.TryGetProperty("cupRoundType", out _));
+
+                if (usePageBased)
                 {
-                    int round = r.GetProperty("round").GetInt32();
+                    // Fetch all matches via last/next pages
+                    var allEvents = new List<JsonElement>();
+                    for (int page = 0; page <= 5; page++)
+                    {
+                        try
+                        {
+                            var lastUrl = $"https://www.sofascore.com/api/v1/unique-tournament/{apiTournamentId}/season/{apiSeasonId}/events/last/{page}";
+                            var lastJson = await FetchJson(lastUrl);
+                            using var lastDoc = JsonDocument.Parse(lastJson);
+                            if (lastDoc.RootElement.TryGetProperty("events", out var evs))
+                                allEvents.AddRange(evs.EnumerateArray().Select(e => e.Clone()));
+                            if (lastDoc.RootElement.TryGetProperty("hasNextPage", out var hnp) && !hnp.GetBoolean()) break;
+                        }
+                        catch { break; }
+                    }
+                    for (int page = 0; page <= 2; page++)
+                    {
+                        try
+                        {
+                            var nextUrl = $"https://www.sofascore.com/api/v1/unique-tournament/{apiTournamentId}/season/{apiSeasonId}/events/next/{page}";
+                            var nextJson = await FetchJson(nextUrl);
+                            using var nextDoc = JsonDocument.Parse(nextJson);
+                            if (nextDoc.RootElement.TryGetProperty("events", out var evs))
+                                allEvents.AddRange(evs.EnumerateArray().Select(e => e.Clone()));
+                            if (nextDoc.RootElement.TryGetProperty("hasNextPage", out var hnp) && !hnp.GetBoolean()) break;
+                        }
+                        catch { break; }
+                    }
+
+                    foreach (var ev in allEvents)
+                    {
+                        var apiId = ev.GetProperty("id").GetInt32();
+                        if (processedMatches.Contains(apiId)) continue;
+                        processedMatches.Add(apiId);
+                        var result = await UpsertMatchFromEvent(ev, league, season);
+                        if (result == 1) added++;
+                        else if (result == 2) updated++;
+                    }
+                }
+                else
+                {
+                    foreach (var r in rounds.EnumerateArray())
+                    {
+                    int round = r.TryGetProperty("round", out var rp) ? rp.GetInt32() : 0;
+                    if (round == 0) { skipped++; continue; }
 
                     var url = $"https://www.sofascore.com/api/v1/unique-tournament/{apiTournamentId}/season/{apiSeasonId}/events/round/{round}";
 
@@ -387,7 +437,8 @@ namespace VNFootballLeagues.Services.Services
                             updated++;
                         }
                     }
-                }
+                    } // end foreach round
+                } // end else
 
                 await _context.SaveChangesAsync();
 
@@ -709,6 +760,69 @@ namespace VNFootballLeagues.Services.Services
 
             await _context.MatchStatistics.AddAsync(stats);
             return true;
+        }
+
+        // Returns 1=added, 2=updated, 0=skipped
+        private async Task<int> UpsertMatchFromEvent(JsonElement ev, League league, Season season)
+        {
+            var apiId = ev.GetProperty("id").GetInt32();
+            var matchDate = DateTimeOffset.FromUnixTimeSeconds(ev.GetProperty("startTimestamp").GetInt64()).DateTime;
+
+            int? homeTeamId = null, awayTeamId = null;
+            if (ev.TryGetProperty("homeTeam", out var ht))
+            {
+                var hApiId = ht.GetProperty("id").GetInt32();
+                var hTeam = await _context.Teams.FirstOrDefaultAsync(t => t.ApiTeamId == hApiId);
+                if (hTeam == null) return 0;
+                homeTeamId = hTeam.TeamId;
+            }
+            if (ev.TryGetProperty("awayTeam", out var at))
+            {
+                var aApiId = at.GetProperty("id").GetInt32();
+                var aTeam = await _context.Teams.FirstOrDefaultAsync(t => t.ApiTeamId == aApiId);
+                if (aTeam == null) return 0;
+                awayTeamId = aTeam.TeamId;
+            }
+
+            string roundStr = "0";
+            if (ev.TryGetProperty("roundInfo", out var ri))
+            {
+                if (ri.TryGetProperty("name", out var rn)) roundStr = rn.GetString() ?? "0";
+                else if (ri.TryGetProperty("round", out var rnum)) roundStr = rnum.GetInt32().ToString();
+            }
+
+            var existing = await _context.Matches.FirstOrDefaultAsync(x => x.ApiFixtureId == apiId);
+            if (existing == null)
+            {
+                _context.Matches.Add(new Match
+                {
+                    ApiFixtureId = apiId,
+                    LeagueId = league.LeagueId,
+                    SeasonId = season.SeasonId,
+                    MatchDate = matchDate,
+                    KickOffTime = TimeOnly.FromDateTime(matchDate),
+                    ApiTimestamp = (int)ev.GetProperty("startTimestamp").GetInt64(),
+                    HomeGoals = SafeScore(ev, "homeScore"),
+                    AwayGoals = SafeScore(ev, "awayScore"),
+                    HomeTeamId = homeTeamId,
+                    AwayTeamId = awayTeamId,
+                    Status = ev.GetProperty("status").GetProperty("type").GetString(),
+                    Round = roundStr,
+                    Venue = ev.TryGetProperty("venue", out var v) && v.TryGetProperty("stadium", out var s) ? s.GetProperty("name").GetString() : null,
+                });
+                return 1;
+            }
+            else
+            {
+                existing.MatchDate = matchDate;
+                existing.HomeGoals = SafeScore(ev, "homeScore");
+                existing.AwayGoals = SafeScore(ev, "awayScore");
+                existing.Status = ev.GetProperty("status").GetProperty("type").GetString();
+                existing.HomeTeamId = homeTeamId ?? existing.HomeTeamId;
+                existing.AwayTeamId = awayTeamId ?? existing.AwayTeamId;
+                _context.Matches.Update(existing);
+                return 2;
+            }
         }
 
         private int? SafeScore(JsonElement ev, string key)

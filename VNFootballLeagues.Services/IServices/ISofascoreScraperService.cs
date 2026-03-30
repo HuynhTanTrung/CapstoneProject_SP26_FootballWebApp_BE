@@ -93,6 +93,11 @@ public interface ISofascoreScraperService
     Task<string> GetTeamPlayersAsync(int teamId);
 
     /// <summary>
+    /// Fetches cup tree (knockout bracket) for a tournament season
+    /// </summary>
+    Task<string> GetTournamentCupTreesAsync(int uniqueTournamentId, int seasonId);
+
+    /// <summary>
     /// Fetches player match statistics for a specific event
     /// </summary>
     Task<string> GetPlayerMatchStatisticsAsync(int eventId, int playerId);
