@@ -410,7 +410,17 @@ namespace VNFootballLeaguesApp.Controllers
                 x.FoulsDrawn,
                 x.FoulsCommitted,
                 x.PenaltiesScored,
-                x.PenaltiesMissed
+                x.PenaltiesMissed,
+                // GK stats
+                x.Saves,
+                x.SavesInsideBox,
+                x.CleanSheets,
+                x.GoalsConceded,
+                x.PenaltiesSaved,
+                x.Punches,
+                x.RunsOut,
+                x.RunsOutSuccessful,
+                x.HighClaims
             }));
         }
 

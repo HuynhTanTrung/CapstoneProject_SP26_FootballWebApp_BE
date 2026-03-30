@@ -1,7 +1,9 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using System.Linq;
 using System.Threading.Tasks;
+using VNFootballLeagues.Repositories.Models;
 using VNFootballLeagues.Services.IServices;
 
 namespace VNFootballLeagues.API.Controllers
@@ -11,13 +13,19 @@ namespace VNFootballLeagues.API.Controllers
     public class SofascoreHybridController : ControllerBase
     {
         private readonly ISofascoreHybridService _service;
+        private readonly ISofascoreScraperService _sofascoreScraperService;
+        private readonly VNFootballLeaguesDBContext _context;
         private readonly ILogger<SofascoreHybridController> _logger;
 
         public SofascoreHybridController(
             ISofascoreHybridService service,
+            ISofascoreScraperService sofascoreScraperService,
+            VNFootballLeaguesDBContext context,
             ILogger<SofascoreHybridController> logger)
         {
             _service = service;
+            _sofascoreScraperService = sofascoreScraperService;
+            _context = context;
             _logger = logger;
         }
 
@@ -68,6 +76,24 @@ namespace VNFootballLeagues.API.Controllers
                 x.National,
                 x.StadiumId,
                 x.LeagueId
+            }));
+        }
+
+        [HttpGet("team-last-matches-db")]
+        public async Task<IActionResult> GetTeamLastMatchesFromDb([FromQuery] int apiTeamId, [FromQuery] int count = 5)
+        {
+            if (apiTeamId <= 0) return BadRequest(new { status = false, message = "Invalid apiTeamId" });
+            var data = await _service.GetTeamLastMatchesFromDbAsync(apiTeamId, count);
+            return Ok(data.Select(x => new
+            {
+                x.MatchId,
+                x.ApiFixtureId,
+                x.MatchDate,
+                x.Status,
+                x.HomeGoals,
+                x.AwayGoals,
+                HomeTeam = x.HomeTeam != null ? new { x.HomeTeam.TeamId, x.HomeTeam.ApiTeamId, x.HomeTeam.TeamName } : null,
+                AwayTeam = x.AwayTeam != null ? new { x.AwayTeam.TeamId, x.AwayTeam.ApiTeamId, x.AwayTeam.TeamName } : null,
             }));
         }
 
@@ -220,6 +246,21 @@ namespace VNFootballLeagues.API.Controllers
             }));
         }
 
+        [HttpGet("cuptree")]
+        public async Task<IActionResult> GetCupTree([FromQuery] int tournamentId, [FromQuery] int seasonId)
+        {
+            if (tournamentId <= 0 || seasonId <= 0)
+                return BadRequest(new { error = "Invalid parameters" });
+
+            var cached = await _context.CupTrees
+                .FirstOrDefaultAsync(c => c.TournamentId == tournamentId && c.SeasonId == seasonId);
+
+            if (cached != null)
+                return Content(cached.Data, "application/json");
+
+            return NotFound(new { message = "Cup tree not synced yet. Call POST sync-cuptree first." });
+        }
+
         [HttpGet("player-season-statistics")]
         public async Task<IActionResult> GetAllPlayerSeasonStatistics()
         {
@@ -257,7 +298,17 @@ namespace VNFootballLeagues.API.Controllers
                 x.FoulsDrawn,
                 x.FoulsCommitted,
                 x.PenaltiesScored,
-                x.PenaltiesMissed
+                x.PenaltiesMissed,
+                // GK stats
+                x.Saves,
+                x.SavesInsideBox,
+                x.Punches,
+                x.RunsOut,
+                x.RunsOutSuccessful,
+                x.HighClaims,
+                x.GoalsConceded,
+                x.PenaltiesSaved,
+                x.CleanSheets
             }));
         }
 
@@ -295,6 +346,9 @@ namespace VNFootballLeagues.API.Controllers
                 x.LeagueId,
                 x.SeasonId,
                 x.TeamId,
+                TeamName = x.Team != null ? x.Team.TeamName : null,
+                ApiTeamId = x.Team != null ? x.Team.ApiTeamId : 0,
+                TeamLogo = x.Team != null ? $"https://api.sofascore.app/api/v1/team/{x.Team.ApiTeamId}/image" : null,
                 x.Rank,
                 x.Played,
                 x.Win,
@@ -338,6 +392,7 @@ namespace VNFootballLeagues.API.Controllers
                 x.PlayerMatchStatId,
                 x.MatchId,
                 x.PlayerId,
+                ApiPlayerId = x.Player != null ? x.Player.ApiPlayerId : (int?)null,
                 x.TeamId,
                 x.Minutes,
                 x.Goals,
@@ -385,7 +440,16 @@ namespace VNFootballLeagues.API.Controllers
                 x.BallRecoveries,
                 x.Dispossessed,
                 x.WasFouled,
-                x.UnsuccessfulTouch
+                x.UnsuccessfulTouch,
+                // GK stats
+                x.Saves,
+                x.SavesInsideBox,
+                x.Punches,
+                x.RunsOut,
+                x.RunsOutSuccessful,
+                x.HighClaims,
+                x.GoalsConceded,
+                x.PenaltiesSaved
             }));
         }
 
@@ -450,7 +514,16 @@ namespace VNFootballLeagues.API.Controllers
                 x.BallRecoveries,
                 x.Dispossessed,
                 x.WasFouled,
-                x.UnsuccessfulTouch
+                x.UnsuccessfulTouch,
+                // GK stats
+                x.Saves,
+                x.SavesInsideBox,
+                x.Punches,
+                x.RunsOut,
+                x.RunsOutSuccessful,
+                x.HighClaims,
+                x.GoalsConceded,
+                x.PenaltiesSaved
             }));
         }
 
@@ -721,6 +794,16 @@ namespace VNFootballLeagues.API.Controllers
             return Ok(result);
         }
 
+        [HttpPost("sync-player-season-stats-by-player")]
+        public async Task<IActionResult> SyncPlayerStatsByPlayerId([FromQuery] int playerId)
+        {
+            if (playerId <= 0) return BadRequest(new { status = false, message = "Invalid playerId" });
+            var result = await _service.SyncPlayerStatsByPlayerIdAsync(playerId);
+            if (result.GetType().GetProperty("status")?.GetValue(result) is bool status && status)
+                return Ok(result);
+            return BadRequest(result);
+        }
+
         [HttpPost("sync-match-events")]
         public async Task<IActionResult> SyncMatchEvents([FromQuery] int apiFixtureId)
         {
@@ -779,6 +862,20 @@ namespace VNFootballLeagues.API.Controllers
         {
             var result = await _service.FetchPlayerMatchStatsByApiMatchIdAsync(apiFixtureId);
             if (result.GetType().GetProperty("status")?.GetValue(result) is bool status && status)
+                return Ok(result);
+            return BadRequest(result);
+        }
+
+        [HttpPost("sync-player-match-stats-by-round")]
+        public async Task<IActionResult> FetchPlayerMatchStatsByRound(
+            [FromQuery] int tournamentId,
+            [FromQuery] int seasonId,
+            [FromQuery] string round)
+        {
+            if (tournamentId <= 0 || seasonId <= 0 || string.IsNullOrWhiteSpace(round))
+                return BadRequest(new { status = false, message = "Invalid parameters" });
+            var result = await _service.FetchPlayerMatchStatsByRoundAsync(tournamentId, seasonId, round);
+            if (result.GetType().GetProperty("status")?.GetValue(result) is bool status2 && status2)
                 return Ok(result);
             return BadRequest(result);
         }
@@ -994,6 +1091,29 @@ namespace VNFootballLeagues.API.Controllers
             }
         }
 
-
+        [HttpPost("sync-cuptree")]
+        public async Task<IActionResult> SyncCupTree([FromQuery] int tournamentId, [FromQuery] int seasonId)
+        {
+            if (tournamentId <= 0 || seasonId <= 0)
+                return BadRequest(new { error = "Invalid parameters" });
+            try
+            {
+                var json = await _sofascoreScraperService.GetTournamentCupTreesAsync(tournamentId, seasonId);
+                var existing = await _context.CupTrees
+                    .FirstOrDefaultAsync(c => c.TournamentId == tournamentId && c.SeasonId == seasonId);
+                if (existing == null)
+                {
+                    _context.CupTrees.Add(new VNFootballLeagues.Repositories.Models.CupTree
+                    {
+                        TournamentId = tournamentId, SeasonId = seasonId,
+                        Data = json, LastUpdated = DateTime.UtcNow
+                    });
+                }
+                else { existing.Data = json; existing.LastUpdated = DateTime.UtcNow; }
+                await _context.SaveChangesAsync();
+                return Ok(new { status = true, message = "Cup tree synced successfully" });
+            }
+            catch (Exception ex) { return StatusCode(500, new { error = ex.Message }); }
+        }
     }
 }

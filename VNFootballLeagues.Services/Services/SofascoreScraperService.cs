@@ -210,6 +210,20 @@ public class SofascoreScraperService : ISofascoreScraperService
         return await ScrapeApiEndpointAsync(url, $"team {teamId} players");
     }
 
+    public async Task<string> GetTournamentCupTreesAsync(int uniqueTournamentId, int seasonId)
+    {
+        string url = $"https://www.sofascore.com/api/v1/unique-tournament/{uniqueTournamentId}/season/{seasonId}/cuptrees";
+        _logger.LogInformation("Fetching cup trees for tournament {TournamentId} season {SeasonId}", uniqueTournamentId, seasonId);
+        return await ScrapeApiEndpointAsync(url, $"tournament {uniqueTournamentId} season {seasonId} cuptrees");
+    }
+
+    public async Task<string> GetPlayerMatchStatisticsAsync(int eventId, int playerId)
+    {
+        string url = $"https://www.sofascore.com/api/v1/event/{eventId}/player/{playerId}/statistics";
+        _logger.LogInformation("Fetching player {PlayerId} statistics for event {EventId}", playerId, eventId);
+        return await ScrapeApiEndpointAsync(url, $"event {eventId} player {playerId} statistics");
+    }
+
     /// <summary>
     /// Generic method to scrape any SofaScore API endpoint
     /// </summary>

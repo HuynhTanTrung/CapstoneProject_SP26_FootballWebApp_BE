@@ -71,6 +71,17 @@ public partial class PlayerSeasonStatistic
 
     public int? PenaltiesMissed { get; set; }
 
+    // GK stats
+    public int? Saves { get; set; }
+    public int? SavesInsideBox { get; set; }
+    public int? Punches { get; set; }
+    public int? RunsOut { get; set; }
+    public int? RunsOutSuccessful { get; set; }
+    public int? HighClaims { get; set; }
+    public int? GoalsConceded { get; set; }
+    public int? PenaltiesSaved { get; set; }
+    public int? CleanSheets { get; set; }
+
     public virtual League League { get; set; }
 
     public virtual Player Player { get; set; }
