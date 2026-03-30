@@ -56,8 +56,4 @@ public partial class Team
     public virtual ICollection<Standing> Standings { get; set; } = new List<Standing>();
 
     public virtual ICollection<TeamStatistic> TeamStatistics { get; set; } = new List<TeamStatistic>();
-
-    public virtual ICollection<Transfer> TransferFromTeams { get; set; } = new List<Transfer>();
-
-    public virtual ICollection<Transfer> TransferToTeams { get; set; } = new List<Transfer>();
 }

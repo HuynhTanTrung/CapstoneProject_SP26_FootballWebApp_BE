@@ -13,18 +13,14 @@ public partial class Transfer
 
     public int ApiTransferId { get; set; }
 
-    public int? FromTeamId { get; set; }
+    public string FromTeam { get; set; }
 
-    public int? ToTeamId { get; set; }
+    public string ToTeam { get; set; }
 
     public string TransferFee { get; set; }
     public DateTime? TransferDate { get; set; }
 
     public string TransferType { get; set; }
 
-    public virtual Team FromTeam { get; set; }
-
     public virtual Player Player { get; set; }
-
-    public virtual Team ToTeam { get; set; }
 }

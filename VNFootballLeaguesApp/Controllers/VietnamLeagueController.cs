@@ -140,19 +140,19 @@ namespace VNFootballLeaguesApp.Controllers
             });
         }
 
-        [HttpPost("sync-transfers")]
-        public async Task<IActionResult> SyncTransfers(
-        [FromQuery] int apiTeamId)
-        {
-            var transfers = await _service.SyncTransfersAsync(apiTeamId);
+        //[HttpPost("sync-transfers")]
+        //public async Task<IActionResult> SyncTransfers(
+        //[FromQuery] int apiTeamId)
+        //{
+        //    var transfers = await _service.SyncTransfersAsync(apiTeamId);
 
-            return Ok(new
-            {
-                success = true,
-                message = "Transfers synced successfully",
-                count = transfers.Count
-            });
-        }
+        //    return Ok(new
+        //    {
+        //        success = true,
+        //        message = "Transfers synced successfully",
+        //        count = transfers.Count
+        //    });
+        //}
 
         [HttpPost("sync-team-statistics")]
         public async Task<IActionResult> SyncTeamStatistics(
@@ -532,20 +532,20 @@ namespace VNFootballLeaguesApp.Controllers
             }));
         }
 
-        [HttpGet("transfers")]
-        public async Task<IActionResult> GetAllTransfers()
-        {
-            var data = await _service.GetAllTransfersAsync();
-            return Ok(data.Select(x => new
-            {
-                x.TransferId,
-                x.PlayerId,
-                x.FromTeamId,
-                x.ToTeamId,
-                x.TransferDate,
-                x.TransferType
-            }));
-        }
+        //[HttpGet("transfers")]
+        //public async Task<IActionResult> GetAllTransfers()
+        //{
+        //    var data = await _service.GetAllTransfersAsync();
+        //    return Ok(data.Select(x => new
+        //    {
+        //        x.TransferId,
+        //        x.PlayerId,
+        //        x.FromTeamId,
+        //        x.ToTeamId,
+        //        x.TransferDate,
+        //        x.TransferType
+        //    }));
+        //}
 
         [HttpGet("team-statistics")]
         public async Task<IActionResult> GetAllTeamStatistics()

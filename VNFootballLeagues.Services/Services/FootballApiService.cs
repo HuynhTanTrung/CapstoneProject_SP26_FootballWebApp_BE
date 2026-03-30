@@ -721,79 +721,79 @@ namespace VNFootballLeagues.Services.Services
             return events;
         }
 
-        public async Task<List<Transfer>> SyncTransfersAsync(int apiTeamId)
-        {
-            var team = await _context.Teams
-                .FirstOrDefaultAsync(t => t.ApiTeamId == apiTeamId);
+        //public async Task<List<Transfer>> SyncTransfersAsync(int apiTeamId)
+        //{
+        //    var team = await _context.Teams
+        //        .FirstOrDefaultAsync(t => t.ApiTeamId == apiTeamId);
 
-            if (team == null)
-                throw new Exception("Team must be synced first.");
+        //    if (team == null)
+        //        throw new Exception("Team must be synced first.");
 
-            var response = await _httpClient
-                .GetFromJsonAsync<ApiFootballTransferResponse>(
-                    $"transfers?team={apiTeamId}");
+        //    var response = await _httpClient
+        //        .GetFromJsonAsync<ApiFootballTransferResponse>(
+        //            $"transfers?team={apiTeamId}");
 
-            if (response?.response == null)
-                return new List<Transfer>();
+        //    if (response?.response == null)
+        //        return new List<Transfer>();
 
-            var players = await _context.Players
-                .ToDictionaryAsync(p => p.ApiPlayerId);
+        //    var players = await _context.Players
+        //        .ToDictionaryAsync(p => p.ApiPlayerId);
 
-            var syncedTransfers = new List<Transfer>();
+        //    var syncedTransfers = new List<Transfer>();
 
-            foreach (var item in response.response)
-            {
-                if (!players.TryGetValue(item.player.id, out var player))
-                    continue;
+        //    foreach (var item in response.response)
+        //    {
+        //        if (!players.TryGetValue(item.player.id, out var player))
+        //            continue;
 
-                if (item.transfers == null)
-                    continue;
+        //        if (item.transfers == null)
+        //            continue;
 
-                foreach (var transferDetail in item.transfers)
-                {
-                    if (transferDetail.teams?.@in?.id == null || transferDetail.teams?.@out?.id == null)
-                        continue;
+        //        foreach (var transferDetail in item.transfers)
+        //        {
+        //            if (transferDetail.teams?.@in?.id == null || transferDetail.teams?.@out?.id == null)
+        //                continue;
 
-                    var fromTeam = await _context.Teams
-                        .FirstOrDefaultAsync(t => t.ApiTeamId == transferDetail.teams.@out.id.Value);
+        //            var fromTeam = await _context.Teams
+        //                .FirstOrDefaultAsync(t => t.ApiTeamId == transferDetail.teams.@out.id.Value);
 
-                    var toTeam = await _context.Teams
-                        .FirstOrDefaultAsync(t => t.ApiTeamId == transferDetail.teams.@in.id.Value);
+        //            var toTeam = await _context.Teams
+        //                .FirstOrDefaultAsync(t => t.ApiTeamId == transferDetail.teams.@in.id.Value);
 
-                    if (fromTeam == null || toTeam == null)
-                        continue;
+        //            if (fromTeam == null || toTeam == null)
+        //                continue;
 
-                    DateTime? transferDate = null;
-                    if (DateTime.TryParse(transferDetail.date, out var parsedDate))
-                        transferDate = parsedDate;
+        //            DateTime? transferDate = null;
+        //            if (DateTime.TryParse(transferDetail.date, out var parsedDate))
+        //                transferDate = parsedDate;
 
-                    var existing = await _context.Transfers
-                        .FirstOrDefaultAsync(t =>
-                            t.PlayerId == player.PlayerId &&
-                            t.FromTeamId == fromTeam.TeamId &&
-                            t.ToTeamId == toTeam.TeamId &&
-                            t.TransferDate == transferDate);
+        //            var existing = await _context.Transfers
+        //                .FirstOrDefaultAsync(t =>
+        //                    t.PlayerId == player.PlayerId &&
+        //                    t.FromTeamId == fromTeam.TeamId &&
+        //                    t.ToTeamId == toTeam.TeamId &&
+        //                    t.TransferDate == transferDate);
 
-                    if (existing == null)
-                    {
-                        var transfer = new Transfer
-                        {
-                            PlayerId = player.PlayerId,
-                            FromTeamId = fromTeam.TeamId,
-                            ToTeamId = toTeam.TeamId,
-                            TransferDate = transferDate,
-                            TransferType = transferDetail.type,
-                        };
+        //            if (existing == null)
+        //            {
+        //                var transfer = new Transfer
+        //                {
+        //                    PlayerId = player.PlayerId,
+        //                    FromTeamId = fromTeam.TeamId,
+        //                    ToTeamId = toTeam.TeamId,
+        //                    TransferDate = transferDate,
+        //                    TransferType = transferDetail.type,
+        //                };
 
-                        _context.Transfers.Add(transfer);
-                        syncedTransfers.Add(transfer);
-                    }
-                }
-            }
+        //                _context.Transfers.Add(transfer);
+        //                syncedTransfers.Add(transfer);
+        //            }
+        //        }
+        //    }
 
-            await _context.SaveChangesAsync();
-            return syncedTransfers;
-        }
+        //    await _context.SaveChangesAsync();
+        //    return syncedTransfers;
+        //}
 
         public async Task<TeamStatistic> SyncTeamStatisticsAsync(int apiLeagueId, int seasonYear, int apiTeamId)
         {

@@ -460,6 +460,7 @@ D:\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\obj\Debug\net9.0\
 D:\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\obj\Debug\net9.0\VNFootballLeaguesApp.AssemblyInfoInputs.cache
 D:\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\obj\Debug\net9.0\VNFootballLeaguesApp.AssemblyInfo.cs
 D:\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\obj\Debug\net9.0\VNFootballLeaguesApp.csproj.CoreCompileInputs.cache
+D:\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\obj\Debug\net9.0\VNFootballLeaguesApp.MvcApplicationPartsAssemblyInfo.cs
 D:\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\obj\Debug\net9.0\VNFootballLeaguesApp.MvcApplicationPartsAssemblyInfo.cache
 D:\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\obj\Debug\net9.0\VNFootballLeaguesApp.RazorAssemblyInfo.cache
 D:\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\obj\Debug\net9.0\VNFootballLeaguesApp.RazorAssemblyInfo.cs
@@ -539,11 +540,10 @@ D:\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\obj\Debug\net9.0\
 D:\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\obj\Debug\net9.0\staticwebassets.build.json.cache
 D:\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\obj\Debug\net9.0\staticwebassets.development.json
 D:\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\obj\Debug\net9.0\staticwebassets.build.endpoints.json
-D:\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\obj\Debug\net9.0\staticwebassets.upToDateCheck.txt
 D:\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\obj\Debug\net9.0\VNFootba.C5BBD818.Up2Date
 D:\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\obj\Debug\net9.0\VNFootballLeaguesApp.dll
 D:\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\obj\Debug\net9.0\refint\VNFootballLeaguesApp.dll
 D:\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\obj\Debug\net9.0\VNFootballLeaguesApp.pdb
 D:\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\obj\Debug\net9.0\VNFootballLeaguesApp.genruntimeconfig.cache
 D:\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\obj\Debug\net9.0\ref\VNFootballLeaguesApp.dll
-D:\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\obj\Debug\net9.0\VNFootballLeaguesApp.MvcApplicationPartsAssemblyInfo.cs
+D:\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\obj\Debug\net9.0\staticwebassets.upToDateCheck.txt

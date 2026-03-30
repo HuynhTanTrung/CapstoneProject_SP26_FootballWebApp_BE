@@ -130,9 +130,7 @@ public partial class VNFootballLeaguesDBContext : DbContext
 
             entity.HasIndex(e => e.TeamId, "IX_Contract_TeamId");
 
-            entity.Property(e => e.ContractType).HasMaxLength(50);
             entity.Property(e => e.IsActive).HasDefaultValue(true);
-            entity.Property(e => e.Salary).HasColumnType("decimal(15, 2)");
 
             entity.HasOne(d => d.Player).WithMany(p => p.Contracts)
                 .HasForeignKey(d => d.PlayerId)
@@ -561,22 +559,20 @@ public partial class VNFootballLeaguesDBContext : DbContext
 
         modelBuilder.Entity<Transfer>(entity =>
         {
-            entity.HasKey(e => e.TransferId).HasName("PK__Transfer__954900915944B500");
+            entity.HasKey(e => e.TransferId);
 
-            entity.Property(e => e.TransferDate).HasColumnType("datetime");
+            entity.Property(e => e.ApiTransferId).IsRequired();
+
+            entity.Property(e => e.FromTeam).HasMaxLength(200);
+            entity.Property(e => e.ToTeam).HasMaxLength(200);
+
             entity.Property(e => e.TransferType).HasMaxLength(50);
+            entity.Property(e => e.TransferFee).HasMaxLength(50);
 
-            entity.HasOne(d => d.FromTeam).WithMany(p => p.TransferFromTeams)
-                .HasForeignKey(d => d.FromTeamId)
-                .HasConstraintName("FK__Transfers__FromT__17036CC0");
-
-            entity.HasOne(d => d.Player).WithMany(p => p.Transfers)
+            entity.HasOne(d => d.Player)
+                .WithMany(p => p.Transfers)
                 .HasForeignKey(d => d.PlayerId)
-                .HasConstraintName("FK__Transfers__Playe__160F4887");
-
-            entity.HasOne(d => d.ToTeam).WithMany(p => p.TransferToTeams)
-                .HasForeignKey(d => d.ToTeamId)
-                .HasConstraintName("FK__Transfers__ToTea__17F790F9");
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<User>(entity =>

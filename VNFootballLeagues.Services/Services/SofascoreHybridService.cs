@@ -3464,18 +3464,32 @@ namespace VNFootballLeagues.Services.Services
 
                             int apiTransferId = transferIdEl.GetInt32();
 
-                            int? fromTeamId = null;
-                            int? toTeamId = null;
+                            // Use direct team name fields from API
+                            string fromTeam = null;
+                            string toTeam = null;
                             DateTime? transferDate = null;
                             string transferType = null;
                             string transferFee = null;
 
+                            // Get team names from direct fields
+                            if (transferEl.TryGetProperty("fromTeamName", out var fromTeamNameEl))
+                            {
+                                fromTeam = fromTeamNameEl.GetString();
+                            }
+
+                            if (transferEl.TryGetProperty("toTeamName", out var toTeamNameEl))
+                            {
+                                toTeam = toTeamNameEl.GetString();
+                            }
+
+                            // Get transfer date
                             if (transferEl.TryGetProperty("transferDateTimestamp", out var dateTs))
                             {
                                 long timestamp = dateTs.GetInt64();
                                 transferDate = DateTimeOffset.FromUnixTimeSeconds(timestamp).DateTime;
                             }
 
+                            // Get transfer type
                             if (transferEl.TryGetProperty("type", out var typeEl))
                             {
                                 int type = typeEl.GetInt32();
@@ -3489,37 +3503,20 @@ namespace VNFootballLeagues.Services.Services
                                 };
                             }
 
+                            // Get transfer fee
                             if (transferEl.TryGetProperty("transferFeeDescription", out var feeDescEl))
                             {
-                                transferFee = feeDescEl.GetString();
+                                string feeDesc = feeDescEl.GetString();
+                                transferFee = !string.IsNullOrEmpty(feeDesc) && feeDesc != "-" && feeDesc != "Unknown"
+                                    ? feeDesc
+                                    : null;
                             }
-                            else if (transferEl.TryGetProperty("transferFeeRaw", out var feeRaw) &&
-                                     feeRaw.TryGetProperty("value", out var feeValue))
+
+                            if (string.IsNullOrEmpty(transferFee) && transferEl.TryGetProperty("transferFeeRaw", out var feeRaw) &&
+                                feeRaw.TryGetProperty("value", out var feeValue))
                             {
                                 decimal value = feeValue.GetDecimal();
                                 transferFee = value == 0 ? "Free" : $"{value:N0} €";
-                            }
-
-                            if (transferEl.TryGetProperty("transferFrom", out var transferFrom))
-                            {
-                                if (transferFrom.TryGetProperty("id", out var fromIdEl))
-                                {
-                                    int apiFromTeamId = fromIdEl.GetInt32();
-                                    var fromTeam = await _context.Teams
-                                        .FirstOrDefaultAsync(t => t.ApiTeamId == apiFromTeamId);
-                                    fromTeamId = fromTeam?.TeamId;
-                                }
-                            }
-
-                            if (transferEl.TryGetProperty("transferTo", out var transferTo))
-                            {
-                                if (transferTo.TryGetProperty("id", out var toIdEl))
-                                {
-                                    int apiToTeamId = toIdEl.GetInt32();
-                                    var toTeam = await _context.Teams
-                                        .FirstOrDefaultAsync(t => t.ApiTeamId == apiToTeamId);
-                                    toTeamId = toTeam?.TeamId;
-                                }
                             }
 
                             var existingTransfer = await _context.Transfers
@@ -3531,8 +3528,8 @@ namespace VNFootballLeagues.Services.Services
                                 {
                                     ApiTransferId = apiTransferId,
                                     PlayerId = player.PlayerId,
-                                    FromTeamId = fromTeamId,
-                                    ToTeamId = toTeamId,
+                                    FromTeam = fromTeam,
+                                    ToTeam = toTeam,
                                     TransferDate = transferDate,
                                     TransferType = transferType,
                                     TransferFee = transferFee
@@ -3546,8 +3543,8 @@ namespace VNFootballLeagues.Services.Services
                             else
                             {
                                 existingTransfer.PlayerId = player.PlayerId;
-                                existingTransfer.FromTeamId = fromTeamId ?? existingTransfer.FromTeamId;
-                                existingTransfer.ToTeamId = toTeamId ?? existingTransfer.ToTeamId;
+                                existingTransfer.FromTeam = fromTeam ?? existingTransfer.FromTeam;
+                                existingTransfer.ToTeam = toTeam ?? existingTransfer.ToTeam;
                                 existingTransfer.TransferDate = transferDate ?? existingTransfer.TransferDate;
                                 existingTransfer.TransferType = transferType ?? existingTransfer.TransferType;
                                 existingTransfer.TransferFee = transferFee ?? existingTransfer.TransferFee;
@@ -4089,16 +4086,14 @@ namespace VNFootballLeagues.Services.Services
 
                 var transfers = await _context.Transfers
                     .Include(t => t.Player)
-                    .Include(t => t.FromTeam)
-                    .Include(t => t.ToTeam)
                     .Where(t => t.PlayerId != null && playerIds.Contains(t.PlayerId.Value))
                     .Select(t => new
                     {
                         t.TransferId,
                         t.ApiTransferId,
                         t.PlayerId,
-                        t.FromTeamId,
-                        t.ToTeamId,
+                        t.FromTeam,
+                        t.ToTeam,
                         t.TransferDate,
                         t.TransferType,
                         t.TransferFee,
@@ -4110,23 +4105,15 @@ namespace VNFootballLeagues.Services.Services
                             t.Player.Number,
                             t.Player.Nationality,
                             t.Player.ApiPlayerId
-                        } : null,
-                        FromTeam = t.FromTeam != null ? new
-                        {
-                            t.FromTeam.TeamId,
-                            t.FromTeam.TeamName,
-                            t.FromTeam.ShortName,
-                            t.FromTeam.ApiTeamId
-                        } : null,
-                        ToTeam = t.ToTeam != null ? new
-                        {
-                            t.ToTeam.TeamId,
-                            t.ToTeam.TeamName,
-                            t.ToTeam.ShortName,
-                            t.ToTeam.ApiTeamId
                         } : null
                     })
                     .OrderByDescending(t => t.TransferDate)
+                    .ToListAsync();
+
+                // Get team names from the league for filtering
+                var teamNames = await _context.Teams
+                    .Where(t => teamIds.Contains(t.TeamId))
+                    .Select(t => t.TeamName)
                     .ToListAsync();
 
                 var transfersByPlayer = transfers
@@ -4147,31 +4134,25 @@ namespace VNFootballLeagues.Services.Services
                             transferDate = t.TransferDate,
                             transferType = t.TransferType,
                             transferFee = t.TransferFee,
-                            fromTeamId = t.FromTeamId,
-                            fromTeamName = t.FromTeam?.TeamName,
-                            fromTeamShortName = t.FromTeam?.ShortName,
-                            toTeamId = t.ToTeamId,
-                            toTeamName = t.ToTeam?.TeamName,
-                            toTeamShortName = t.ToTeam?.ShortName
+                            fromTeam = t.FromTeam,
+                            toTeam = t.ToTeam
                         }).OrderByDescending(t => t.transferDate).ToList()
                     })
                     .OrderBy(p => p.playerName)
                     .ToList();
 
                 var transfersInByTeam = transfers
-                    .Where(t => t.ToTeam != null && teamIds.Contains(t.ToTeam.TeamId))
-                    .GroupBy(t => new { t.ToTeam.TeamId, t.ToTeam.TeamName, t.ToTeam.ApiTeamId })
+                    .Where(t => !string.IsNullOrEmpty(t.ToTeam) && teamNames.Contains(t.ToTeam))
+                    .GroupBy(t => t.ToTeam)
                     .Select(g => new
                     {
-                        teamId = g.Key.TeamId,
-                        teamName = g.Key.TeamName,
-                        apiTeamId = g.Key.ApiTeamId,
+                        teamName = g.Key,
                         transfersIn = g.Count(),
                         players = g.Select(t => new
                         {
                             playerId = t.PlayerId,
                             playerName = t.Player != null ? t.Player.FullName : "Unknown",
-                            fromTeam = t.FromTeam?.TeamName,
+                            fromTeam = t.FromTeam,
                             transferDate = t.TransferDate,
                             transferType = t.TransferType,
                             transferFee = t.TransferFee
@@ -4181,19 +4162,17 @@ namespace VNFootballLeagues.Services.Services
                     .ToList();
 
                 var transfersOutByTeam = transfers
-                    .Where(t => t.FromTeam != null && teamIds.Contains(t.FromTeam.TeamId))
-                    .GroupBy(t => new { t.FromTeam.TeamId, t.FromTeam.TeamName, t.FromTeam.ApiTeamId })
+                    .Where(t => !string.IsNullOrEmpty(t.FromTeam) && teamNames.Contains(t.FromTeam))
+                    .GroupBy(t => t.FromTeam)
                     .Select(g => new
                     {
-                        teamId = g.Key.TeamId,
-                        teamName = g.Key.TeamName,
-                        apiTeamId = g.Key.ApiTeamId,
+                        teamName = g.Key,
                         transfersOut = g.Count(),
                         players = g.Select(t => new
                         {
                             playerId = t.PlayerId,
                             playerName = t.Player != null ? t.Player.FullName : "Unknown",
-                            toTeam = t.ToTeam?.TeamName,
+                            toTeam = t.ToTeam,
                             transferDate = t.TransferDate,
                             transferType = t.TransferType,
                             transferFee = t.TransferFee
@@ -4203,8 +4182,8 @@ namespace VNFootballLeagues.Services.Services
                     .ToList();
 
                 int totalTransfers = transfers.Count;
-                int transfersIn = transfers.Count(t => t.ToTeamId != null && teamIds.Contains(t.ToTeamId.Value));
-                int transfersOut = transfers.Count(t => t.FromTeamId != null && teamIds.Contains(t.FromTeamId.Value));
+                int transfersIn = transfers.Count(t => !string.IsNullOrEmpty(t.ToTeam) && teamNames.Contains(t.ToTeam));
+                int transfersOut = transfers.Count(t => !string.IsNullOrEmpty(t.FromTeam) && teamNames.Contains(t.FromTeam));
                 int transfersWithFee = transfers.Count(t => !string.IsNullOrEmpty(t.TransferFee) && t.TransferFee != "-" && t.TransferFee != "Unknown");
                 int loans = transfers.Count(t => t.TransferType == "Loan");
                 int permanentTransfers = transfers.Count(t => t.TransferType == "Transfer");
@@ -4325,8 +4304,6 @@ namespace VNFootballLeagues.Services.Services
                                          c.TeamId,
                                          c.StartDate,
                                          c.EndDate,
-                                         c.ContractType,
-                                         c.Salary,
                                          c.IsActive,
                                          Player = new
                                          {
@@ -4380,8 +4357,6 @@ namespace VNFootballLeagues.Services.Services
                             apiPlayerId = c.Player.ApiPlayerId,
                             startDate = c.StartDate,
                             endDate = c.EndDate,
-                            contractType = c.ContractType,
-                            salary = c.Salary,
                             isActive = c.IsActive,
                             contractStatus = c.IsActive == true ? "Active" : (c.IsActive == false ? "Expired" : "Unknown")
                         }).OrderBy(c => c.playerName).ToList()
@@ -4393,8 +4368,6 @@ namespace VNFootballLeagues.Services.Services
                 int activeContracts = contracts.Count(c => c.IsActive == true);
                 int expiredContracts = contracts.Count(c => c.IsActive == false);
                 int contractsWithoutEndDate = contracts.Count(c => !c.EndDate.HasValue);
-                int contractsWithType = contracts.Count(c => !string.IsNullOrEmpty(c.ContractType));
-                int contractsWithSalary = contracts.Count(c => c.Salary.HasValue);
 
                 return new
                 {
@@ -4414,8 +4387,6 @@ namespace VNFootballLeagues.Services.Services
                             activeContracts,
                             expiredContracts,
                             contractsWithoutEndDate,
-                            contractsWithType,
-                            contractsWithSalary,
                             totalTeams = contractsByTeam.Count
                         },
                         contractsByTeam

@@ -489,22 +489,6 @@
   },
   {
     "ContainingType": "VNFootballLeaguesApp.Controllers.FootballController",
-    "Method": "SyncTransfers",
-    "RelativePath": "api/Football/sync-transfers",
-    "HttpMethod": "POST",
-    "IsController": true,
-    "Order": 0,
-    "Parameters": [
-      {
-        "Name": "apiTeamId",
-        "Type": "System.Int32",
-        "IsRequired": false
-      }
-    ],
-    "ReturnTypes": []
-  },
-  {
-    "ContainingType": "VNFootballLeaguesApp.Controllers.FootballController",
     "Method": "GetAllTeamStatistics",
     "RelativePath": "api/Football/team-statistics",
     "HttpMethod": "GET",
@@ -537,16 +521,6 @@
         "IsRequired": true
       }
     ],
-    "ReturnTypes": []
-  },
-  {
-    "ContainingType": "VNFootballLeaguesApp.Controllers.FootballController",
-    "Method": "GetAllTransfers",
-    "RelativePath": "api/Football/transfers",
-    "HttpMethod": "GET",
-    "IsController": true,
-    "Order": 0,
-    "Parameters": [],
     "ReturnTypes": []
   },
   {

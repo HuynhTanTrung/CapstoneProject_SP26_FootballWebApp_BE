@@ -21,8 +21,6 @@ namespace VNFootballLeagues.API.Controllers
             _logger = logger;
         }
 
-        // ==================== GetAll (đọc từ DB) ====================
-
         [HttpGet("leagues")]
         public async Task<IActionResult> GetAllLeagues()
         {

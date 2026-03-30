@@ -126,10 +126,6 @@ namespace VNFootballLeagues.Repositories.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ContractId"));
 
-                    b.Property<string>("ContractType")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
                     b.Property<DateOnly?>("EndDate")
                         .HasColumnType("date");
 
@@ -140,9 +136,6 @@ namespace VNFootballLeagues.Repositories.Migrations
 
                     b.Property<int>("PlayerId")
                         .HasColumnType("int");
-
-                    b.Property<decimal?>("Salary")
-                        .HasColumnType("decimal(15, 2)");
 
                     b.Property<DateOnly?>("StartDate")
                         .HasColumnType("date");
@@ -1597,33 +1590,31 @@ namespace VNFootballLeagues.Repositories.Migrations
                     b.Property<int>("ApiTransferId")
                         .HasColumnType("int");
 
-                    b.Property<int?>("FromTeamId")
-                        .HasColumnType("int");
+                    b.Property<string>("FromTeam")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
 
                     b.Property<int?>("PlayerId")
                         .HasColumnType("int");
 
-                    b.Property<int?>("ToTeamId")
-                        .HasColumnType("int");
+                    b.Property<string>("ToTeam")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
 
                     b.Property<DateTime?>("TransferDate")
-                        .HasColumnType("datetime");
+                        .HasColumnType("datetime2");
 
                     b.Property<string>("TransferFee")
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
                     b.Property<string>("TransferType")
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
-                    b.HasKey("TransferId")
-                        .HasName("PK__Transfer__954900915944B500");
-
-                    b.HasIndex("FromTeamId");
+                    b.HasKey("TransferId");
 
                     b.HasIndex("PlayerId");
-
-                    b.HasIndex("ToTeamId");
 
                     b.ToTable("Transfers");
                 });
@@ -2114,26 +2105,12 @@ namespace VNFootballLeagues.Repositories.Migrations
 
             modelBuilder.Entity("VNFootballLeagues.Repositories.Models.Transfer", b =>
                 {
-                    b.HasOne("VNFootballLeagues.Repositories.Models.Team", "FromTeam")
-                        .WithMany("TransferFromTeams")
-                        .HasForeignKey("FromTeamId")
-                        .HasConstraintName("FK__Transfers__FromT__17036CC0");
-
                     b.HasOne("VNFootballLeagues.Repositories.Models.Player", "Player")
                         .WithMany("Transfers")
                         .HasForeignKey("PlayerId")
-                        .HasConstraintName("FK__Transfers__Playe__160F4887");
-
-                    b.HasOne("VNFootballLeagues.Repositories.Models.Team", "ToTeam")
-                        .WithMany("TransferToTeams")
-                        .HasForeignKey("ToTeamId")
-                        .HasConstraintName("FK__Transfers__ToTea__17F790F9");
-
-                    b.Navigation("FromTeam");
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("Player");
-
-                    b.Navigation("ToTeam");
                 });
 
             modelBuilder.Entity("VNFootballLeagues.Repositories.Models.UserRole", b =>
@@ -2268,10 +2245,6 @@ namespace VNFootballLeagues.Repositories.Migrations
                     b.Navigation("Standings");
 
                     b.Navigation("TeamStatistics");
-
-                    b.Navigation("TransferFromTeams");
-
-                    b.Navigation("TransferToTeams");
                 });
 
             modelBuilder.Entity("VNFootballLeagues.Repositories.Models.User", b =>
