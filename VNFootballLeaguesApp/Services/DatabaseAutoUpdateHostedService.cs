@@ -31,7 +31,6 @@ public class DatabaseAutoUpdateHostedService : IHostedService
 
         using var scope = _serviceProvider.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<VNFootballLeaguesDBContext>();
-        var adminSeedService = scope.ServiceProvider.GetRequiredService<AdminSeedService>();
 
         try
         {
@@ -54,9 +53,6 @@ public class DatabaseAutoUpdateHostedService : IHostedService
                 await dbContext.Database.EnsureCreatedAsync(cancellationToken);
                 _logger.LogInformation("Database ensured created successfully.");
             }
-
-            await adminSeedService.SeedAsync(cancellationToken);
-            _logger.LogInformation("Default admin seed completed.");
         }
         catch (Exception ex)
         {

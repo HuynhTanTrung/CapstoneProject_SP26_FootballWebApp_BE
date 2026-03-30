@@ -8,8 +8,6 @@ using VNFootballLeagues.Repositories.Repositories;
 using VNFootballLeagues.Services.IServices;
 using VNFootballLeagues.Services.Services;
 using VNFootballLeagues.Services.Settings;
-using VNFootballLeaguesApp.Services;
-using VNFootballLeaguesApp.Settings;
 
 namespace VNFootballLeaguesApp.Extensions;
 
@@ -21,7 +19,6 @@ public static class ServiceCollectionExtensions
         services.Configure<EmailSettings>(config.GetSection("EmailSettings"));
         services.Configure<SePaySettings>(config.GetSection("SePaySettings"));
         services.Configure<SubscriptionSettings>(config.GetSection("SubscriptionSettings"));
-        services.Configure<AdminSeedSettings>(config.GetSection("AdminSeedSettings"));
 
         var jwtSettings = config.GetSection("JwtSettings").Get<JwtSettings>() ?? new JwtSettings();
         var secretKey = string.IsNullOrWhiteSpace(jwtSettings.SecretKey)
@@ -107,7 +104,6 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddApplicationServices(this IServiceCollection services)
     {
         services.AddSingleton<ISubscriptionPaymentNotificationService, SubscriptionPaymentNotificationService>();
-        services.AddScoped<AdminSeedService>();
         services.AddScoped<IJwtService, JwtService>();
         services.AddScoped<IEmailService, EmailService>();
         services.AddScoped<IUserService, UserService>();

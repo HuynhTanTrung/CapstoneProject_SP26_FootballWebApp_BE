@@ -1338,20 +1338,6 @@ namespace VNFootballLeagues.Repositories.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
-                    b.Property<string>("ManualUpdateReason")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.Property<DateTime?>("ManualUpdatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("ManualUpdatedByName")
-                        .HasMaxLength(150)
-                        .HasColumnType("nvarchar(150)");
-
-                    b.Property<Guid?>("ManualUpdatedByUserId")
-                        .HasColumnType("uniqueidentifier");
-
                     b.Property<DateTime?>("PaidAt")
                         .HasColumnType("datetime2");
 
