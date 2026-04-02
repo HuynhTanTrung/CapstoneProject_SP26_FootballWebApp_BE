@@ -1,4 +1,7 @@
+using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Security.Cryptography;
+using System.Text.Json;
 using Microsoft.Extensions.Options;
 using VNFootballLeagues.Repositories.Models;
 using VNFootballLeagues.Repositories.Repositories;
@@ -89,6 +92,14 @@ public class SubscriptionService : ISubscriptionService
         }
 
         var now = DateTime.UtcNow;
+
+        // Return existing pending payment if still valid
+        var existingPending = await _subscriptionPaymentRepository.GetActivePendingByUserIdAsync(userId);
+        if (existingPending != null && string.Equals(existingPending.PlanCode, plan.Code, StringComparison.OrdinalIgnoreCase))
+        {
+            return new SubscriptionPaymentCreateResult { Success = true, Message = "Existing pending payment returned.", Payment = existingPending };
+        }
+
         var paymentCode = GeneratePaymentCode();
         var qrUrl = BuildQrUrl(
             _sePaySettings.QrBaseUrl,
@@ -131,6 +142,122 @@ public class SubscriptionService : ISubscriptionService
     public Task<SubscriptionPayment?> GetPaymentByCodeAsync(Guid userId, string paymentCode)
     {
         return _subscriptionPaymentRepository.GetByPaymentCodeForUserAsync(userId, paymentCode);
+    }
+
+    public async Task UpdatePaymentAsync(SubscriptionPayment payment)
+    {
+        await _subscriptionPaymentRepository.UpdateAsync(payment);
+    }
+
+    public async Task<SubscriptionPayment?> PollPaymentStatusAsync(Guid userId, string paymentCode)
+    {
+        var payment = await _subscriptionPaymentRepository.GetByPaymentCodeForUserAsync(userId, paymentCode);
+        if (payment is null) return null;
+
+        // Already paid — return immediately
+        if (payment.Status == SubscriptionPaymentStatuses.Paid) return payment;
+
+        // Expired
+        if (payment.ExpiresAt < DateTime.UtcNow)
+        {
+            payment.Status = "Expired";
+            await _subscriptionPaymentRepository.UpdateAsync(payment);
+            return payment;
+        }
+
+        // No API token configured — can't poll
+        if (string.IsNullOrWhiteSpace(_sePaySettings.ApiToken)) return payment;
+
+        try
+        {
+            using var http = new HttpClient();
+            http.DefaultRequestHeaders.Authorization =
+                new AuthenticationHeaderValue("Bearer", _sePaySettings.ApiToken);
+
+            // Query SePay transactions filtered by transfer content (payment code)
+            var url = $"https://my.sepay.vn/userapi/transactions/list?transaction_content={Uri.EscapeDataString(paymentCode)}&limit=5";
+            var response = await http.GetAsync(url);
+            if (!response.IsSuccessStatusCode) return payment;
+
+            var responseBody = await response.Content.ReadAsStringAsync();
+            using var doc = JsonDocument.Parse(responseBody);
+
+            if (!doc.RootElement.TryGetProperty("transactions", out var transactions)) return payment;
+
+            foreach (var tx in transactions.EnumerateArray())
+            {
+                // Check transfer type = "in" and amount matches
+                var type = tx.TryGetProperty("transaction_type", out var tt) ? tt.GetString() : null;
+                // amount_in can be string "10000.00" or number
+                long amount = 0;
+                if (tx.TryGetProperty("amount_in", out var ai))
+                {
+                    if (ai.ValueKind == JsonValueKind.String)
+                        decimal.TryParse(ai.GetString(), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var d) ;
+                    else if (ai.ValueKind == JsonValueKind.Number)
+                        amount = (long)ai.GetDecimal();
+                    // parse string
+                    if (ai.ValueKind == JsonValueKind.String && decimal.TryParse(ai.GetString(), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var dec))
+                        amount = (long)dec;
+                }
+                var content = tx.TryGetProperty("transaction_content", out var tc) ? tc.GetString() : null;
+
+                if (!string.Equals(type, "in", StringComparison.OrdinalIgnoreCase) && amount <= 0) continue;
+                if (amount != payment.Amount) continue;
+                if (content == null || !content.Contains(paymentCode, StringComparison.OrdinalIgnoreCase)) continue;
+
+                // Match found — process payment
+                var now = DateTime.UtcNow;
+                long txId = 0;
+                if (tx.TryGetProperty("id", out var id))
+                {
+                    if (id.ValueKind == JsonValueKind.Number) txId = id.GetInt64();
+                    else if (id.ValueKind == JsonValueKind.String) long.TryParse(id.GetString(), out txId);
+                }
+
+                payment.Status = SubscriptionPaymentStatuses.Paid;
+                payment.SePayTransactionId = txId;
+                payment.PaidAt = now;
+                payment.UpdatedAt = now;
+                await _subscriptionPaymentRepository.UpdateAsync(payment);
+
+                // Update subscription
+                var subscription = await _userSubscriptionRepository.GetByUserIdAsync(userId);
+                var nextBase = subscription is not null && subscription.ExpiresAt > now ? subscription.ExpiresAt : now;
+
+                if (subscription is null)
+                {
+                    subscription = new UserSubscription
+                    {
+                        UserId = userId,
+                        PlanCode = payment.PlanCode,
+                        PlanName = payment.PlanName,
+                        Status = SubscriptionStatuses.Active,
+                        StartedAt = now,
+                        ExpiresAt = nextBase.AddDays(payment.DurationDays),
+                        LastPaymentAt = now,
+                        CreatedAt = now,
+                        UpdatedAt = now
+                    };
+                    await _userSubscriptionRepository.AddAsync(subscription);
+                }
+                else
+                {
+                    subscription.PlanCode = payment.PlanCode;
+                    subscription.PlanName = payment.PlanName;
+                    subscription.Status = SubscriptionStatuses.Active;
+                    subscription.ExpiresAt = nextBase.AddDays(payment.DurationDays);
+                    subscription.LastPaymentAt = now;
+                    subscription.UpdatedAt = now;
+                    await _userSubscriptionRepository.UpdateAsync(subscription);
+                }
+
+                break;
+            }
+        }
+        catch { /* ignore polling errors, return current status */ }
+
+        return payment;
     }
 
     private static string GeneratePaymentCode()

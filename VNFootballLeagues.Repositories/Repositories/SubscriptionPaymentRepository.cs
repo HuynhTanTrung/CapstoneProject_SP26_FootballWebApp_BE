@@ -20,6 +20,14 @@ public class SubscriptionPaymentRepository : GenericRepository<SubscriptionPayme
         return _context.SubscriptionPayments.FirstOrDefaultAsync(x => x.UserId == userId && x.PaymentCode == paymentCode);
     }
 
+    public Task<SubscriptionPayment?> GetActivePendingByUserIdAsync(Guid userId)
+    {
+        return _context.SubscriptionPayments
+            .Where(x => x.UserId == userId && x.Status == "Pending" && x.ExpiresAt > DateTime.UtcNow)
+            .OrderByDescending(x => x.CreatedAt)
+            .FirstOrDefaultAsync();
+    }
+
     public async Task AddAsync(SubscriptionPayment payment)
     {
         await _context.SubscriptionPayments.AddAsync(payment);

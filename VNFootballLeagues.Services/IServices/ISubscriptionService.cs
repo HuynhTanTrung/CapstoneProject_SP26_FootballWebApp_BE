@@ -10,4 +10,6 @@ public interface ISubscriptionService
     Task<UserSubscription?> GetCurrentSubscriptionAsync(Guid userId);
     Task<SubscriptionPaymentCreateResult> CreatePaymentAsync(Guid userId, string planCode);
     Task<SubscriptionPayment?> GetPaymentByCodeAsync(Guid userId, string paymentCode);
+    Task UpdatePaymentAsync(SubscriptionPayment payment);
+    Task<SubscriptionPayment?> PollPaymentStatusAsync(Guid userId, string paymentCode);
 }
