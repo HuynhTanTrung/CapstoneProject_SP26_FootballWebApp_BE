@@ -804,6 +804,8 @@ namespace VNFootballLeagues.Services.Services
                     ApiTimestamp = (int)ev.GetProperty("startTimestamp").GetInt64(),
                     HomeGoals = SafeScore(ev, "homeScore"),
                     AwayGoals = SafeScore(ev, "awayScore"),
+                    HomePenalties = SafePenalties(ev, "homeScore"),
+                    AwayPenalties = SafePenalties(ev, "awayScore"),
                     HomeTeamId = homeTeamId,
                     AwayTeamId = awayTeamId,
                     Status = ev.GetProperty("status").GetProperty("type").GetString(),
@@ -817,6 +819,8 @@ namespace VNFootballLeagues.Services.Services
                 existing.MatchDate = matchDate;
                 existing.HomeGoals = SafeScore(ev, "homeScore");
                 existing.AwayGoals = SafeScore(ev, "awayScore");
+                existing.HomePenalties = SafePenalties(ev, "homeScore");
+                existing.AwayPenalties = SafePenalties(ev, "awayScore");
                 existing.Status = ev.GetProperty("status").GetProperty("type").GetString();
                 existing.HomeTeamId = homeTeamId ?? existing.HomeTeamId;
                 existing.AwayTeamId = awayTeamId ?? existing.AwayTeamId;
@@ -829,17 +833,36 @@ namespace VNFootballLeagues.Services.Services
         {
             try
             {
-                if (ev.TryGetProperty(key, out var score) &&
-                    score.TryGetProperty("current", out var current) &&
-                    current.ValueKind != JsonValueKind.Null)
+                if (ev.TryGetProperty(key, out var score))
                 {
-                    return current.GetInt32();
+                    // Use 'display' (official score, excludes penalties) if available
+                    // Fall back to 'current' (includes penalties) if not
+                    if (score.TryGetProperty("display", out var display) &&
+                        display.ValueKind != JsonValueKind.Null)
+                        return display.GetInt32();
+
+                    if (score.TryGetProperty("current", out var current) &&
+                        current.ValueKind != JsonValueKind.Null)
+                        return current.GetInt32();
                 }
             }
             catch (Exception ex)
             {
                 _logger.LogWarning(ex, "Error parsing score for key {Key}", key);
             }
+            return null;
+        }
+
+        private int? SafePenalties(JsonElement ev, string key)
+        {
+            try
+            {
+                if (ev.TryGetProperty(key, out var score) &&
+                    score.TryGetProperty("penalties", out var pen) &&
+                    pen.ValueKind != JsonValueKind.Null)
+                    return pen.GetInt32();
+            }
+            catch { }
             return null;
         }
 
