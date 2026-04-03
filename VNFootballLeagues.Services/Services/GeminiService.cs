@@ -17,7 +17,7 @@ namespace VNFootballLeagues.Services.Services
 
             _httpClient = new HttpClient
             {
-                Timeout = TimeSpan.FromSeconds(60)
+                Timeout = TimeSpan.FromSeconds(300)
             };
         }
 
@@ -74,6 +74,132 @@ namespace VNFootballLeagues.Services.Services
             {
                 return $"Lỗi: {ex.Message}";
             }
+        }
+        public async Task<string> ChatWithSystemContextAsync(string systemPrompt, IReadOnlyList<(string role, string text)> turns)
+        {
+            if (turns == null || turns.Count == 0)
+                return "Không có nội dung để gửi.";
+            try
+            {
+                var url = $"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={_apiKey}";
+                var contents = turns.Select(t => new
+                {
+                    role = t.role == "user" ? "user" : "model",
+                    parts = new[] { new { text = string.IsNullOrEmpty(t.text) ? " " : t.text } }
+                }).ToArray();
+                var requestBody = new
+                {
+                    system_instruction = new { parts = new[] { new { text = systemPrompt } } },
+                    contents
+                };
+                var json = JsonSerializer.Serialize(requestBody);
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
+                var response = await _httpClient.PostAsync(url, content);
+                var responseString = await response.Content.ReadAsStringAsync();
+                if (!response.IsSuccessStatusCode)
+                    return $"Lỗi API: {response.StatusCode} - {responseString}";
+                using var doc = JsonDocument.Parse(responseString);
+                return doc.RootElement.GetProperty("candidates")[0].GetProperty("content").GetProperty("parts")[0].GetProperty("text").GetString() ?? "Không có phản hồi.";
+            }
+            catch (Exception ex) { return $"Lỗi: {ex.Message}"; }
+        }
+
+        public async Task<string> AnalyzeVideoAsync(string videoUrl, string prompt)
+        {
+            if (string.IsNullOrWhiteSpace(videoUrl))
+                return "URL video không hợp lệ.";
+            try
+            {
+                // Step 1: Download video from Cloudinary
+                var videoBytes = await _httpClient.GetByteArrayAsync(videoUrl);
+                var mimeType = "video/mp4";
+                if (videoUrl.Contains(".mov")) mimeType = "video/quicktime";
+                else if (videoUrl.Contains(".avi")) mimeType = "video/x-msvideo";
+                else if (videoUrl.Contains(".webm")) mimeType = "video/webm";
+
+                // Step 2: Initiate resumable upload to Gemini File API
+                var initiateUrl = $"https://generativelanguage.googleapis.com/upload/v1beta/files?uploadType=resumable&key={_apiKey}";
+                var initiateRequest = new HttpRequestMessage(HttpMethod.Post, initiateUrl);
+                initiateRequest.Headers.Add("X-Goog-Upload-Protocol", "resumable");
+                initiateRequest.Headers.Add("X-Goog-Upload-Command", "start");
+                initiateRequest.Headers.Add("X-Goog-Upload-Header-Content-Length", videoBytes.Length.ToString());
+                initiateRequest.Headers.Add("X-Goog-Upload-Header-Content-Type", mimeType);
+                var metaJson = JsonSerializer.Serialize(new { file = new { display_name = "football_video" } });
+                initiateRequest.Content = new StringContent(metaJson, Encoding.UTF8, "application/json");
+
+                var initiateResp = await _httpClient.SendAsync(initiateRequest);
+                if (!initiateResp.IsSuccessStatusCode)
+                {
+                    var err = await initiateResp.Content.ReadAsStringAsync();
+                    return $"Lỗi khởi tạo upload: {err}";
+                }
+
+                // Get upload URL from response header
+                var uploadUri = initiateResp.Headers.TryGetValues("X-Goog-Upload-URL", out var vals)
+                    ? vals.FirstOrDefault() : null;
+                if (string.IsNullOrEmpty(uploadUri))
+                    return "Không lấy được upload URL từ Gemini.";
+
+                // Step 3: Upload video bytes
+                var uploadRequest = new HttpRequestMessage(HttpMethod.Post, uploadUri);
+                uploadRequest.Headers.Add("X-Goog-Upload-Command", "upload, finalize");
+                uploadRequest.Headers.Add("X-Goog-Upload-Offset", "0");
+                uploadRequest.Content = new ByteArrayContent(videoBytes);
+                uploadRequest.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(mimeType);
+
+                var uploadResp = await _httpClient.SendAsync(uploadRequest);
+                var uploadStr = await uploadResp.Content.ReadAsStringAsync();
+                if (!uploadResp.IsSuccessStatusCode)
+                    return $"Lỗi upload video: {uploadStr}";
+
+                using var uploadDoc = JsonDocument.Parse(uploadStr);
+                var fileUri = uploadDoc.RootElement.GetProperty("file").GetProperty("uri").GetString();
+                if (string.IsNullOrEmpty(fileUri))
+                    return "Không lấy được URI file từ Gemini.";
+
+                // Step 4: Poll until file is ACTIVE
+                var fileName = uploadDoc.RootElement.GetProperty("file").GetProperty("name").GetString();
+                var maxWait = 60;
+                for (int i = 0; i < maxWait; i++)
+                {
+                    await Task.Delay(3000);
+                    var statusResp = await _httpClient.GetAsync($"https://generativelanguage.googleapis.com/v1beta/{fileName}?key={_apiKey}");
+                    var statusStr = await statusResp.Content.ReadAsStringAsync();
+                    using var statusDoc = JsonDocument.Parse(statusStr);
+                    var state = statusDoc.RootElement.GetProperty("state").GetString();
+                    if (state == "ACTIVE") break;
+                    if (state == "FAILED") return "File xử lý thất bại trên Gemini.";
+                }
+
+                // Step 5: Analyze
+                var analyzeUrl = $"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={_apiKey}";
+                var requestBody = new
+                {
+                    contents = new[]
+                    {
+                        new
+                        {
+                            role = "user",
+                            parts = new object[]
+                            {
+                                new { file_data = new { mime_type = mimeType, file_uri = fileUri } },
+                                new { text = string.IsNullOrWhiteSpace(prompt)
+                                    ? "Hãy phân tích tình huống trong video bóng đá này. Mô tả chi tiết: các cầu thủ liên quan, chiến thuật, kỹ thuật, và nhận xét về tình huống."
+                                    : prompt }
+                            }
+                        }
+                    }
+                };
+                var json = JsonSerializer.Serialize(requestBody);
+                var httpResponse = await _httpClient.PostAsync(analyzeUrl, new StringContent(json, Encoding.UTF8, "application/json"));
+                var responseString = await httpResponse.Content.ReadAsStringAsync();
+                if (!httpResponse.IsSuccessStatusCode)
+                    return $"Lỗi API: {httpResponse.StatusCode} - {responseString}";
+                using var doc = JsonDocument.Parse(responseString);
+                return doc.RootElement.GetProperty("candidates")[0].GetProperty("content").GetProperty("parts")[0].GetProperty("text").GetString() ?? "Không có phản hồi.";
+            }
+            catch (TaskCanceledException) { return "Yêu cầu hết thời gian chờ. Video có thể quá lớn hoặc mạng chậm."; }
+            catch (Exception ex) { return $"Lỗi: {ex.Message}"; }
         }
     }
 }

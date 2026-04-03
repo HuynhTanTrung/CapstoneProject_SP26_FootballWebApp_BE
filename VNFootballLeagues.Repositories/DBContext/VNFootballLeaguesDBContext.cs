@@ -41,6 +41,8 @@ public partial class VNFootballLeaguesDBContext : DbContext
 
     public virtual DbSet<ChatMessage> ChatMessages { get; set; }
 
+    public virtual DbSet<VideoAnalysis> VideoAnalyses { get; set; }
+
     public virtual DbSet<PasswordResetToken> PasswordResetTokens { get; set; }
 
     public virtual DbSet<Player> Players { get; set; }

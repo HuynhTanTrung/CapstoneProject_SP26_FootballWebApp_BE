@@ -1,4 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using VNFootballLeagues.Repositories.Models;
 using VNFootballLeagues.Services.IServices;
 
 namespace VNFootballLeaguesApp.Controllers
@@ -9,11 +11,13 @@ namespace VNFootballLeaguesApp.Controllers
     {
         private readonly IGeminiService _geminiService;
         private readonly IChatConversationService _chatConversation;
+        private readonly VNFootballLeaguesDBContext _context;
 
-        public ChatController(IGeminiService geminiService, IChatConversationService chatConversation)
+        public ChatController(IGeminiService geminiService, IChatConversationService chatConversation, VNFootballLeaguesDBContext context)
         {
             _geminiService = geminiService;
             _chatConversation = chatConversation;
+            _context = context;
         }
 
         /// <summary>
@@ -24,25 +28,53 @@ namespace VNFootballLeaguesApp.Controllers
         {
             if (request.UserId == Guid.Empty)
                 return BadRequest(new { error = "UserId is required" });
-
             if (string.IsNullOrWhiteSpace(request.Message))
                 return BadRequest(new { error = "Message is required" });
 
             try
             {
-                var result = await _chatConversation.SendMessageAsync(
-                    request.UserId,
-                    request.SessionId,
-                    request.Message,
-                    cancellationToken);
+                // Inject player context vào message nếu có cầu thủ liên quan
+                var systemPrompt = await BuildSystemPromptAsync(request.Message);
+                var enrichedMessage = request.Message;
 
-                return Ok(new
+                // Nếu tìm được cầu thủ, thêm context vào message để ChatConversationService dùng
+                if (systemPrompt.Contains("Dữ liệu cầu thủ từ hệ thống:"))
                 {
-                    sessionId = result.SessionId,
-                    sessionTitle = result.SessionTitle,
-                    message = request.Message.Trim(),
-                    response = result.Response
-                });
+                    // Gọi trực tiếp Gemini với system prompt thay vì qua ChatConversationService
+                    // để có player context, nhưng vẫn lưu vào DB thủ công
+                    var userExists = await _context.Users.AnyAsync(u => u.UserId == request.UserId, cancellationToken);
+                    if (!userExists) return NotFound(new { error = "User not found" });
+
+                    ChatSession session;
+                    if (request.SessionId == null || request.SessionId == Guid.Empty)
+                    {
+                        session = new ChatSession { SessionId = Guid.NewGuid(), UserId = request.UserId, Title = request.Message.Length <= 50 ? request.Message : request.Message[..50], StartTime = DateTime.UtcNow };
+                        _context.ChatSessions.Add(session);
+                        await _context.SaveChangesAsync(cancellationToken);
+                    }
+                    else
+                    {
+                        session = await _context.ChatSessions.FirstOrDefaultAsync(s => s.SessionId == request.SessionId && s.UserId == request.UserId, cancellationToken)
+                            ?? throw new InvalidOperationException("Session not found.");
+                    }
+
+                    _context.ChatMessages.Add(new ChatMessage { MessageId = Guid.NewGuid(), SessionId = session.SessionId, Sender = "User", Text = request.Message.Trim(), Timestamp = DateTime.UtcNow });
+                    await _context.SaveChangesAsync(cancellationToken);
+
+                    var history = await _context.ChatMessages.Where(m => m.SessionId == session.SessionId).OrderBy(m => m.Timestamp).Select(m => new { m.Sender, m.Text }).ToListAsync(cancellationToken);
+                    var turns = history.Select(m => (role: m.Sender == "User" ? "user" : "model", text: m.Text ?? "")).ToList();
+
+                    var aiResponse = await _geminiService.ChatWithSystemContextAsync(systemPrompt, turns);
+
+                    _context.ChatMessages.Add(new ChatMessage { MessageId = Guid.NewGuid(), SessionId = session.SessionId, Sender = "Assistant", Text = aiResponse, Timestamp = DateTime.UtcNow });
+                    await _context.SaveChangesAsync(cancellationToken);
+
+                    return Ok(new { sessionId = session.SessionId, sessionTitle = session.Title, message = request.Message.Trim(), response = aiResponse });
+                }
+
+                // Không có player context → dùng ChatConversationService bình thường
+                var result = await _chatConversation.SendMessageAsync(request.UserId, request.SessionId, request.Message, cancellationToken);
+                return Ok(new { sessionId = result.SessionId, sessionTitle = result.SessionTitle, message = request.Message.Trim(), response = result.Response });
             }
             catch (InvalidOperationException ex)
             {
@@ -51,8 +83,144 @@ namespace VNFootballLeaguesApp.Controllers
         }
 
         /// <summary>
-        /// Chat thử nhanh, không lưu database (giữ tương thích).
+        /// AI hệ thống: hỏi về giải đấu, cầu thủ, trận đấu với context từ DB.
         /// </summary>
+        [HttpPost("system")]
+        public async Task<IActionResult> ChatSystem([FromBody] SystemChatRequest request, CancellationToken cancellationToken)
+        {
+            if (string.IsNullOrWhiteSpace(request.Message))
+                return BadRequest(new { error = "Message is required" });
+
+            var systemPrompt = await BuildSystemPromptAsync(request.Message, request.PlayerContext);
+
+            var turns = new List<(string role, string text)>();
+            if (request.History != null)
+                foreach (var h in request.History)
+                    turns.Add((h.Role, h.Content));
+            turns.Add(("user", request.Message));
+
+            var response = await _geminiService.ChatWithSystemContextAsync(systemPrompt, turns);
+            return Ok(new { response });
+        }
+
+        private async Task<string> BuildSystemPromptAsync(string message, string? extraContext = null)
+        {
+            var systemPrompt = @"Bạn là trợ lý AI chuyên về hệ thống thống kê bóng đá Việt Nam 'VN Player Rating'.
+Hệ thống theo dõi 3 giải đấu: V-League 1, V-League 2, Vietnam Cup.
+Bạn có thể trả lời về: cầu thủ, đội bóng, trận đấu, thống kê, xếp hạng, chuyển nhượng.
+QUAN TRỌNG: Khi đề cập đến cầu thủ cụ thể, BẮT BUỘC phải cung cấp link dạng: [Tên cầu thủ](/players/{playerId}) - dùng đúng playerId số nguyên từ dữ liệu được cung cấp.
+Trả lời bằng tiếng Việt, ngắn gọn và chính xác.";
+
+            // Tìm cầu thủ liên quan trong DB dựa trên từ khóa trong câu hỏi
+            var msgLower = message.ToLower();
+
+            // Tách các từ có độ dài >= 3 để tìm kiếm
+            var words = message.Split(' ', StringSplitOptions.RemoveEmptyEntries)
+                .Where(w => w.Length >= 3)
+                .ToList();
+
+            List<Player> players = new();
+            if (words.Any())
+            {
+                var allPlayers = await _context.Players
+                    .Include(p => p.PlayerSeasonStatistics)
+                    .ToListAsync();
+
+                // Tìm theo từng từ trong tên (có dấu)
+                // Tìm và sắp xếp theo số từ match nhiều nhất (ưu tiên cầu thủ match nhiều từ)
+                players = allPlayers
+                    .Where(p => p.FullName != null &&
+                        words.Any(w => p.FullName.ToLower().Normalize().Contains(w.ToLower().Normalize())))
+                    .OrderByDescending(p => words.Count(w => p.FullName!.ToLower().Normalize().Contains(w.ToLower().Normalize())))
+                    .Take(5)
+                    .ToList();
+
+                // Fallback: tìm theo chuỗi liên tiếp (ví dụ "Tiến Linh" → tìm "Tiến Linh" trong tên)
+                if (!players.Any() && words.Count >= 2)
+                {
+                    var combined = string.Join(" ", words);
+                    players = allPlayers
+                        .Where(p => p.FullName != null &&
+                            p.FullName.ToLower().Contains(combined.ToLower()))
+                        .Take(3)
+                        .ToList();
+                }
+            }
+
+            if (players.Any())
+            {
+                systemPrompt += "\n\nDữ liệu cầu thủ từ hệ thống:";
+                foreach (var p in players)
+                {
+                    var latestStat = p.PlayerSeasonStatistics?.OrderBy(s => s.SeasonId).FirstOrDefault();
+                    systemPrompt += $@"
+---
+Cầu thủ: {p.FullName} (ID: {p.PlayerId})
+Vị trí: {p.Position} | Tuổi: {p.Age} | Quốc tịch: {p.Nationality}
+Link trang cầu thủ: /players/{p.PlayerId}
+Ảnh: {p.PhotoUrl}";
+                    if (latestStat != null)
+                        systemPrompt += $@"
+Thống kê mùa gần nhất (SeasonId={latestStat.SeasonId}):
+- Đánh giá: {latestStat.Rating?.ToString("F1") ?? "N/A"}
+- Trận đấu: {latestStat.Appearances} | Phút: {latestStat.Minutes}
+- Bàn thắng: {latestStat.Goals} | Kiến tạo: {latestStat.Assists}
+- Sút trúng đích: {latestStat.ShotsOnTarget} | Chuyền then chốt: {latestStat.PassesKey}
+- Rê bóng thành công: {latestStat.DribblesSuccess} | Tắc bóng: {latestStat.Tackles}
+- Thẻ vàng: {latestStat.YellowCards} | Thẻ đỏ: {latestStat.RedCards}";
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(extraContext))
+                systemPrompt += $"\n\nThông tin bổ sung:\n{extraContext}";
+
+            return systemPrompt;
+        }
+
+        /// <summary>
+        /// Phân tích video bóng đá qua Cloudinary URL.
+        /// </summary>
+        [HttpPost("analyze-video")]
+        public async Task<IActionResult> AnalyzeVideo([FromBody] VideoAnalysisRequest request)
+        {
+            if (string.IsNullOrWhiteSpace(request.VideoUrl))
+                return BadRequest(new { error = "VideoUrl is required" });
+
+            var response = await _geminiService.AnalyzeVideoAsync(request.VideoUrl, request.Prompt ?? "");
+
+            // Lưu lịch sử vào DB
+            var record = new VideoAnalysis
+            {
+                UserId = request.UserId,
+                VideoUrl = request.VideoUrl,
+                VideoFileName = request.VideoFileName ?? "",
+                Prompt = request.Prompt ?? "",
+                Result = response,
+                CreatedAt = DateTime.UtcNow,
+            };
+            _context.VideoAnalyses.Add(record);
+            await _context.SaveChangesAsync();
+
+            return Ok(new { id = record.Id, response });
+        }
+
+        [HttpGet("video-history")]
+        public async Task<IActionResult> GetVideoHistory([FromQuery] Guid userId)
+        {
+            if (userId == Guid.Empty)
+                return BadRequest(new { error = "userId is required" });
+
+            var list = await _context.VideoAnalyses
+                .Where(v => v.UserId == userId)
+                .OrderByDescending(v => v.CreatedAt)
+                .Select(v => new {
+                    v.Id, v.VideoUrl, v.VideoFileName, v.Prompt,
+                    v.Result, v.CreatedAt
+                })
+                .ToListAsync();
+
+            return Ok(list);
+        }
         [HttpPost("preview")]
         public async Task<IActionResult> ChatPreview([FromBody] ChatPreviewRequest request)
         {
@@ -112,5 +280,26 @@ namespace VNFootballLeaguesApp.Controllers
     public class ChatPreviewRequest
     {
         public string Message { get; set; } = string.Empty;
+    }
+
+    public class SystemChatRequest
+    {
+        public string Message { get; set; } = string.Empty;
+        public string? PlayerContext { get; set; }
+        public List<ChatHistoryItem>? History { get; set; }
+    }
+
+    public class ChatHistoryItem
+    {
+        public string Role { get; set; } = "user"; // "user" or "model"
+        public string Content { get; set; } = string.Empty;
+    }
+
+    public class VideoAnalysisRequest
+    {
+        public string VideoUrl { get; set; } = string.Empty;
+        public string? VideoFileName { get; set; }
+        public string? Prompt { get; set; }
+        public Guid? UserId { get; set; }
     }
 }

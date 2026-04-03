@@ -371,3 +371,8 @@ FodyWeavers.xsd
 /VNFootballLeaguesApp/obj/project.assets.json
 /VNFootballLeaguesApp/obj/VNFootballLeaguesApp.csproj.nuget.dgspec.json
 /VNFootballLeaguesApp/obj/VNFootballLeaguesApp.csproj.nuget.g.props
+
+# Secret config files - never commit these
+appsettings.Development.json
+appsettings.*.json
+!appsettings.json
