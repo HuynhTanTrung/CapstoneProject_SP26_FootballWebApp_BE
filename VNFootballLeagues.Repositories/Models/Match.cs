@@ -29,6 +29,10 @@ public partial class Match
 
     public int? AwayGoals { get; set; }
 
+    public int? HomePenalties { get; set; }
+
+    public int? AwayPenalties { get; set; }
+
     public string Venue { get; set; }
 
     public string RefereeName { get; set; }

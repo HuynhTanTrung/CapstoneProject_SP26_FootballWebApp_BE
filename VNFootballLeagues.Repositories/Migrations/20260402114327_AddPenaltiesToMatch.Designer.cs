@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using VNFootballLeagues.Repositories.Models;
 
@@ -11,9 +12,11 @@ using VNFootballLeagues.Repositories.Models;
 namespace VNFootballLeagues.Repositories.Migrations
 {
     [DbContext(typeof(VNFootballLeaguesDBContext))]
-    partial class VNFootballLeaguesDBContextModelSnapshot : ModelSnapshot
+    [Migration("20260402114327_AddPenaltiesToMatch")]
+    partial class AddPenaltiesToMatch
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -83,6 +86,39 @@ namespace VNFootballLeagues.Repositories.Migrations
                     b.HasIndex(new[] { "UserId" }, "IX_ChatSession_UserId");
 
                     b.ToTable("ChatSession", (string)null);
+                });
+
+            modelBuilder.Entity("VNFootballLeagues.Repositories.Models.Club", b =>
+                {
+                    b.Property<int>("ClubId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ClubId"));
+
+                    b.Property<double?>("Budget")
+                        .HasColumnType("float");
+
+                    b.Property<string>("City")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("ClubName")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<int?>("FoundedYear")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Owner")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.HasKey("ClubId")
+                        .HasName("PK__Club__D35058E7F99CA873");
+
+                    b.ToTable("Club", (string)null);
                 });
 
             modelBuilder.Entity("VNFootballLeagues.Repositories.Models.Contract", b =>
@@ -1392,6 +1428,9 @@ namespace VNFootballLeagues.Repositories.Migrations
                     b.Property<int?>("ApiTeamId")
                         .HasColumnType("int");
 
+                    b.Property<int>("ClubId")
+                        .HasColumnType("int");
+
                     b.Property<int?>("Founded")
                         .HasColumnType("int");
 
@@ -1419,6 +1458,8 @@ namespace VNFootballLeagues.Repositories.Migrations
 
                     b.HasKey("TeamId")
                         .HasName("PK__Team__123AE799A9C8BB32");
+
+                    b.HasIndex("ClubId");
 
                     b.HasIndex("LeagueId");
 
@@ -1795,43 +1836,6 @@ namespace VNFootballLeagues.Repositories.Migrations
                     b.ToTable("UserSubscription", (string)null);
                 });
 
-            modelBuilder.Entity("VNFootballLeagues.Repositories.Models.VideoAnalysis", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Prompt")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Result")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<Guid?>("UserId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("VideoFileName")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("VideoUrl")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("VideoAnalyses");
-                });
-
             modelBuilder.Entity("VNFootballLeagues.Repositories.Models.ChatMessage", b =>
                 {
                     b.HasOne("VNFootballLeagues.Repositories.Models.ChatSession", "Session")
@@ -2137,6 +2141,12 @@ namespace VNFootballLeagues.Repositories.Migrations
 
             modelBuilder.Entity("VNFootballLeagues.Repositories.Models.Team", b =>
                 {
+                    b.HasOne("VNFootballLeagues.Repositories.Models.Club", "Club")
+                        .WithMany("Teams")
+                        .HasForeignKey("ClubId")
+                        .IsRequired()
+                        .HasConstraintName("FK_Team_Club");
+
                     b.HasOne("VNFootballLeagues.Repositories.Models.League", "League")
                         .WithMany("Teams")
                         .HasForeignKey("LeagueId")
@@ -2147,6 +2157,8 @@ namespace VNFootballLeagues.Repositories.Migrations
                         .WithMany("Teams")
                         .HasForeignKey("StadiumId")
                         .HasConstraintName("FK_Team_Stadium");
+
+                    b.Navigation("Club");
 
                     b.Navigation("League");
 
@@ -2220,18 +2232,14 @@ namespace VNFootballLeagues.Repositories.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("VNFootballLeagues.Repositories.Models.VideoAnalysis", b =>
-                {
-                    b.HasOne("VNFootballLeagues.Repositories.Models.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId");
-
-                    b.Navigation("User");
-                });
-
             modelBuilder.Entity("VNFootballLeagues.Repositories.Models.ChatSession", b =>
                 {
                     b.Navigation("Messages");
+                });
+
+            modelBuilder.Entity("VNFootballLeagues.Repositories.Models.Club", b =>
+                {
+                    b.Navigation("Teams");
                 });
 
             modelBuilder.Entity("VNFootballLeagues.Repositories.Models.League", b =>

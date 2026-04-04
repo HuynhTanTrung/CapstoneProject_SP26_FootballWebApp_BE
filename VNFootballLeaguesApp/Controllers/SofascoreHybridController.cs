@@ -111,12 +111,36 @@ namespace VNFootballLeagues.API.Controllers
                 x.Status,
                 x.HomeGoals,
                 x.AwayGoals,
+                x.HomePenalties,
+                x.AwayPenalties,
                 x.Round,
                 HomeTeam = x.HomeTeamId.HasValue && teamMap.TryGetValue(x.HomeTeamId.Value, out var ht)
                     ? new { ht.TeamId, ht.ApiTeamId, ht.TeamName, ht.LogoUrl } : null,
                 AwayTeam = x.AwayTeamId.HasValue && teamMap.TryGetValue(x.AwayTeamId.Value, out var at)
                     ? new { at.TeamId, at.ApiTeamId, at.TeamName, at.LogoUrl } : null,
             }));
+        }
+
+        [HttpGet("match-by-fixture")]
+        public async Task<IActionResult> GetMatchByFixtureId([FromQuery] int apiFixtureId)
+        {
+            if (apiFixtureId <= 0) return BadRequest(new { error = "Invalid apiFixtureId" });
+            var data = await _service.GetAllMatchesAsync();
+            var x = data.FirstOrDefault(m => m.ApiFixtureId == apiFixtureId);
+            if (x == null) return NotFound(new { error = "Match not found" });
+            var teams = await _service.GetTeamsByIdsAsync(
+                new[] { x.HomeTeamId, x.AwayTeamId }.Where(id => id.HasValue).Select(id => id!.Value).ToList());
+            var teamMap = teams.ToDictionary(t => t.TeamId);
+            return Ok(new
+            {
+                x.MatchId, x.ApiFixtureId, x.LeagueId, x.SeasonId,
+                x.MatchDate, x.Status, x.HomeGoals, x.AwayGoals,
+                x.HomePenalties, x.AwayPenalties, x.Round,
+                HomeTeam = x.HomeTeamId.HasValue && teamMap.TryGetValue(x.HomeTeamId.Value, out var ht)
+                    ? new { ht.TeamId, ht.ApiTeamId, ht.TeamName, ht.LogoUrl } : null,
+                AwayTeam = x.AwayTeamId.HasValue && teamMap.TryGetValue(x.AwayTeamId.Value, out var at)
+                    ? new { at.TeamId, at.ApiTeamId, at.TeamName, at.LogoUrl } : null,
+            });
         }
 
         [HttpGet("matches")]

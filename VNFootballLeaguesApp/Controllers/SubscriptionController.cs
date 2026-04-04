@@ -137,6 +137,42 @@ public class SubscriptionController : ControllerBase
         });
     }
 
+    [HttpPost("payments/{paymentCode}/cancel")]
+    [Authorize]
+    public async Task<IActionResult> CancelPayment(string paymentCode)
+    {
+        var userId = _userService.GetUserId(User);
+        if (userId is null) return Unauthorized();
+        var payment = await _subscriptionService.GetPaymentByCodeAsync(userId.Value, paymentCode);
+        if (payment is null) return NotFound();
+        if (payment.Status != "Pending") return BadRequest(new { message = "Only pending payments can be cancelled." });
+        payment.Status = "Cancelled";
+        payment.UpdatedAt = DateTime.UtcNow;
+        await _subscriptionService.UpdatePaymentAsync(payment);
+        return Ok(new { success = true, message = "Payment cancelled." });
+    }
+
+    /// <summary>Poll SePay API to check if payment has been received. Call every 5s from FE.</summary>
+    [HttpPost("payments/{paymentCode}/poll")]
+    [Authorize]
+    public async Task<IActionResult> PollPayment(string paymentCode)
+    {
+        var userId = _userService.GetUserId(User);
+        if (userId is null)
+            return Unauthorized(new ApiResponseDto<object> { Success = false, Message = "Current user could not be resolved." });
+
+        var payment = await _subscriptionService.PollPaymentStatusAsync(userId.Value, paymentCode);
+        if (payment is null)
+            return NotFound(new ApiResponseDto<object> { Success = false, Message = "Subscription payment was not found." });
+
+        return Ok(new ApiResponseDto<SubscriptionPaymentDto>
+        {
+            Success = true,
+            Message = payment.Status == "Paid" ? "Payment confirmed." : "Payment pending.",
+            Data = MapPayment(payment)
+        });
+    }
+
     [HttpGet("payments/{paymentCode}/events")]
     [Authorize]
     public async Task StreamPaymentEvents(string paymentCode)
