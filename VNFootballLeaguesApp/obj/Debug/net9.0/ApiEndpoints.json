@@ -155,6 +155,22 @@
   },
   {
     "ContainingType": "VNFootballLeaguesApp.Controllers.ChatController",
+    "Method": "AnalyzeVideo",
+    "RelativePath": "api/Chat/analyze-video",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "request",
+        "Type": "VNFootballLeaguesApp.Controllers.VideoAnalysisRequest",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "VNFootballLeaguesApp.Controllers.ChatController",
     "Method": "ChatPreview",
     "RelativePath": "api/Chat/preview",
     "HttpMethod": "POST",
@@ -198,6 +214,38 @@
         "Type": "System.Guid",
         "IsRequired": true
       },
+      {
+        "Name": "userId",
+        "Type": "System.Guid",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "VNFootballLeaguesApp.Controllers.ChatController",
+    "Method": "ChatSystem",
+    "RelativePath": "api/Chat/system",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "request",
+        "Type": "VNFootballLeaguesApp.Controllers.SystemChatRequest",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "VNFootballLeaguesApp.Controllers.ChatController",
+    "Method": "GetVideoHistory",
+    "RelativePath": "api/Chat/video-history",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
       {
         "Name": "userId",
         "Type": "System.Guid",
@@ -620,6 +668,22 @@
   },
   {
     "ContainingType": "VNFootballLeagues.API.Controllers.SofascoreHybridController",
+    "Method": "GetMatchByFixtureId",
+    "RelativePath": "api/SofascoreHybrid/match-by-fixture",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "apiFixtureId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "VNFootballLeagues.API.Controllers.SofascoreHybridController",
     "Method": "GetAllMatchEvents",
     "RelativePath": "api/SofascoreHybrid/match-events",
     "HttpMethod": "GET",
@@ -715,6 +779,16 @@
     "ContainingType": "VNFootballLeagues.API.Controllers.SofascoreHybridController",
     "Method": "GetAllPlayerSeasonStatistics",
     "RelativePath": "api/SofascoreHybrid/player-season-statistics",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "VNFootballLeagues.API.Controllers.SofascoreHybridController",
+    "Method": "GetAllPlayers",
+    "RelativePath": "api/SofascoreHybrid/players",
     "HttpMethod": "GET",
     "IsController": true,
     "Order": 0,
@@ -1280,6 +1354,22 @@
   },
   {
     "ContainingType": "VNFootballLeaguesApp.Controllers.SubscriptionController",
+    "Method": "CancelPayment",
+    "RelativePath": "api/subscriptions/payments/{paymentCode}/cancel",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "paymentCode",
+        "Type": "System.String",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "VNFootballLeaguesApp.Controllers.SubscriptionController",
     "Method": "StreamPaymentEvents",
     "RelativePath": "api/subscriptions/payments/{paymentCode}/events",
     "HttpMethod": "GET",
@@ -1299,6 +1389,22 @@
         "StatusCode": 200
       }
     ]
+  },
+  {
+    "ContainingType": "VNFootballLeaguesApp.Controllers.SubscriptionController",
+    "Method": "PollPayment",
+    "RelativePath": "api/subscriptions/payments/{paymentCode}/poll",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "paymentCode",
+        "Type": "System.String",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
   },
   {
     "ContainingType": "VNFootballLeaguesApp.Controllers.SubscriptionController",

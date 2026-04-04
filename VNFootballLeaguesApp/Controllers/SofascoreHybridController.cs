@@ -206,7 +206,40 @@ namespace VNFootballLeagues.API.Controllers
             }));
         }
 
-        /// <summary>teamId = khóa nội bộ. sofascoreTeamId = ApiTeamId SofaScore (dùng khi sync bằng ID đội trên SofaScore).</summary>
+        [HttpGet("players")]
+        public async Task<IActionResult> GetAllPlayers()
+        {
+            try
+            {
+                var players = await _service.GetAllPlayersAsync();
+
+                if (players == null || !players.Any())
+                {
+                    return NotFound(new
+                    {
+                        status = false,
+                        message = "No players found in the database"
+                    });
+                }
+
+                return Ok(new
+                {
+                    status = true,
+                    message = $"Retrieved {players.Count} players successfully",
+                    data = players
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting all players");
+                return StatusCode(500, new
+                {
+                    status = false,
+                    message = "Internal server error"
+                });
+            }
+        }
+
         [HttpGet("team-players")]
         public async Task<IActionResult> GetAllTeamPlayers([FromQuery] int? teamId, [FromQuery] int? sofascoreTeamId)
         {
@@ -233,7 +266,6 @@ namespace VNFootballLeagues.API.Controllers
             }));
         }
 
-        /// <summary>Tương ứng POST sync-all-team-players: ưu tiên đội từ BXH, sau đó từ trận đấu, cuối cùng mọi đội thuộc giải.</summary>
         [HttpGet("all-team-players")]
         public async Task<IActionResult> GetAllTeamPlayersByLeagueSeason(
             [FromQuery] int tournamentId,

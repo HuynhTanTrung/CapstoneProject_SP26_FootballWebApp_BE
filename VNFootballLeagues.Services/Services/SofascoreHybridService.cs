@@ -3026,6 +3026,20 @@ namespace VNFootballLeagues.Services.Services
                 .ToListAsync();
         }
 
+        public async Task<List<Player>> GetAllPlayersAsync()
+        {
+            try
+            {
+                return await _context.Players
+                    .ToListAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting all players");
+                return new List<Player>();
+            }
+        }
+
         public async Task<List<PlayerSeasonStatistic>> GetAllPlayerSeasonStatisticsAsync()
         {
             return await _context.PlayerSeasonStatistics.ToListAsync();
