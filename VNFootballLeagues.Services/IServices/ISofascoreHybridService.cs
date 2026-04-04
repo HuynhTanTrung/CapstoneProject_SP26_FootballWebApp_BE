@@ -49,7 +49,7 @@ namespace VNFootballLeagues.Services.IServices
         Task<object> SyncAllTeamContractsByLeagueSeasonAsync(int apiTournamentId, int apiSeasonId);
         Task<object> SyncAllTeamTransfersByLeagueSeasonAsync(int apiTournamentId, int apiSeasonId);
         Task<object> GetContractsByLeagueSeasonAsync(int apiTournamentId, int apiSeasonId);
-        Task<object> GetTransfersByLeagueSeasonAsync(int apiTournamentId, int apiSeasonId);
+        Task<object> GetAllTransfersAsync();
         Task<List<Match>> GetTeamLastMatchesFromDbAsync(int apiTeamId, int count);
         Task<List<Team>> GetTeamsByIdsAsync(List<int> teamIds);
     }

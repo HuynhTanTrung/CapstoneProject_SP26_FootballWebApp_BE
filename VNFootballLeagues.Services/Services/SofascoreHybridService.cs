@@ -1042,7 +1042,6 @@ namespace VNFootballLeagues.Services.Services
                         _context.Teams.Add(new Team
                         {
                             TeamName = teamData.name,
-                            ClubId = 1,
                             ApiTeamId = teamData.id,
                             LogoUrl = logoUrl,
                             ShortName = teamData.shortName,
@@ -1679,7 +1678,6 @@ namespace VNFootballLeagues.Services.Services
                         t.ShortName,
                         t.Founded,
                         t.National,
-                        t.ClubId
                     })
                     .ToListAsync();
 
@@ -4574,59 +4572,20 @@ namespace VNFootballLeagues.Services.Services
             }
         }
 
-        public async Task<object> GetTransfersByLeagueSeasonAsync(int apiTournamentId, int apiSeasonId)
+        public async Task<object> GetAllTransfersAsync()
         {
             try
             {
-                var league = await _context.Leagues
-                    .FirstOrDefaultAsync(l => l.ApiLeagueId == apiTournamentId);
-
-                if (league == null)
-                {
-                    return new
-                    {
-                        status = false,
-                        message = $"League with API ID {apiTournamentId} not found.",
-                        data = (object)null
-                    };
-                }
-
-                var season = await _context.Seasons
-                    .FirstOrDefaultAsync(s => s.ApiSeasonId == apiSeasonId && s.LeagueId == league.LeagueId);
-
-                if (season == null)
-                {
-                    return new
-                    {
-                        status = false,
-                        message = $"Season with API ID {apiSeasonId} not found for league {league.LeagueName}.",
-                        data = (object)null
-                    };
-                }
-
-                var teamIds = await _context.Standings
-                    .Where(s => s.LeagueId == league.LeagueId && s.SeasonId == season.SeasonId && s.TeamId != null)
-                    .Select(s => s.TeamId.Value)
-                    .Distinct()
+                var teamIds = await _context.Teams
+                    .Select(t => t.TeamId)
                     .ToListAsync();
 
                 if (!teamIds.Any())
                 {
-                    teamIds = await _context.Matches
-                        .Where(m => m.LeagueId == league.LeagueId && m.SeasonId == season.SeasonId)
-                        .SelectMany(m => new int?[] { m.HomeTeamId, m.AwayTeamId })
-                        .Where(id => id.HasValue)
-                        .Select(id => id.Value)
-                        .Distinct()
-                        .ToListAsync();
-                }
-
-                if (!teamIds.Any())
-                {
                     return new
                     {
                         status = false,
-                        message = $"No teams found for {league.LeagueName} season {season.Year}",
+                        message = "No teams found in the database.",
                         data = (object)null
                     };
                 }
@@ -4641,7 +4600,7 @@ namespace VNFootballLeagues.Services.Services
                     return new
                     {
                         status = false,
-                        message = $"No players found for teams in {league.LeagueName} season {season.Year}",
+                        message = "No players found in the database.",
                         data = (object)null
                     };
                 }
@@ -4672,9 +4631,7 @@ namespace VNFootballLeagues.Services.Services
                     .OrderByDescending(t => t.TransferDate)
                     .ToListAsync();
 
-                // Get team names from the league for filtering
                 var teamNames = await _context.Teams
-                    .Where(t => teamIds.Contains(t.TeamId))
                     .Select(t => t.TeamName)
                     .ToListAsync();
 
@@ -4753,15 +4710,9 @@ namespace VNFootballLeagues.Services.Services
                 return new
                 {
                     status = true,
-                    message = $"Retrieved {totalTransfers} transfers for {league.LeagueName} season {season.Year}",
+                    message = $"Retrieved {totalTransfers} total transfers from the database",
                     data = new
                     {
-                        leagueId = league.LeagueId,
-                        leagueName = league.LeagueName,
-                        seasonId = season.SeasonId,
-                        seasonYear = season.Year,
-                        tournamentId = apiTournamentId,
-                        seasonIdParam = apiSeasonId,
                         summary = new
                         {
                             totalTransfers,
@@ -4782,8 +4733,7 @@ namespace VNFootballLeagues.Services.Services
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error getting transfers for tournament {TournamentId}, season {SeasonId}",
-                    apiTournamentId, apiSeasonId);
+                _logger.LogError(ex, "Error getting all transfers");
                 return new
                 {
                     status = false,

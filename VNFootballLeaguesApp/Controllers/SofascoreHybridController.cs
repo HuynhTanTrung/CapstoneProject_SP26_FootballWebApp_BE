@@ -43,10 +43,6 @@ namespace VNFootballLeagues.API.Controllers
             }));
         }
 
-        /// <summary>
-        /// leagueId = khóa nội bộ (League.LeagueId). tournamentId = Api SofaScore (unique tournament), dùng khi không nhớ leagueId.
-        /// Nếu DB chưa có mùa, hệ thống gọi API SofaScore (cần tournamentId hoặc đã sync giải để lọc theo league).
-        /// </summary>
         [HttpGet("seasons")]
         public async Task<IActionResult> GetAllSeasons([FromQuery] int? leagueId, [FromQuery] int? tournamentId)
         {
@@ -68,7 +64,6 @@ namespace VNFootballLeagues.API.Controllers
             {
                 x.TeamId,
                 x.TeamName,
-                x.ClubId,
                 x.ApiTeamId,
                 x.LogoUrl,
                 x.ShortName,
@@ -635,18 +630,11 @@ namespace VNFootballLeagues.API.Controllers
         }
 
         [HttpGet("transfers")]
-        public async Task<IActionResult> GetTransfersByLeagueSeason(
-            [FromQuery] int tournamentId,
-            [FromQuery] int seasonId)
+        public async Task<IActionResult> GetAllTransfers()
         {
             try
             {
-                if (tournamentId <= 0 || seasonId <= 0)
-                {
-                    return BadRequest(new { status = false, message = "Invalid tournamentId or seasonId" });
-                }
-
-                var result = await _service.GetTransfersByLeagueSeasonAsync(tournamentId, seasonId);
+                var result = await _service.GetAllTransfersAsync();
 
                 var resultType = result.GetType();
                 var statusProp = resultType.GetProperty("status");
@@ -663,7 +651,7 @@ namespace VNFootballLeagues.API.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error getting transfers by league and season");
+                _logger.LogError(ex, "Error getting all transfers");
                 return StatusCode(500, new { status = false, message = "Internal server error" });
             }
         }
