@@ -43,6 +43,10 @@ namespace VNFootballLeagues.API.Controllers
             }));
         }
 
+        /// <summary>
+        /// leagueId = khóa nội bộ (League.LeagueId). tournamentId = Api SofaScore (unique tournament), dùng khi không nhớ leagueId.
+        /// Nếu DB chưa có mùa, hệ thống gọi API SofaScore (cần tournamentId hoặc đã sync giải để lọc theo league).
+        /// </summary>
         [HttpGet("seasons")]
         public async Task<IActionResult> GetAllSeasons([FromQuery] int? leagueId, [FromQuery] int? tournamentId)
         {
@@ -64,6 +68,7 @@ namespace VNFootballLeagues.API.Controllers
             {
                 x.TeamId,
                 x.TeamName,
+                x.ClubId,
                 x.ApiTeamId,
                 x.LogoUrl,
                 x.ShortName,

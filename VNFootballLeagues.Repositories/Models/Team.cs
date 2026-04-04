@@ -11,6 +11,8 @@ public partial class Team
 
     public string TeamName { get; set; }
 
+    public int ClubId { get; set; }
+
     public int? ApiTeamId { get; set; }
 
     public string LogoUrl { get; set; }
@@ -24,6 +26,8 @@ public partial class Team
     public int? StadiumId { get; set; }
 
     public int LeagueId { get; set; }
+
+    public virtual Club Club { get; set; }
 
     public virtual ICollection<Contract> Contracts { get; set; } = new List<Contract>();
 
