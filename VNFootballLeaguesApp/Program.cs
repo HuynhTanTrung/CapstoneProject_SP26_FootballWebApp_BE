@@ -1,3 +1,4 @@
+using Hangfire;
 using Microsoft.AspNetCore.HttpsPolicy;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
@@ -6,6 +7,7 @@ using VNFootballLeagues.Services.IServices;
 using VNFootballLeagues.Services.Services;
 using VNFootballLeaguesApp.Extensions;
 using VNFootballLeaguesApp.Hubs;
+using VNFootballLeaguesApp.Jobs;
 using VNFootballLeaguesApp.Middleware;
 using VNFootballLeaguesApp.Services;
 using VNFootballLeaguesApp.Settings;
@@ -106,6 +108,16 @@ builder.Services.AddSignalR();
 builder.Services.AddHostedService<LiveMatchPollingService>();
 builder.Services.AddScoped<ISofascoreHybridService, SofascoreHybridService>();
 
+// Register Hangfire
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")!;
+builder.Services.AddHangfire(config => config
+    .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
+    .UseSimpleAssemblyNameTypeSerializer()
+    .UseRecommendedSerializerSettings()
+    .UseSqlServerStorage(connectionString));
+builder.Services.AddHangfireServer();
+builder.Services.AddScoped<WeeklySyncJob>();
+
 
 var app = builder.Build();
 
@@ -145,6 +157,40 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+
+// Hangfire dashboard (chỉ dev) + recurring jobs
+app.UseHangfireDashboard("/hangfire");
+
+// Cron: thứ 2 lúc 3:00 sáng (UTC+7 = 20:00 UTC Chủ nhật)
+// Matches + standings
+RecurringJob.AddOrUpdate<WeeklySyncJob>(
+    "weekly-sync-matches-standings",
+    job => job.SyncMatchesAndStandingsAsync(),
+    "0 20 * * 0"); // Chủ nhật 20:00 UTC = Thứ 2 03:00 UTC+7
+
+// Lineups + match statistics (chạy sau 30 phút)
+RecurringJob.AddOrUpdate<WeeklySyncJob>(
+    "weekly-sync-lineups-matchstats",
+    job => job.SyncLineupsAndMatchStatsAsync(),
+    "30 20 * * 0");
+
+// Player match stats cho các trận FT trong 7 ngày qua (chạy sau 1 tiếng)
+RecurringJob.AddOrUpdate<WeeklySyncJob>(
+    "weekly-sync-player-match-stats",
+    job => job.SyncPlayerMatchStatsForRecentMatchesAsync(),
+    "0 21 * * 0");
+
+// Player season stats (chạy sau 2 tiếng)
+RecurringJob.AddOrUpdate<WeeklySyncJob>(
+    "weekly-sync-player-season-stats",
+    job => job.SyncPlayerSeasonStatsAsync(),
+    "0 22 * * 0");
+
+// Cup tree
+RecurringJob.AddOrUpdate<WeeklySyncJob>(
+    "weekly-sync-cuptree",
+    job => job.SyncCupTreeAsync(),
+    "0 20 * * 0");
 
 // Map SignalR hub
 app.MapHub<LiveMatchHub>("/hubs/livematch");
