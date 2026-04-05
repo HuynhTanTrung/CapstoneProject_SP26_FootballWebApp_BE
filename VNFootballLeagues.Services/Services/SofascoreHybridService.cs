@@ -766,7 +766,7 @@ namespace VNFootballLeagues.Services.Services
         private async Task<int> UpsertMatchFromEvent(JsonElement ev, League league, Season season)
         {
             var apiId = ev.GetProperty("id").GetInt32();
-            var matchDate = DateTimeOffset.FromUnixTimeSeconds(ev.GetProperty("startTimestamp").GetInt64()).DateTime;
+            var matchDate = DateTimeOffset.FromUnixTimeSeconds(ev.GetProperty("startTimestamp").GetInt64()).UtcDateTime;
 
             int? homeTeamId = null, awayTeamId = null;
             if (ev.TryGetProperty("homeTeam", out var ht))
