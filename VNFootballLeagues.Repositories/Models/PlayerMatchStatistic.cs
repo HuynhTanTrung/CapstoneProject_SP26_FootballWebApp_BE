@@ -73,6 +73,7 @@ public partial class PlayerMatchStatistic
     public int? PenaltiesCommitted { get; set; }
 
     public decimal? Rating { get; set; }
+    public decimal? SofascoreRating { get; set; }
     public decimal? ExpectedGoals { get; set; }
     public decimal? ExpectedAssists { get; set; }
 
@@ -92,6 +93,15 @@ public partial class PlayerMatchStatistic
     public int? HighClaims { get; set; }
     public int? GoalsConceded { get; set; }
     public int? PenaltiesSaved { get; set; }
+
+    // Extra time & penalty shootout fields (for Impact Bonus and Section XIV)
+    public bool? IsExtraTime { get; set; }
+    public int? GoalsInExtraTime { get; set; }
+    public int? AssistsInExtraTime { get; set; }
+    public int? PenaltyShootoutScored { get; set; }
+    public int? PenaltyShootoutMissed { get; set; }
+    public int? PenaltyShootoutSaved { get; set; }
+    public int? PenaltyShootoutConceded { get; set; }
 
     public virtual Match Match { get; set; }
     public virtual Player Player { get; set; }

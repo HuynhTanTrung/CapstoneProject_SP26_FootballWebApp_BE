@@ -1421,7 +1421,8 @@ namespace VNFootballLeagues.Services.Services
                                     Assists = assists,
                                     YellowCards = yellowCards,
                                     RedCards = redCards,
-                                    Rating = rating,
+                                    Rating = null, // calculated separately
+                                    SofascoreRating = rating,
                                     SubstitutionsIn = subsIn,
                                     SubstitutionsOut = subsOut,
                                     ShotsTotal = shotsTotal,
@@ -1457,7 +1458,8 @@ namespace VNFootballLeagues.Services.Services
                                 existing.Assists = assists;
                                 existing.YellowCards = yellowCards;
                                 existing.RedCards = redCards;
-                                existing.Rating = rating;
+                                existing.Rating = null; // recalculated separately
+                                existing.SofascoreRating = rating;
                                 existing.SubstitutionsIn = subsIn;
                                 existing.SubstitutionsOut = subsOut;
                                 existing.ShotsTotal = shotsTotal;
@@ -2480,6 +2482,73 @@ namespace VNFootballLeagues.Services.Services
                 }
                 catch { /* shotmap optional, continue without it */ }
 
+                // Parse incidents for extra time and penalty shootout data
+                bool isExtraTime = false;
+                var extraTimeGoals = new Dictionary<int, int>();   // apiPlayerId -> goals in ET
+                var extraTimeAssists = new Dictionary<int, int>(); // apiPlayerId -> assists in ET
+                var shootoutScored = new Dictionary<int, int>();
+                var shootoutMissed = new Dictionary<int, int>();
+                var shootoutSaved = new Dictionary<int, int>();    // GK apiPlayerId -> saves
+                var shootoutConceded = new Dictionary<int, int>(); // GK apiPlayerId -> conceded
+                try
+                {
+                    var incidentsJson = await FetchJson($"https://www.sofascore.com/api/v1/event/{apiFixtureId}/incidents");
+                    using var incDoc = JsonDocument.Parse(incidentsJson);
+                    if (incDoc.RootElement.TryGetProperty("incidents", out var incidents))
+                    {
+                        bool inExtraTime = false;
+                        foreach (var inc in incidents.EnumerateArray())
+                        {
+                            string? incType = inc.TryGetProperty("incidentType", out var t) ? t.GetString() : null;
+                            string? text    = inc.TryGetProperty("text", out var tx) ? tx.GetString() : null;
+
+                            // Detect extra time periods
+                            if (incType == "period" && (text == "ET1" || text == "ET2"))
+                            {
+                                isExtraTime = true;
+                                inExtraTime = true;
+                            }
+                            else if (incType == "period" && (text == "PEN" || text == "FT"))
+                            {
+                                inExtraTime = false;
+                            }
+
+                            // Goals in extra time
+                            if (incType == "goal" && inExtraTime)
+                            {
+                                if (inc.TryGetProperty("player", out var scorer) && scorer.TryGetProperty("id", out var sid))
+                                    extraTimeGoals[sid.GetInt32()] = extraTimeGoals.GetValueOrDefault(sid.GetInt32()) + 1;
+                                if (inc.TryGetProperty("assist1", out var assist) && assist.TryGetProperty("id", out var aid))
+                                    extraTimeAssists[aid.GetInt32()] = extraTimeAssists.GetValueOrDefault(aid.GetInt32()) + 1;
+                            }
+
+                            // Penalty shootout incidents
+                            if (incType == "penaltyShootout")
+                            {
+                                bool scored = inc.TryGetProperty("incidentClass", out var cls) && cls.GetString() == "scored";
+                                bool missed = inc.TryGetProperty("incidentClass", out var cls2) && cls2.GetString() == "missed";
+                                bool isHome = inc.TryGetProperty("isHome", out var ih) && ih.GetBoolean();
+
+                                if (inc.TryGetProperty("player", out var shooter) && shooter.TryGetProperty("id", out var shid))
+                                {
+                                    int shooterId = shid.GetInt32();
+                                    if (scored) shootoutScored[shooterId] = shootoutScored.GetValueOrDefault(shooterId) + 1;
+                                    if (missed) shootoutMissed[shooterId] = shootoutMissed.GetValueOrDefault(shooterId) + 1;
+                                }
+
+                                // GK on the opposing side
+                                // We'll assign saves/conceded to GK when processing player stats below
+                                if (scored)
+                                {
+                                    // Opposing GK conceded
+                                    // Mark by team side — resolved per player below
+                                }
+                            }
+                        }
+                    }
+                }
+                catch { /* incidents optional */ }
+
                 foreach (var player in players)
                 {
                     try
@@ -2496,6 +2565,21 @@ namespace VNFootballLeagues.Services.Services
                             int apiId = player.ApiPlayerId.Value;
                             if (penaltyScored.TryGetValue(apiId, out int ps)) playerStats.PenaltiesScored = ps;
                             if (penaltyMissed.TryGetValue(apiId, out int pm)) playerStats.PenaltiesMissed = pm;
+
+                            // Apply extra time and penalty shootout data
+                            playerStats.IsExtraTime = isExtraTime;
+                            if (extraTimeGoals.TryGetValue(apiId, out int etg)) playerStats.GoalsInExtraTime = etg;
+                            if (extraTimeAssists.TryGetValue(apiId, out int eta)) playerStats.AssistsInExtraTime = eta;
+                            if (shootoutScored.TryGetValue(apiId, out int ss)) playerStats.PenaltyShootoutScored = ss;
+                            if (shootoutMissed.TryGetValue(apiId, out int sm)) playerStats.PenaltyShootoutMissed = sm;
+                            // GK shootout: saved = total missed by opponents, conceded = total scored by opponents
+                            if (player.Position != null && PlayerRatingCalculator.NormalizePosition(player.Position) == "G")
+                            {
+                                int totalOpponentScored = shootoutScored.Where(kv => kv.Key != apiId).Sum(kv => kv.Value);
+                                int totalOpponentMissed = shootoutMissed.Where(kv => kv.Key != apiId).Sum(kv => kv.Value);
+                                if (totalOpponentMissed > 0) playerStats.PenaltyShootoutSaved = totalOpponentMissed;
+                                if (totalOpponentScored > 0) playerStats.PenaltyShootoutConceded = totalOpponentScored;
+                            }
                         }
 
                         if (playerStats != null)
@@ -2503,6 +2587,11 @@ namespace VNFootballLeagues.Services.Services
                             var existingStats = await _context.PlayerMatchStatistics
                                 .FirstOrDefaultAsync(ps => ps.MatchId == match.MatchId &&
                                                            ps.PlayerId == player.PlayerId);
+
+                            // Calculate system rating
+                            var position = player.Position;
+                            var matchResult = PlayerRatingCalculator.GetMatchResult(playerStats, match);
+                            playerStats.Rating = PlayerRatingCalculator.Calculate(playerStats, position, matchResult);
 
                             if (existingStats == null)
                             {
@@ -2512,6 +2601,8 @@ namespace VNFootballLeagues.Services.Services
                             else
                             {
                                 UpdateExistingPlayerMatchStatistics(existingStats, playerStats);
+                                // Recalculate rating on update too
+                                existingStats.Rating = PlayerRatingCalculator.Calculate(existingStats, position, matchResult);
                                 _context.PlayerMatchStatistics.Update(existingStats);
                                 successCount++;
                             }
@@ -3360,7 +3451,7 @@ namespace VNFootballLeagues.Services.Services
                 playerStats.Assists = assists.GetInt32();
 
             if (statistics.TryGetProperty("rating", out var rating))
-                playerStats.Rating = (decimal)rating.GetDouble();
+                playerStats.SofascoreRating = (decimal)rating.GetDouble();
 
             if (statistics.TryGetProperty("totalShots", out var totalShots))
                 playerStats.Shots = totalShots.GetInt32();
@@ -3542,7 +3633,7 @@ namespace VNFootballLeagues.Services.Services
             if (newStats.Tackles.HasValue) existing.Tackles = newStats.Tackles;
             if (newStats.YellowCards.HasValue) existing.YellowCards = newStats.YellowCards;
             if (newStats.RedCards.HasValue) existing.RedCards = newStats.RedCards;
-            if (newStats.Rating.HasValue) existing.Rating = newStats.Rating;
+            if (newStats.Rating.HasValue) existing.SofascoreRating = newStats.Rating;
             if (newStats.Offsides.HasValue) existing.Offsides = newStats.Offsides;
             if (newStats.PassesAccuracy.HasValue) existing.PassesAccuracy = newStats.PassesAccuracy;
             if (newStats.PassesKey.HasValue) existing.PassesKey = newStats.PassesKey;
@@ -3584,6 +3675,14 @@ namespace VNFootballLeagues.Services.Services
             if (newStats.HighClaims.HasValue) existing.HighClaims = newStats.HighClaims;
             if (newStats.GoalsConceded.HasValue) existing.GoalsConceded = newStats.GoalsConceded;
             if (newStats.PenaltiesSaved.HasValue) existing.PenaltiesSaved = newStats.PenaltiesSaved;
+            // Extra time & penalty shootout
+            if (newStats.IsExtraTime.HasValue) existing.IsExtraTime = newStats.IsExtraTime;
+            if (newStats.GoalsInExtraTime.HasValue) existing.GoalsInExtraTime = newStats.GoalsInExtraTime;
+            if (newStats.AssistsInExtraTime.HasValue) existing.AssistsInExtraTime = newStats.AssistsInExtraTime;
+            if (newStats.PenaltyShootoutScored.HasValue) existing.PenaltyShootoutScored = newStats.PenaltyShootoutScored;
+            if (newStats.PenaltyShootoutMissed.HasValue) existing.PenaltyShootoutMissed = newStats.PenaltyShootoutMissed;
+            if (newStats.PenaltyShootoutSaved.HasValue) existing.PenaltyShootoutSaved = newStats.PenaltyShootoutSaved;
+            if (newStats.PenaltyShootoutConceded.HasValue) existing.PenaltyShootoutConceded = newStats.PenaltyShootoutConceded;
         }
 
         public async Task<object> SyncMatchLineupsAsync(int apiFixtureId)

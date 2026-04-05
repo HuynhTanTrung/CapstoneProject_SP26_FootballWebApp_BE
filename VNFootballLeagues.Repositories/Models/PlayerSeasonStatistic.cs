@@ -32,6 +32,7 @@ public partial class PlayerSeasonStatistic
     public int? RedCards { get; set; }
 
     public decimal? Rating { get; set; }
+    public decimal? SofascoreRating { get; set; }
 
     public int? SubstitutionsIn { get; set; }
 
