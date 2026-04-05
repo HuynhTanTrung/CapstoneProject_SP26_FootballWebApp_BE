@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
 using System.Collections.Concurrent;
 using System.Text.Json;
 using VNFootballLeagues.Services.IServices;
@@ -23,6 +24,9 @@ public class LiveMatchPollingService : BackgroundService
     private static readonly ConcurrentDictionary<int, MatchInfo> _matchInfoCache = new();
     private static readonly ConcurrentDictionary<int, Dictionary<int, string>> _playerNamesCache = new();
     private static readonly ConcurrentBag<int> _trackedMatches = new();
+    // Matches that detected FT — value is the UTC time when FT was first detected
+    private static readonly ConcurrentDictionary<int, DateTime> _pendingFinish = new();
+    private static readonly TimeSpan FinishDelay = TimeSpan.FromMinutes(2);
 
     private class MatchInfo
     {
@@ -85,16 +89,17 @@ public class LiveMatchPollingService : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        _logger.LogInformation("Live Match Polling Service started (Manual control mode)");
-        _logger.LogInformation("Use /api/sofascore/tracking endpoints to add/remove matches");
+        _logger.LogInformation("Live Match Polling Service started");
 
-        // Wait a bit before starting to ensure app is fully initialized
         await Task.Delay(5000, stoppingToken);
 
         while (!stoppingToken.IsCancellationRequested)
         {
             try
             {
+                // Auto-scan DB for matches that should be live right now
+                await AutoScanLiveMatchesAsync(stoppingToken);
+
                 var trackedMatches = _trackedMatches.ToList();
 
                 if (trackedMatches.Count == 0)
@@ -112,11 +117,63 @@ public class LiveMatchPollingService : BackgroundService
                 _logger.LogError(ex, "Error in polling cycle");
             }
 
-            // Wait 60s before next poll cycle
             await Task.Delay(TimeSpan.FromSeconds(60), stoppingToken);
         }
 
         _logger.LogInformation("Live Match Polling Service stopped");
+    }
+
+    /// <summary>
+    /// Auto-scan DB for matches that are currently live (within 2 hours of kickoff)
+    /// and add them to tracking automatically
+    /// </summary>
+    private async Task AutoScanLiveMatchesAsync(CancellationToken stoppingToken)
+    {
+        try
+        {
+            using var scope = _serviceProvider.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<VNFootballLeagues.Repositories.Models.VNFootballLeaguesDBContext>();
+
+            var now = DateTime.UtcNow;
+            var windowStart = now.AddMinutes(-120); // match started up to 2 hours ago
+            var windowEnd = now.AddMinutes(5);      // or starts in next 5 minutes
+
+            var liveMatches = await context.Matches
+                .Include(m => m.HomeTeam)
+                .Include(m => m.AwayTeam)
+                .Where(m => m.ApiFixtureId != null
+                    && m.MatchDate >= windowStart
+                    && m.MatchDate <= windowEnd
+                    && m.Status != "FT" && m.Status != "finished")
+                .ToListAsync(stoppingToken);
+
+            foreach (var match in liveMatches)
+            {
+                if (match.ApiFixtureId.HasValue && !_trackedMatches.Contains(match.ApiFixtureId.Value))
+                {
+                    AddMatchWithInfo(
+                        match.ApiFixtureId.Value,
+                        match.HomeTeam?.TeamName ?? "Home",
+                        match.AwayTeam?.TeamName ?? "Away",
+                        "live"
+                    );
+                    _logger.LogInformation("Auto-added match {EventId} ({Home} vs {Away}) to tracking",
+                        match.ApiFixtureId.Value, match.HomeTeam?.TeamName, match.AwayTeam?.TeamName);
+                }
+
+                // Update status to inprogress in DB so FE shows it as live
+                if (match.Status != "inprogress" && match.Status != "1H" && match.Status != "2H" && match.Status != "HT")
+                {
+                    match.Status = "inprogress";
+                }
+            }
+
+            await context.SaveChangesAsync(stoppingToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Error during auto-scan for live matches");
+        }
     }
 
     /// <summary>
@@ -151,8 +208,12 @@ public class LiveMatchPollingService : BackgroundService
                 await CachePlayerNamesAsync(scraperService, eventId);
             }
 
-            // Fetch incidents
-            string incidentsJson = await scraperService.GetMatchIncidentsAsync(eventId);
+            // Fetch incidents and match details concurrently
+            var incidentsTask = scraperService.GetMatchIncidentsAsync(eventId);
+            var matchDetailsTask = scraperService.GetMatchDetailsAsync(eventId);
+            await Task.WhenAll(incidentsTask, matchDetailsTask);
+            string incidentsJson = incidentsTask.Result;
+            string matchDetailsJson = matchDetailsTask.Result;
 
             // Check if data has changed
             if (_matchCache.TryGetValue(eventId, out var cachedData) && cachedData == incidentsJson)
@@ -224,7 +285,7 @@ public class LiveMatchPollingService : BackgroundService
 
                     update.RecentIncidents.Add(incidentUpdate);
                     
-                    // Update current minute from latest incident
+                    // Update current minute from latest incident (fallback)
                     if (incidentUpdate.Time.HasValue && 
                         (!update.CurrentMinute.HasValue || incidentUpdate.Time.Value > update.CurrentMinute.Value))
                     {
@@ -232,12 +293,29 @@ public class LiveMatchPollingService : BackgroundService
                     }
                 }
 
-                // Auto-remove match if finished
+                // Khi detect FT: đánh dấu thời điểm kết thúc, chưa remove ngay
                 if (matchFinished)
                 {
-                    _logger.LogInformation("Match {EventId} finished, removing from tracking", eventId);
-                    RemoveMatch(eventId);
-                    update.Status = "finished";
+                    if (!_pendingFinish.ContainsKey(eventId))
+                    {
+                        _pendingFinish[eventId] = DateTime.UtcNow;
+                        _logger.LogInformation("Match {EventId} detected FT, will finalize after {Delay}s", eventId, FinishDelay.TotalSeconds);
+                        // Xóa cache để lần poll tiếp theo vẫn fetch lại data mới nhất
+                        _matchCache.TryRemove(eventId, out _);
+                    }
+                    else if (DateTime.UtcNow - _pendingFinish[eventId] >= FinishDelay)
+                    {
+                        // Đã đủ delay — lần này là poll cuối, sau đó remove
+                        _logger.LogInformation("Match {EventId} finalizing after delay, removing from tracking", eventId);
+                        _pendingFinish.TryRemove(eventId, out _);
+                        RemoveMatch(eventId);
+                        update.Status = "finished";
+                    }
+                    else
+                    {
+                        // Vẫn trong thời gian delay — tiếp tục poll, xóa cache để lấy data mới
+                        _matchCache.TryRemove(eventId, out _);
+                    }
                 }
             }
 
@@ -246,19 +324,88 @@ public class LiveMatchPollingService : BackgroundService
             update.HomeScore = goals.Count(g => g.Team == "home");
             update.AwayScore = goals.Count(g => g.Team == "away");
 
+            // Get accurate score and current minute from Sofascore match details
+            try
+            {
+                var matchDetailsData = JsonSerializer.Deserialize<JsonElement>(matchDetailsJson);
+                if (matchDetailsData.TryGetProperty("event", out var eventData))
+                {
+                    // Get score from Sofascore directly (more reliable than counting goals)
+                    if (eventData.TryGetProperty("homeScore", out var homeScoreObj) &&
+                        homeScoreObj.TryGetProperty("current", out var homeScoreCurrent))
+                        update.HomeScore = homeScoreCurrent.GetInt32();
+                    if (eventData.TryGetProperty("awayScore", out var awayScoreObj) &&
+                        awayScoreObj.TryGetProperty("current", out var awayScoreCurrent))
+                        update.AwayScore = awayScoreCurrent.GetInt32();
+
+                    // Get current minute directly from Sofascore time fields
+                    if (eventData.TryGetProperty("time", out var timeObj))
+                    {
+                        // time.played = total seconds played (most accurate)
+                        if (timeObj.TryGetProperty("played", out var played))
+                        {
+                            update.CurrentMinute = (int)Math.Ceiling(played.GetInt32() / 60.0);
+                        }
+                        // Fallback: currentPeriodStartTimestamp + period offset
+                        else if (timeObj.TryGetProperty("currentPeriodStartTimestamp", out var periodStart))
+                        {
+                            var periodStartTime = DateTimeOffset.FromUnixTimeSeconds(periodStart.GetInt64()).UtcDateTime;
+                            var elapsed = (int)Math.Ceiling((DateTime.UtcNow - periodStartTime).TotalMinutes);
+
+                            // Check period from Sofascore statusCode: 6=1H, 7=2H, 31=ET1, 32=ET2
+                            int periodOffset = 0;
+                            if (eventData.TryGetProperty("statusCode", out var statusCode))
+                            {
+                                var code = statusCode.GetInt32();
+                                if (code == 7) periodOffset = 45;
+                                else if (code == 31) periodOffset = 90;
+                                else if (code == 32) periodOffset = 105;
+                            }
+                            update.CurrentMinute = periodOffset + elapsed;
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Could not parse match details for event {EventId}, using incident-based minute", eventId);
+            }
+
             // Get cached match info if available
             if (_matchInfoCache.TryGetValue(eventId, out var matchInfo))
             {
                 update.HomeTeam = matchInfo.HomeTeam;
                 update.AwayTeam = matchInfo.AwayTeam;
-                update.Status = matchInfo.Status;
+                // Chỉ dùng cached status nếu chưa set finished
+                if (update.Status != "finished")
+                    update.Status = matchInfo.Status;
             }
 
             // Broadcast to all clients
             await _hubContext.Clients.All.SendAsync("ReceiveMatchUpdate", update, stoppingToken);
 
-            _logger.LogInformation("Broadcasted update for match {EventId} - Score: {Home}:{Away}", 
-                eventId, update.HomeScore, update.AwayScore);
+            _logger.LogInformation("Broadcasted update for match {EventId} - Score: {Home}:{Away} - Status: {Status}", 
+                eventId, update.HomeScore, update.AwayScore, update.Status);
+
+            // Persist score to DB on every poll (live score) and mark FT when finished
+            try
+            {
+                using var scope = _serviceProvider.CreateScope();
+                var context = scope.ServiceProvider.GetRequiredService<VNFootballLeagues.Repositories.Models.VNFootballLeaguesDBContext>();
+                var dbMatch = await context.Matches.FirstOrDefaultAsync(m => m.ApiFixtureId == eventId, stoppingToken);
+                if (dbMatch != null)
+                {
+                    dbMatch.HomeGoals = update.HomeScore;
+                    dbMatch.AwayGoals = update.AwayScore;
+                    if (update.Status == "finished")
+                        dbMatch.Status = "FT";
+                    await context.SaveChangesAsync(stoppingToken);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Could not persist score for match {EventId}", eventId);
+            }
         }
         catch (Exception ex)
         {

@@ -279,7 +279,6 @@ namespace VNFootballLeaguesApp.Controllers
             {
                 x.TeamId,
                 x.TeamName,
-                x.ClubId,
                 x.ApiTeamId,
                 x.LogoUrl,
                 x.ShortName,
@@ -299,7 +298,6 @@ namespace VNFootballLeaguesApp.Controllers
             {
                 x.TeamId,
                 x.TeamName,
-                x.ClubId,
                 x.ApiTeamId,
                 x.LogoUrl,
                 x.ShortName,
@@ -422,6 +420,69 @@ namespace VNFootballLeaguesApp.Controllers
                 x.RunsOutSuccessful,
                 x.HighClaims
             }));
+        }
+
+        [HttpGet("players/compare-stats")]
+        public async Task<IActionResult> ComparePlayers([FromQuery] int player1Id, [FromQuery] int player2Id)
+        {
+            var p1 = await _service.GetPlayerByIdAsync(player1Id);
+            var p2 = await _service.GetPlayerByIdAsync(player2Id);
+            if (p1 == null || p2 == null) return NotFound(new { message = "One or both players not found" });
+
+            var stats1 = await _service.GetPlayerStatsByPlayerIdAsync(player1Id);
+            var stats2 = await _service.GetPlayerStatsByPlayerIdAsync(player2Id);
+
+            object MapPlayer(VNFootballLeagues.Repositories.Models.Player p, List<VNFootballLeagues.Repositories.Models.PlayerSeasonStatistic> stats) => new
+            {
+                p.PlayerId,
+                p.FullName,
+                p.PhotoUrl,
+                p.Position,
+                p.Nationality,
+                p.Age,
+                p.TeamId,
+                Statistics = stats.Select(x => new
+                {
+                    x.PlayerStatisticsId,
+                    x.SeasonId,
+                    x.LeagueId,
+                    x.TeamId,
+                    x.Appearances,
+                    x.Lineups,
+                    x.Minutes,
+                    x.Goals,
+                    x.Assists,
+                    x.YellowCards,
+                    x.RedCards,
+                    x.Rating,
+                    x.ShotsTotal,
+                    x.ShotsOnTarget,
+                    x.PassesTotal,
+                    x.PassesKey,
+                    x.PassesAccuracy,
+                    x.DribblesAttempted,
+                    x.DribblesSuccess,
+                    x.DuelsWon,
+                    x.DuelsTotal,
+                    x.Tackles,
+                    x.Interceptions,
+                    x.FoulsCommitted,
+                    x.FoulsDrawn,
+                    x.PenaltiesScored,
+                    x.PenaltiesMissed,
+                    x.Saves,
+                    x.SavesInsideBox,
+                    x.CleanSheets,
+                    x.GoalsConceded,
+                    x.PenaltiesSaved,
+                })
+            };
+
+            return Ok(new
+            {
+                Player1 = MapPlayer(p1, stats1),
+                Player2 = MapPlayer(p2, stats2),
+            });
         }
 
         [HttpGet("player-stats")]

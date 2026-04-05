@@ -34,6 +34,13 @@ public interface ISofascoreScraperService
     Task<string> GetVietnameseLeagueLiveMatchesAsync();
 
     /// <summary>
+    /// Fetches match details (score, status, currentPeriodStartTimestamp) for a specific event
+    /// </summary>
+    /// <param name="eventId">The SofaScore event/match ID</param>
+    /// <returns>JSON string containing event data</returns>
+    Task<string> GetMatchDetailsAsync(int eventId);
+
+    /// <summary>
     /// Fetches match incidents (goals, cards, substitutions) for a specific event
     /// </summary>
     /// <param name="eventId">The SofaScore event/match ID</param>

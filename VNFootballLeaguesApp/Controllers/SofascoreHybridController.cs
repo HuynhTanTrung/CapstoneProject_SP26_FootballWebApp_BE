@@ -68,7 +68,6 @@ namespace VNFootballLeagues.API.Controllers
             {
                 x.TeamId,
                 x.TeamName,
-                x.ClubId,
                 x.ApiTeamId,
                 x.LogoUrl,
                 x.ShortName,

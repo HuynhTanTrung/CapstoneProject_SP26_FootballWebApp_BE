@@ -138,6 +138,14 @@ public class SofascoreScraperService : ISofascoreScraperService
         return await ScrapeApiEndpointAsync(url, $"event {eventId} incidents");
     }
 
+    public async Task<string> GetMatchDetailsAsync(int eventId)
+    {
+        string url = $"https://www.sofascore.com/api/v1/event/{eventId}";
+        _logger.LogInformation("Fetching match details for event {EventId}", eventId);
+
+        return await ScrapeApiEndpointAsync(url, $"event {eventId} details");
+    }
+
     /// <summary>
     /// Fetches last (previous) matches for a tournament
     /// </summary>

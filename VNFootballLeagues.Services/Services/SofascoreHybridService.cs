@@ -1065,7 +1065,6 @@ namespace VNFootballLeagues.Services.Services
                         _context.Teams.Add(new Team
                         {
                             TeamName = teamData.name,
-                            ClubId = 1,
                             ApiTeamId = teamData.id,
                             LogoUrl = logoUrl,
                             ShortName = teamData.shortName,
@@ -1701,8 +1700,7 @@ namespace VNFootballLeagues.Services.Services
                         t.LogoUrl,
                         t.ShortName,
                         t.Founded,
-                        t.National,
-                        t.ClubId
+                        t.National
                     })
                     .ToListAsync();
 

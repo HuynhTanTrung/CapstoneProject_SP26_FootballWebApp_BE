@@ -173,8 +173,17 @@ namespace VNFootballLeagues.Services.Services
 
                 // Step 5: Analyze
                 var analyzeUrl = $"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={_apiKey}";
+                var footballPrompt = string.IsNullOrWhiteSpace(prompt)
+                    ? "Hãy phân tích tình huống trong video bóng đá này. Mô tả chi tiết: các cầu thủ liên quan, chiến thuật, kỹ thuật, và nhận xét về tình huống."
+                    : prompt;
+
+                var systemInstruction = "Bạn là AI chuyên phân tích video bóng đá cho hệ thống VN Player Rating, tập trung vào 3 giải đấu: V-League 1, V-League 2, Vietnam Cup. " +
+                    "Nếu video KHÔNG phải về bóng đá hoặc không liên quan đến các giải bóng đá Việt Nam, hãy từ chối và trả lời: " +
+                    "'Video này không phải nội dung bóng đá. Hệ thống chỉ hỗ trợ phân tích video tình huống từ V-League 1, V-League 2 và Vietnam Cup.'";
+
                 var requestBody = new
                 {
+                    system_instruction = new { parts = new[] { new { text = systemInstruction } } },
                     contents = new[]
                     {
                         new
@@ -183,9 +192,7 @@ namespace VNFootballLeagues.Services.Services
                             parts = new object[]
                             {
                                 new { file_data = new { mime_type = mimeType, file_uri = fileUri } },
-                                new { text = string.IsNullOrWhiteSpace(prompt)
-                                    ? "Hãy phân tích tình huống trong video bóng đá này. Mô tả chi tiết: các cầu thủ liên quan, chiến thuật, kỹ thuật, và nhận xét về tình huống."
-                                    : prompt }
+                                new { text = footballPrompt }
                             }
                         }
                     }

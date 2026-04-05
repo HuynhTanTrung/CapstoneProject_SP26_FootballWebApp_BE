@@ -516,11 +516,6 @@ public partial class VNFootballLeaguesDBContext : DbContext
                 .IsRequired()
                 .HasMaxLength(50);
 
-            entity.HasOne(d => d.Club).WithMany(p => p.Teams)
-                .HasForeignKey(d => d.ClubId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK_Team_Club");
-
             entity.HasOne(d => d.League).WithMany(p => p.Teams)
                 .HasForeignKey(d => d.LeagueId)
                 .OnDelete(DeleteBehavior.ClientSetNull)

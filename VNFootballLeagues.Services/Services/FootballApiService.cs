@@ -207,7 +207,6 @@ namespace VNFootballLeagues.Services.Services
                         LogoUrl = apiTeam.logo,
                         Founded = apiTeam.founded,
                         National = apiTeam.national,
-                        ClubId = 1, // adjust if you later separate Club properly
                         StadiumId = stadium?.StadiumId,
                         LeagueId = league.LeagueId
                     };
