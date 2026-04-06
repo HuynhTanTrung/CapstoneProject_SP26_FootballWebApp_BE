@@ -2482,72 +2482,15 @@ namespace VNFootballLeagues.Services.Services
                 }
                 catch { /* shotmap optional, continue without it */ }
 
-                // Parse incidents for extra time and penalty shootout data
+                // Extra time & penalty shootout fields — populated by LiveMatchPollingService
+                // during live tracking. Not fetched here to avoid Puppeteer timeout.
                 bool isExtraTime = false;
-                var extraTimeGoals = new Dictionary<int, int>();   // apiPlayerId -> goals in ET
-                var extraTimeAssists = new Dictionary<int, int>(); // apiPlayerId -> assists in ET
+                var extraTimeGoals = new Dictionary<int, int>();
+                var extraTimeAssists = new Dictionary<int, int>();
                 var shootoutScored = new Dictionary<int, int>();
                 var shootoutMissed = new Dictionary<int, int>();
-                var shootoutSaved = new Dictionary<int, int>();    // GK apiPlayerId -> saves
-                var shootoutConceded = new Dictionary<int, int>(); // GK apiPlayerId -> conceded
-                try
-                {
-                    var incidentsJson = await FetchJson($"https://www.sofascore.com/api/v1/event/{apiFixtureId}/incidents");
-                    using var incDoc = JsonDocument.Parse(incidentsJson);
-                    if (incDoc.RootElement.TryGetProperty("incidents", out var incidents))
-                    {
-                        bool inExtraTime = false;
-                        foreach (var inc in incidents.EnumerateArray())
-                        {
-                            string? incType = inc.TryGetProperty("incidentType", out var t) ? t.GetString() : null;
-                            string? text    = inc.TryGetProperty("text", out var tx) ? tx.GetString() : null;
-
-                            // Detect extra time periods
-                            if (incType == "period" && (text == "ET1" || text == "ET2"))
-                            {
-                                isExtraTime = true;
-                                inExtraTime = true;
-                            }
-                            else if (incType == "period" && (text == "PEN" || text == "FT"))
-                            {
-                                inExtraTime = false;
-                            }
-
-                            // Goals in extra time
-                            if (incType == "goal" && inExtraTime)
-                            {
-                                if (inc.TryGetProperty("player", out var scorer) && scorer.TryGetProperty("id", out var sid))
-                                    extraTimeGoals[sid.GetInt32()] = extraTimeGoals.GetValueOrDefault(sid.GetInt32()) + 1;
-                                if (inc.TryGetProperty("assist1", out var assist) && assist.TryGetProperty("id", out var aid))
-                                    extraTimeAssists[aid.GetInt32()] = extraTimeAssists.GetValueOrDefault(aid.GetInt32()) + 1;
-                            }
-
-                            // Penalty shootout incidents
-                            if (incType == "penaltyShootout")
-                            {
-                                bool scored = inc.TryGetProperty("incidentClass", out var cls) && cls.GetString() == "scored";
-                                bool missed = inc.TryGetProperty("incidentClass", out var cls2) && cls2.GetString() == "missed";
-                                bool isHome = inc.TryGetProperty("isHome", out var ih) && ih.GetBoolean();
-
-                                if (inc.TryGetProperty("player", out var shooter) && shooter.TryGetProperty("id", out var shid))
-                                {
-                                    int shooterId = shid.GetInt32();
-                                    if (scored) shootoutScored[shooterId] = shootoutScored.GetValueOrDefault(shooterId) + 1;
-                                    if (missed) shootoutMissed[shooterId] = shootoutMissed.GetValueOrDefault(shooterId) + 1;
-                                }
-
-                                // GK on the opposing side
-                                // We'll assign saves/conceded to GK when processing player stats below
-                                if (scored)
-                                {
-                                    // Opposing GK conceded
-                                    // Mark by team side — resolved per player below
-                                }
-                            }
-                        }
-                    }
-                }
-                catch { /* incidents optional */ }
+                var shootoutSaved = new Dictionary<int, int>();
+                var shootoutConceded = new Dictionary<int, int>();
 
                 foreach (var player in players)
                 {
