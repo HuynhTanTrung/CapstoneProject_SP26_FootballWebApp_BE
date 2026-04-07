@@ -17,4 +17,6 @@ public partial class VNFootballLeaguesDBContext
     public virtual DbSet<ContestEntry> ContestEntries { get; set; }
 
     public virtual DbSet<ContestResult> ContestResults { get; set; }
+
+    public virtual DbSet<DailyCheckIn> DailyCheckIns { get; set; }
 }

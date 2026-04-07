@@ -179,10 +179,26 @@ public class PredictionService : IPredictionService
         var row = await _db.UserPredictionStats.AsNoTracking()
             .FirstOrDefaultAsync(s => s.UserId == userId, cancellationToken);
 
+        // Breakdown
+        var matchPoints = await _db.Predictions
+            .Where(p => p.UserId == userId && p.Points != null)
+            .SumAsync(p => (int)p.Points!, cancellationToken);
+
+        var contestPoints = await _db.ContestEntries
+            .Where(e => e.UserId == userId && e.Points != null)
+            .SumAsync(e => (int)e.Points!, cancellationToken);
+
+        var checkInPoints = await _db.DailyCheckIns
+            .Where(c => c.UserId == userId)
+            .SumAsync(c => c.PointsEarned, cancellationToken);
+
         if (row == null)
-        {
-            return new UserPredictionStatsDto();
-        }
+            return new UserPredictionStatsDto
+            {
+                MatchPredictionPoints = matchPoints,
+                ContestPoints = contestPoints,
+                CheckInPoints = checkInPoints
+            };
 
         return new UserPredictionStatsDto
         {
@@ -190,7 +206,10 @@ public class PredictionService : IPredictionService
             CorrectPredictions = row.CorrectPredictions ?? 0,
             ExactScorePredictions = row.ExactScorePredictions ?? 0,
             Points = row.Points ?? 0,
-            LastUpdated = row.LastUpdated
+            LastUpdated = row.LastUpdated,
+            MatchPredictionPoints = matchPoints,
+            ContestPoints = contestPoints,
+            CheckInPoints = checkInPoints
         };
     }
 

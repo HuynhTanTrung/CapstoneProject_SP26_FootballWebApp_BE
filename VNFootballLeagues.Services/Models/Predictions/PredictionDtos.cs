@@ -57,6 +57,11 @@ public class UserPredictionStatsDto
     public int Points { get; set; }
 
     public DateTime? LastUpdated { get; set; }
+
+    // Breakdown
+    public int MatchPredictionPoints { get; set; }
+    public int ContestPoints { get; set; }
+    public int CheckInPoints { get; set; }
 }
 
 public class RewardDto

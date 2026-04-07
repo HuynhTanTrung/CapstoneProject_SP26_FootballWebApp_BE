@@ -113,6 +113,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ISofascoreScraperService, SofascoreScraperService>();
         services.AddScoped<IPredictionService, PredictionService>();
         services.AddScoped<IContestService, ContestService>();
+        services.AddScoped<CheckInService>();
 
         return services;
     }

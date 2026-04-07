@@ -183,5 +183,18 @@ public partial class VNFootballLeaguesDBContext
                 .HasForeignKey<UserPredictionStats>(d => d.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
+
+        modelBuilder.Entity<DailyCheckIn>(entity =>
+        {
+            entity.HasKey(e => e.CheckInId);
+            entity.ToTable("DailyCheckIn");
+            entity.Property(e => e.CheckInId).ValueGeneratedOnAdd();
+            entity.Property(e => e.CheckInDate).HasColumnType("date");
+            entity.HasIndex(e => new { e.UserId, e.CheckInDate }).IsUnique();
+            entity.HasOne(d => d.User)
+                .WithMany()
+                .HasForeignKey(d => d.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
     }
 }
