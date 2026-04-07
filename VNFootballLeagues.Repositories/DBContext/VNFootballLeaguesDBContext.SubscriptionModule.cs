@@ -121,7 +121,7 @@ public partial class VNFootballLeaguesDBContext
         {
             entity.HasKey(e => e.PredictionId);
 
-            entity.ToTable("Prediction");
+            entity.ToTable("Predictions");
 
             entity.Property(e => e.PredictionId).ValueGeneratedNever();
             entity.Property(e => e.CreatedAt).HasColumnType("datetime");
@@ -143,7 +143,7 @@ public partial class VNFootballLeaguesDBContext
 
             entity.ToTable("Reward");
 
-            entity.Property(e => e.RewardId).ValueGeneratedNever();
+            entity.Property(e => e.RewardId).ValueGeneratedOnAdd();
             entity.Property(e => e.RewardName).HasMaxLength(100);
             entity.Property(e => e.Description).HasMaxLength(255);
             entity.Property(e => e.IconUrl).HasMaxLength(255);
@@ -156,7 +156,7 @@ public partial class VNFootballLeaguesDBContext
 
             entity.ToTable("UserReward");
 
-            entity.Property(e => e.UserRewardId).ValueGeneratedNever();
+            entity.Property(e => e.UserRewardId).ValueGeneratedOnAdd();
 
             entity.HasOne(d => d.User)
                 .WithMany(p => p.UserRewards)

@@ -1,12 +1,10 @@
 #nullable disable
 using System;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace VNFootballLeagues.Repositories.Models;
 
-/// <summary>
-/// Dự đoán tỉ số. Sau khi trận kết thúc: Points = 3 (đúng tỉ số), 1 (đúng thắng/thua/hòa), 0 (sai).
-/// IsCorrect: 0 = sai, 1 = đúng kết quả, 2 = đúng tỉ số.
-/// </summary>
+[Table("Predictions")]
 public partial class Prediction
 {
     public int PredictionId { get; set; }

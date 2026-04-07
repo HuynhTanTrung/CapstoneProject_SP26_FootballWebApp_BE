@@ -112,6 +112,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ISePayWebhookService, SePayWebhookService>();
         services.AddScoped<ISofascoreScraperService, SofascoreScraperService>();
         services.AddScoped<IPredictionService, PredictionService>();
+        services.AddScoped<IContestService, ContestService>();
 
         return services;
     }

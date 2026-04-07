@@ -11,4 +11,10 @@ public partial class VNFootballLeaguesDBContext
     public virtual DbSet<UserReward> UserRewards { get; set; }
 
     public virtual DbSet<UserPredictionStats> UserPredictionStats { get; set; }
+
+    public virtual DbSet<PredictionContest> PredictionContests { get; set; }
+
+    public virtual DbSet<ContestEntry> ContestEntries { get; set; }
+
+    public virtual DbSet<ContestResult> ContestResults { get; set; }
 }

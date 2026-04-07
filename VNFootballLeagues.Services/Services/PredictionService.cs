@@ -47,8 +47,8 @@ public class PredictionService : IPredictionService
         var existing = await _db.Predictions
             .FirstOrDefaultAsync(p => p.UserId == userId && p.MatchId == request.MatchId, cancellationToken);
 
-        if (existing?.Points != null)
-            return Fail("Dự đoán đã được chấm điểm, không thể thay đổi.");
+        if (existing != null)
+            return Fail("Bạn đã dự đoán trận này rồi. Chỉ được vote 1 lần.");
 
         if (existing == null)
         {
@@ -318,15 +318,35 @@ public class PredictionService : IPredictionService
 
     private async Task RecalculateUserStatsAsync(Guid userId, CancellationToken cancellationToken)
     {
+        // Match predictions
         var settled = await _db.Predictions
             .AsNoTracking()
             .Where(p => p.UserId == userId && p.Points != null)
             .ToListAsync(cancellationToken);
 
-        var totalPred = await _db.Predictions.CountAsync(p => p.UserId == userId, cancellationToken);
-        var points = settled.Sum(p => p.Points ?? 0);
+        var totalMatchPred = await _db.Predictions.CountAsync(p => p.UserId == userId, cancellationToken);
+        var matchPoints = settled.Sum(p => p.Points ?? 0);
         var correct = settled.Count(p => (p.Points ?? 0) > 0);
         var exact = settled.Count(p => p.Points == 3);
+
+        // Contest entries
+        var contestEntries = await _db.ContestEntries
+            .AsNoTracking()
+            .Where(e => e.UserId == userId)
+            .ToListAsync(cancellationToken);
+
+        var totalContests = await _db.ContestEntries
+            .Where(e => e.UserId == userId)
+            .Select(e => e.ContestId)
+            .Distinct()
+            .CountAsync(cancellationToken);
+
+        var contestPoints = contestEntries.Sum(e => e.Points ?? 0);
+        var contestCorrect = contestEntries.Count(e => (e.IsCorrect ?? 0) > 0);
+
+        var totalPred = totalMatchPred + totalContests;
+        var points = matchPoints + contestPoints;
+        correct += contestCorrect;
 
         var stats = await _db.UserPredictionStats.FirstOrDefaultAsync(s => s.UserId == userId, cancellationToken);
         if (stats == null)
@@ -360,9 +380,6 @@ public class PredictionService : IPredictionService
     private async Task EnsurePredictionBadgeRewardsInDatabaseAsync(CancellationToken cancellationToken)
     {
         var changed = false;
-        var nextId = (await _db.Rewards.AnyAsync(cancellationToken)
-            ? await _db.Rewards.MaxAsync(r => r.RewardId, cancellationToken)
-            : 0) + 1;
 
         foreach (var (name, description, requiredPoints, iconUrl) in PredictionBadgeTiers)
         {
@@ -382,7 +399,6 @@ public class PredictionService : IPredictionService
 
             _db.Rewards.Add(new Reward
             {
-                RewardId = nextId++,
                 RewardName = name,
                 Description = description,
                 RequiredCorrectPredictions = requiredPoints,
