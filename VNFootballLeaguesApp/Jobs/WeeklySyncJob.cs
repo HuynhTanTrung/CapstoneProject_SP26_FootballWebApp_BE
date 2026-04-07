@@ -114,7 +114,7 @@ public class WeeklySyncJob
         {
             try
             {
-                await _service.FetchPlayerMatchStatsByLeagueSeasonAsync(tid, sid);
+                await _service.SyncAllPlayerStatisticsAsync(tid, sid);
                 _logger.LogInformation("[WeeklySync] Synced player season stats for tournament {T} season {S}", tid, sid);
             }
             catch (Exception ex) { _logger.LogError(ex, "[WeeklySync] Failed player season stats for {T}/{S}", tid, sid); }

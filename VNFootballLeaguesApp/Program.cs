@@ -115,7 +115,10 @@ builder.Services.AddHangfire(config => config
     .UseSimpleAssemblyNameTypeSerializer()
     .UseRecommendedSerializerSettings()
     .UseSqlServerStorage(connectionString));
-builder.Services.AddHangfireServer();
+builder.Services.AddHangfireServer(options =>
+{
+    options.SchedulePollingInterval = TimeSpan.FromMinutes(1);
+});
 builder.Services.AddScoped<WeeklySyncJob>();
 builder.Services.AddScoped<PredictionSettlementJob>();
 

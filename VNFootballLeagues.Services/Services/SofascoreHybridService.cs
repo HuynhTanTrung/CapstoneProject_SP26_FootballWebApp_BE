@@ -1499,6 +1499,9 @@ namespace VNFootballLeagues.Services.Services
                 // After syncing from Sofascore, aggregate defensive stats from match stats
                 await AggregateSeasonStatsFromMatchStatsAsync(leagueId: league.LeagueId, seasonId: season.SeasonId);
 
+                // Calculate system Rating for season = weighted average of match ratings by minutes played
+                await RecalculateSeasonRatingsAsync(league.LeagueId, season.SeasonId);
+
                 return new
                 {
                     status = true,
@@ -3077,6 +3080,56 @@ namespace VNFootballLeagues.Services.Services
         public async Task<List<PlayerSeasonStatistic>> GetAllPlayerSeasonStatisticsAsync()
         {
             return await _context.PlayerSeasonStatistics.ToListAsync();
+        }
+
+        /// <summary>
+        /// Calculates system Rating for PlayerSeasonStatistic as weighted average
+        /// of PlayerMatchStatistic.Rating weighted by minutes played.
+        /// </summary>
+        private async Task RecalculateSeasonRatingsAsync(int leagueId, int seasonId)
+        {
+            try
+            {
+                var matchIds = await _context.Matches
+                    .Where(m => m.LeagueId == leagueId && m.SeasonId == seasonId)
+                    .Select(m => m.MatchId)
+                    .ToListAsync();
+
+                if (!matchIds.Any()) return;
+
+                var seasonStats = await _context.PlayerSeasonStatistics
+                    .Where(s => s.LeagueId == leagueId && s.SeasonId == seasonId)
+                    .Select(s => new { s.PlayerStatisticsId, s.PlayerId })
+                    .ToListAsync();
+
+                foreach (var ss in seasonStats)
+                {
+                    var matchStats = await _context.PlayerMatchStatistics
+                        .AsNoTracking()
+                        .Where(m => m.PlayerId == ss.PlayerId
+                            && m.Rating != null
+                            && m.Minutes != null && m.Minutes > 0
+                            && matchIds.Contains(m.MatchId!.Value))
+                        .Select(m => new { m.Rating, m.Minutes })
+                        .ToListAsync();
+
+                    if (!matchStats.Any()) continue;
+
+                    double totalMinutes = matchStats.Sum(m => m.Minutes!.Value);
+                    double weightedSum = matchStats.Sum(m => (double)m.Rating!.Value * m.Minutes!.Value);
+                    decimal newRating = (decimal)Math.Round(weightedSum / totalMinutes, 2);
+
+                    await _context.Database.ExecuteSqlRawAsync(
+                        "UPDATE [PlayerSeasonStatistics] SET [Rating] = {0} WHERE [PlayerStatisticsId] = {1}",
+                        newRating, ss.PlayerStatisticsId);
+                }
+
+                _logger.LogInformation("Recalculated season ratings for leagueId={L} seasonId={S}", leagueId, seasonId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to recalculate season ratings for leagueId={L} seasonId={S}", leagueId, seasonId);
+            }
         }
 
         public async Task<object> AggregateSeasonStatsFromMatchStatsAsync(int? leagueId = null, int? seasonId = null, int? playerId = null)
