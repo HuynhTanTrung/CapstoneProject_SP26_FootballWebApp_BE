@@ -116,5 +116,72 @@ public partial class VNFootballLeaguesDBContext
             entity.HasIndex(e => e.ProcessingStatus, "IX_SePayWebhookLog_ProcessingStatus");
             entity.HasIndex(e => e.ReceivedAt, "IX_SePayWebhookLog_ReceivedAt");
         });
+
+        modelBuilder.Entity<Prediction>(entity =>
+        {
+            entity.HasKey(e => e.PredictionId);
+
+            entity.ToTable("Prediction");
+
+            entity.Property(e => e.PredictionId).ValueGeneratedNever();
+            entity.Property(e => e.CreatedAt).HasColumnType("datetime");
+
+            entity.HasOne(d => d.User)
+                .WithMany(p => p.Predictions)
+                .HasForeignKey(d => d.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(d => d.Match)
+                .WithMany(p => p.Predictions)
+                .HasForeignKey(d => d.MatchId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<Reward>(entity =>
+        {
+            entity.HasKey(e => e.RewardId);
+
+            entity.ToTable("Reward");
+
+            entity.Property(e => e.RewardId).ValueGeneratedNever();
+            entity.Property(e => e.RewardName).HasMaxLength(100);
+            entity.Property(e => e.Description).HasMaxLength(255);
+            entity.Property(e => e.IconUrl).HasMaxLength(255);
+            entity.Property(e => e.CreatedAt).HasColumnType("datetime");
+        });
+
+        modelBuilder.Entity<UserReward>(entity =>
+        {
+            entity.HasKey(e => e.UserRewardId);
+
+            entity.ToTable("UserReward");
+
+            entity.Property(e => e.UserRewardId).ValueGeneratedNever();
+
+            entity.HasOne(d => d.User)
+                .WithMany(p => p.UserRewards)
+                .HasForeignKey(d => d.UserId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne(d => d.Reward)
+                .WithMany(p => p.UserRewards)
+                .HasForeignKey(d => d.RewardId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<UserPredictionStats>(entity =>
+        {
+            entity.HasKey(e => e.UserId);
+
+            entity.ToTable("UserPredictionStats");
+
+            entity.Property(e => e.UserId).ValueGeneratedNever();
+            entity.Property(e => e.LastUpdated).HasColumnType("datetime");
+
+            entity.HasOne(d => d.User)
+                .WithOne(p => p.UserPredictionStats)
+                .HasForeignKey<UserPredictionStats>(d => d.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
     }
 }

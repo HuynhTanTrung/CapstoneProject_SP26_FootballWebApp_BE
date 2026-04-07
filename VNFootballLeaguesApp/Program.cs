@@ -117,6 +117,7 @@ builder.Services.AddHangfire(config => config
     .UseSqlServerStorage(connectionString));
 builder.Services.AddHangfireServer();
 builder.Services.AddScoped<WeeklySyncJob>();
+builder.Services.AddScoped<PredictionSettlementJob>();
 
 
 var app = builder.Build();
@@ -191,6 +192,12 @@ RecurringJob.AddOrUpdate<WeeklySyncJob>(
     "weekly-sync-cuptree",
     job => job.SyncCupTreeAsync(),
     "0 20 * * 0");
+
+// Chấm điểm dự đoán tỉ số (mỗi 15 phút)
+RecurringJob.AddOrUpdate<PredictionSettlementJob>(
+    "prediction-settlement",
+    job => job.SettlePendingPredictionsAsync(),
+    "*/15 * * * *");
 
 // Map SignalR hub
 app.MapHub<LiveMatchHub>("/hubs/livematch");

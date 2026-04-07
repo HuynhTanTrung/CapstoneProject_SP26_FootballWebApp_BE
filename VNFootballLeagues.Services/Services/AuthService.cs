@@ -1,4 +1,5 @@
 using BCrypt.Net;
+using Microsoft.Extensions.Logging;
 using VNFootballLeagues.Repositories.Models;
 using VNFootballLeagues.Repositories.Repositories;
 using VNFootballLeagues.Services.IServices;
@@ -17,6 +18,7 @@ public class AuthService : IAuthService
     private readonly IEmailVerificationRepository _emailVerificationRepository;
     private readonly IPasswordResetRepository _passwordResetRepository;
     private readonly JwtSettings _jwtSettings;
+    private readonly ILogger<AuthService> _logger;
 
     public AuthService(
         IUserRepository userRepository,
@@ -26,7 +28,8 @@ public class AuthService : IAuthService
         IRefreshTokenRepository refreshTokenRepository,
         IEmailVerificationRepository emailVerificationRepository,
         IPasswordResetRepository passwordResetRepository,
-        Microsoft.Extensions.Options.IOptions<JwtSettings> jwtSettings)
+        Microsoft.Extensions.Options.IOptions<JwtSettings> jwtSettings,
+        ILogger<AuthService> logger)
     {
         _userRepository = userRepository;
         _userService = userService;
@@ -36,6 +39,7 @@ public class AuthService : IAuthService
         _emailVerificationRepository = emailVerificationRepository;
         _passwordResetRepository = passwordResetRepository;
         _jwtSettings = jwtSettings.Value;
+        _logger = logger;
     }
 
     public async Task<AuthResult> RegisterAsync(string username, string email, string password, string fullName)
@@ -84,7 +88,17 @@ public class AuthService : IAuthService
 
         await _emailVerificationRepository.RevokeAllActiveTokensAsync(user.UserId);
         await _emailVerificationRepository.AddAsync(verifyToken);
-        await _emailService.SendVerificationEmailAsync(user, verifyToken.Token);
+
+        var emailSent = false;
+        try
+        {
+            await _emailService.SendVerificationEmailAsync(user, verifyToken.Token);
+            emailSent = true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Không gửi được email xác thực cho {Email}. Tài khoản vẫn được tạo; dùng API resend-verification.", user.Email);
+        }
 
         var roles = await _userService.GetUserRolesAsync(user.UserId);
         var accessToken = _jwtService.GenerateAccessToken(user, roles);
@@ -100,10 +114,14 @@ public class AuthService : IAuthService
             IsRevoked = false
         });
 
+        var registerMessage = emailSent
+            ? "Đăng ký thành công. Vui lòng kiểm tra email để xác thực tài khoản."
+            : "Đăng ký thành công. Không gửi được email xác thực lúc này — hãy dùng chức năng gửi lại email (resend-verification) sau.";
+
         return new AuthResult
         {
             Success = true,
-            Message = "Đăng ký thành công. Vui lòng kiểm tra email để xác thực tài khoản.",
+            Message = registerMessage,
             AccessToken = accessToken,
             RefreshToken = refreshToken,
             ExpiresAt = expiresAt,
