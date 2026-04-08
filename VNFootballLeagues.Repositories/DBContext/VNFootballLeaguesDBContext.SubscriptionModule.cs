@@ -196,5 +196,42 @@ public partial class VNFootballLeaguesDBContext
                 .HasForeignKey(d => d.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
+
+        modelBuilder.Entity<CosmeticItem>(entity =>
+        {
+            entity.HasKey(e => e.ItemId);
+            entity.ToTable("CosmeticItem");
+            entity.Property(e => e.ItemId).ValueGeneratedOnAdd();
+            entity.Property(e => e.Name).HasMaxLength(100).IsRequired();
+            entity.Property(e => e.Category).HasMaxLength(50).IsRequired();
+            entity.Property(e => e.UnlockType).HasMaxLength(20).IsRequired();
+            entity.Property(e => e.AchievementKey).HasMaxLength(100);
+            entity.Property(e => e.PreviewData).HasMaxLength(500);
+            entity.Property(e => e.Description).HasMaxLength(255);
+        });
+
+        modelBuilder.Entity<UserCosmetic>(entity =>
+        {
+            entity.HasKey(e => e.UserCosmeticId);
+            entity.ToTable("UserCosmetic");
+            entity.Property(e => e.UserCosmeticId).ValueGeneratedOnAdd();
+            entity.HasIndex(e => new { e.UserId, e.ItemId }).IsUnique();
+            entity.HasOne(d => d.User).WithMany().HasForeignKey(d => d.UserId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(d => d.Item).WithMany(i => i.UserCosmetics).HasForeignKey(d => d.ItemId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<UserLoadout>(entity =>
+        {
+            entity.HasKey(e => e.UserId);
+            entity.ToTable("UserLoadout");
+            entity.Property(e => e.UserId).ValueGeneratedNever();
+            entity.HasOne(d => d.User).WithMany().HasForeignKey(d => d.UserId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(d => d.Frame).WithMany().HasForeignKey(d => d.FrameItemId).OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne(d => d.NameColor).WithMany().HasForeignKey(d => d.NameColorItemId).OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne(d => d.Banner).WithMany().HasForeignKey(d => d.BannerItemId).OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne(d => d.Badge).WithMany().HasForeignKey(d => d.BadgeItemId).OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne(d => d.Effect).WithMany().HasForeignKey(d => d.EffectItemId).OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne(d => d.Card).WithMany().HasForeignKey(d => d.CardItemId).OnDelete(DeleteBehavior.SetNull);
+        });
     }
 }

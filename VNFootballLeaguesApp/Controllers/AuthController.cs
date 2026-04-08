@@ -2,6 +2,7 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using VNFootballLeagues.Repositories.Models;
 using VNFootballLeagues.Services.IServices;
 using VNFootballLeagues.Services.Models.Auth;
 using VNFootballLeaguesApp.DTOs.Auth;
@@ -16,11 +17,13 @@ public class AuthController : ControllerBase
 {
     private readonly IAuthService _authService;
     private readonly IUserService _userService;
+    private readonly VNFootballLeaguesDBContext _context;
 
-    public AuthController(IAuthService authService, IUserService userService)
+    public AuthController(IAuthService authService, IUserService userService, VNFootballLeaguesDBContext context)
     {
         _authService = authService;
         _userService = userService;
+        _context = context;
     }
 
     [HttpPost("register")]
@@ -175,6 +178,7 @@ public class AuthController : ControllerBase
             Username = result.User.Username,
             Email = result.User.Email,
             FullName = result.User.FullName,
+            AvatarUrl = result.User.AvatarUrl,
             IsEmailVerified = result.User.IsEmailVerified,
             Roles = result.Roles
         };
@@ -200,6 +204,83 @@ public class AuthController : ControllerBase
             Success = true,
             Message = result.Message,
             Data = userProfile
+        });
+    }
+
+    [HttpPut("profile")]
+    [Authorize]
+    public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileRequest request)
+    {
+        var userId = _userService.GetUserId(User);
+        if (userId is null) return Unauthorized();
+
+        var user = await _userService.GetByIdAsync(userId.Value);
+        if (user is null) return NotFound();
+
+        if (!string.IsNullOrWhiteSpace(request.FullName))
+            user.FullName = request.FullName.Trim();
+
+        user.UpdatedAt = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
+
+        return Ok(new ApiResponseDto<UserProfileDto>
+        {
+            Success = true,
+            Message = "Cập nhật thành công.",
+            Data = new UserProfileDto
+            {
+                UserId = user.UserId,
+                Username = user.Username,
+                Email = user.Email,
+                FullName = user.FullName,
+                AvatarUrl = user.AvatarUrl,
+                IsEmailVerified = user.IsEmailVerified,
+                Roles = await _userService.GetUserRolesAsync(user.UserId)
+            }
+        });
+    }
+
+    [HttpPost("avatar")]
+    [Authorize]
+    public async Task<IActionResult> UploadAvatar(IFormFile file)
+    {
+        var userId = _userService.GetUserId(User);
+        if (userId is null) return Unauthorized();
+
+        if (file == null || file.Length == 0)
+            return BadRequest(new ApiResponseDto<object> { Success = false, Message = "Không có file." });
+
+        var allowed = new[] { "image/jpeg", "image/png", "image/webp", "image/gif" };
+        if (!allowed.Contains(file.ContentType.ToLower()))
+            return BadRequest(new ApiResponseDto<object> { Success = false, Message = "Chỉ chấp nhận ảnh JPG, PNG, WebP, GIF." });
+
+        if (file.Length > 5 * 1024 * 1024)
+            return BadRequest(new ApiResponseDto<object> { Success = false, Message = "Ảnh tối đa 5MB." });
+
+        // Save to wwwroot/avatars
+        var uploadsDir = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "avatars");
+        Directory.CreateDirectory(uploadsDir);
+
+        var ext = Path.GetExtension(file.FileName).ToLower();
+        var fileName = $"{userId}{ext}";
+        var filePath = Path.Combine(uploadsDir, fileName);
+
+        using (var stream = new FileStream(filePath, FileMode.Create))
+            await file.CopyToAsync(stream);
+
+        var avatarUrl = $"/avatars/{fileName}";
+
+        var user = await _userService.GetByIdAsync(userId.Value);
+        if (user is null) return NotFound();
+        user.AvatarUrl = avatarUrl;
+        user.UpdatedAt = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
+
+        return Ok(new ApiResponseDto<object>
+        {
+            Success = true,
+            Message = "Upload thành công.",
+            Data = new { avatarUrl }
         });
     }
 }

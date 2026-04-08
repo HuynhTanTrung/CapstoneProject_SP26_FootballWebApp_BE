@@ -114,6 +114,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IPredictionService, PredictionService>();
         services.AddScoped<IContestService, ContestService>();
         services.AddScoped<CheckInService>();
+        services.AddScoped<CosmeticService>();
 
         return services;
     }
