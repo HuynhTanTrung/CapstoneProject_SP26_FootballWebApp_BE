@@ -20,6 +20,8 @@ public partial class VNFootballLeaguesDBContext
 
     public virtual DbSet<DailyCheckIn> DailyCheckIns { get; set; }
 
+    public virtual DbSet<DailyChatUsage> DailyChatUsages { get; set; }
+
     public virtual DbSet<CosmeticItem> CosmeticItems { get; set; }
     public virtual DbSet<UserCosmetic> UserCosmetics { get; set; }
     public virtual DbSet<UserLoadout> UserLoadouts { get; set; }

@@ -21,6 +21,11 @@ public partial class VNFootballLeaguesDBContext : DbContext
 
     public virtual DbSet<ChatSession> ChatSessions { get; set; }
 
+    public virtual DbSet<ForumPost> ForumPosts { get; set; }
+    public virtual DbSet<ForumComment> ForumComments { get; set; }
+    public virtual DbSet<UserCommentBan> UserCommentBans { get; set; }
+    public virtual DbSet<ForumReaction> ForumReactions { get; set; }
+
     public virtual DbSet<Club> Clubs { get; set; }
 
     public virtual DbSet<CupTree> CupTrees { get; set; }

@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using VNFootballLeagues.Repositories.Models;
 
@@ -11,9 +12,11 @@ using VNFootballLeagues.Repositories.Models;
 namespace VNFootballLeagues.Repositories.Migrations
 {
     [DbContext(typeof(VNFootballLeaguesDBContext))]
-    partial class VNFootballLeaguesDBContextModelSnapshot : ModelSnapshot
+    [Migration("20260408103432_AddForumAndSubscriptionCredits")]
+    partial class AddForumAndSubscriptionCredits
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -309,31 +312,6 @@ namespace VNFootballLeagues.Repositories.Migrations
                     b.ToTable("CupTrees");
                 });
 
-            modelBuilder.Entity("VNFootballLeagues.Repositories.Models.DailyChatUsage", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("Count")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("UsageDate")
-                        .HasColumnType("date");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("UserId", "UsageDate")
-                        .IsUnique();
-
-                    b.ToTable("DailyChatUsage", (string)null);
-                });
-
             modelBuilder.Entity("VNFootballLeagues.Repositories.Models.DailyCheckIn", b =>
                 {
                     b.Property<int>("CheckInId")
@@ -419,9 +397,6 @@ namespace VNFootballLeagues.Repositories.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
-                    b.Property<int?>("ParentCommentId")
-                        .HasColumnType("int");
-
                     b.Property<int>("PostId")
                         .HasColumnType("int");
 
@@ -436,8 +411,6 @@ namespace VNFootballLeagues.Repositories.Migrations
                         .HasColumnType("uniqueidentifier");
 
                     b.HasKey("CommentId");
-
-                    b.HasIndex("ParentCommentId");
 
                     b.HasIndex("PostId");
 
@@ -499,46 +472,11 @@ namespace VNFootballLeagues.Repositories.Migrations
                     b.Property<Guid>("UserId")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<int>("ViewCount")
-                        .HasColumnType("int");
-
                     b.HasKey("PostId");
 
                     b.HasIndex("UserId");
 
                     b.ToTable("ForumPost", (string)null);
-                });
-
-            modelBuilder.Entity("VNFootballLeagues.Repositories.Models.ForumReaction", b =>
-                {
-                    b.Property<int>("ReactionId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ReactionId"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("PostId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("ReactionType")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.HasKey("ReactionId");
-
-                    b.HasIndex("UserId");
-
-                    b.HasIndex("PostId", "UserId")
-                        .IsUnique();
-
-                    b.ToTable("ForumReaction", (string)null);
                 });
 
             modelBuilder.Entity("VNFootballLeagues.Repositories.Models.League", b =>
@@ -2601,17 +2539,6 @@ namespace VNFootballLeagues.Repositories.Migrations
                     b.Navigation("Team");
                 });
 
-            modelBuilder.Entity("VNFootballLeagues.Repositories.Models.DailyChatUsage", b =>
-                {
-                    b.HasOne("VNFootballLeagues.Repositories.Models.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("User");
-                });
-
             modelBuilder.Entity("VNFootballLeagues.Repositories.Models.DailyCheckIn", b =>
                 {
                     b.HasOne("VNFootballLeagues.Repositories.Models.User", "User")
@@ -2637,11 +2564,6 @@ namespace VNFootballLeagues.Repositories.Migrations
 
             modelBuilder.Entity("VNFootballLeagues.Repositories.Models.ForumComment", b =>
                 {
-                    b.HasOne("VNFootballLeagues.Repositories.Models.ForumComment", "ParentComment")
-                        .WithMany()
-                        .HasForeignKey("ParentCommentId")
-                        .OnDelete(DeleteBehavior.NoAction);
-
                     b.HasOne("VNFootballLeagues.Repositories.Models.ForumPost", "Post")
                         .WithMany("Comments")
                         .HasForeignKey("PostId")
@@ -2653,8 +2575,6 @@ namespace VNFootballLeagues.Repositories.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
-
-                    b.Navigation("ParentComment");
 
                     b.Navigation("Post");
 
@@ -2668,25 +2588,6 @@ namespace VNFootballLeagues.Repositories.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-
-                    b.Navigation("User");
-                });
-
-            modelBuilder.Entity("VNFootballLeagues.Repositories.Models.ForumReaction", b =>
-                {
-                    b.HasOne("VNFootballLeagues.Repositories.Models.ForumPost", "Post")
-                        .WithMany()
-                        .HasForeignKey("PostId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("VNFootballLeagues.Repositories.Models.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.NoAction)
-                        .IsRequired();
-
-                    b.Navigation("Post");
 
                     b.Navigation("User");
                 });

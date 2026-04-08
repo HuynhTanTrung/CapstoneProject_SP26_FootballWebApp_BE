@@ -227,6 +227,7 @@ public class SubscriptionService : ISubscriptionService
 
                 if (subscription is null)
                 {
+                    var credits = SubscriptionCredits.GetCredits(payment.PlanCode);
                     subscription = new UserSubscription
                     {
                         UserId = userId,
@@ -236,6 +237,8 @@ public class SubscriptionService : ISubscriptionService
                         StartedAt = now,
                         ExpiresAt = nextBase.AddDays(payment.DurationDays),
                         LastPaymentAt = now,
+                        AiVideoCreditsRemaining = credits.AiVideo,
+                        ForumPostCreditsRemaining = credits.ForumPost,
                         CreatedAt = now,
                         UpdatedAt = now
                     };
@@ -243,11 +246,14 @@ public class SubscriptionService : ISubscriptionService
                 }
                 else
                 {
+                    var credits = SubscriptionCredits.GetCredits(payment.PlanCode);
                     subscription.PlanCode = payment.PlanCode;
                     subscription.PlanName = payment.PlanName;
                     subscription.Status = SubscriptionStatuses.Active;
                     subscription.ExpiresAt = nextBase.AddDays(payment.DurationDays);
                     subscription.LastPaymentAt = now;
+                    subscription.AiVideoCreditsRemaining = credits.AiVideo;
+                    subscription.ForumPostCreditsRemaining = credits.ForumPost;
                     subscription.UpdatedAt = now;
                     await _userSubscriptionRepository.UpdateAsync(subscription);
                 }

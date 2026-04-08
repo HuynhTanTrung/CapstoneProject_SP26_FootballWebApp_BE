@@ -141,6 +141,7 @@ public class SePayWebhookService : ISePayWebhookService
 
                 if (subscription is null)
                 {
+                    var credits = SubscriptionCredits.GetCredits(payment.PlanCode);
                     subscription = new UserSubscription
                     {
                         UserId = payment.UserId,
@@ -150,6 +151,8 @@ public class SePayWebhookService : ISePayWebhookService
                         StartedAt = effectivePaidAt,
                         ExpiresAt = nextExpiryBase.AddDays(payment.DurationDays),
                         LastPaymentAt = effectivePaidAt,
+                        AiVideoCreditsRemaining = credits.AiVideo,
+                        ForumPostCreditsRemaining = credits.ForumPost,
                         CreatedAt = now,
                         UpdatedAt = now
                     };
@@ -163,11 +166,14 @@ public class SePayWebhookService : ISePayWebhookService
                         subscription.StartedAt = effectivePaidAt;
                     }
 
+                    var credits = SubscriptionCredits.GetCredits(payment.PlanCode);
                     subscription.PlanCode = payment.PlanCode;
                     subscription.PlanName = payment.PlanName;
                     subscription.Status = SubscriptionStatuses.Active;
                     subscription.ExpiresAt = nextExpiryBase.AddDays(payment.DurationDays);
                     subscription.LastPaymentAt = effectivePaidAt;
+                    subscription.AiVideoCreditsRemaining = credits.AiVideo;
+                    subscription.ForumPostCreditsRemaining = credits.ForumPost;
                     subscription.UpdatedAt = now;
                     await _userSubscriptionRepository.UpdateAsync(subscription);
                 }

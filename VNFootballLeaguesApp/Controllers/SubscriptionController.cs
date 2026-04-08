@@ -301,7 +301,9 @@ public class SubscriptionController : ControllerBase
             PlanName = subscription.PlanName,
             StartedAt = subscription.StartedAt,
             ExpiresAt = subscription.ExpiresAt,
-            LastPaymentAt = subscription.LastPaymentAt
+            LastPaymentAt = subscription.LastPaymentAt,
+            AiVideoCreditsRemaining = subscription.AiVideoCreditsRemaining,
+            ForumPostCreditsRemaining = subscription.ForumPostCreditsRemaining
         };
     }
 

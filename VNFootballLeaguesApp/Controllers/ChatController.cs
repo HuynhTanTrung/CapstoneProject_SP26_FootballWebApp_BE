@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using VNFootballLeagues.Repositories.Models;
 using VNFootballLeagues.Services.IServices;
+using Microsoft.AspNetCore.Authorization;
 
 namespace VNFootballLeaguesApp.Controllers
 {
@@ -12,24 +13,90 @@ namespace VNFootballLeaguesApp.Controllers
         private readonly IGeminiService _geminiService;
         private readonly IChatConversationService _chatConversation;
         private readonly VNFootballLeaguesDBContext _context;
+        private readonly IUserService _userService;
 
-        public ChatController(IGeminiService geminiService, IChatConversationService chatConversation, VNFootballLeaguesDBContext context)
+        public ChatController(IGeminiService geminiService, IChatConversationService chatConversation, VNFootballLeaguesDBContext context, IUserService userService)
         {
             _geminiService = geminiService;
             _chatConversation = chatConversation;
             _context = context;
+            _userService = userService;
+        }
+
+        private static readonly TimeZoneInfo VnTz = TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time");
+        private static DateTime TodayVN() => TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, VnTz).Date;
+
+        private static int GetDailyLimit(UserSubscription? sub)
+        {
+            if (sub == null || sub.Status != "Active" || sub.ExpiresAt <= DateTime.UtcNow)
+                return 3; // Free
+            return sub.PlanCode?.ToUpper() switch
+            {
+                "TRIAL"     => 10,
+                "MONTHLY"   => 25,
+                "QUARTERLY" => 50,
+                _           => 3
+            };
+        }
+
+        [HttpGet("chat-limit")]
+        [Authorize]
+        public async Task<IActionResult> GetChatLimit(CancellationToken ct)
+        {
+            var userId = _userService.GetUserId(User);
+            if (userId is null) return Unauthorized();
+
+            var today = TodayVN();
+            var sub = await _context.UserSubscriptions.FirstOrDefaultAsync(s => s.UserId == userId.Value, ct);
+            var limit = GetDailyLimit(sub);
+            var usage = await _context.DailyChatUsages.FirstOrDefaultAsync(u => u.UserId == userId.Value && u.UsageDate == today, ct);
+            int used = usage?.Count ?? 0;
+
+            return Ok(new { limit, used, remaining = Math.Max(0, limit - used) });
         }
 
         /// <summary>
         /// Chat có lưu DB: gửi UserId (bắt buộc), SessionId (null = phiên mới), Message.
         /// </summary>
         [HttpPost]
+        [Authorize]
         public async Task<IActionResult> Chat([FromBody] ChatRequest request, CancellationToken cancellationToken)
         {
             if (request.UserId == Guid.Empty)
                 return BadRequest(new { error = "UserId is required" });
             if (string.IsNullOrWhiteSpace(request.Message))
                 return BadRequest(new { error = "Message is required" });
+
+            // Daily chat limit check
+            var today = TodayVN();
+            var sub = await _context.UserSubscriptions.FirstOrDefaultAsync(s => s.UserId == request.UserId, cancellationToken);
+            var limit = GetDailyLimit(sub);
+
+            var usage = await _context.DailyChatUsages.FirstOrDefaultAsync(u => u.UserId == request.UserId && u.UsageDate == today, cancellationToken);
+            int usedToday = usage?.Count ?? 0;
+
+            if (usedToday >= limit)
+            {
+                var planName = sub?.Status == "Active" ? sub.PlanName : "Free";
+                return BadRequest(new
+                {
+                    error = $"Bạn đã dùng hết {limit} lượt chat hôm nay ({planName}). Vui lòng quay lại vào ngày mai hoặc nâng cấp gói.",
+                    limitReached = true,
+                    limit,
+                    used = usedToday
+                });
+            }
+
+            // Increment usage
+            if (usage == null)
+            {
+                _context.DailyChatUsages.Add(new DailyChatUsage { UserId = request.UserId, UsageDate = today, Count = 1 });
+            }
+            else
+            {
+                usage.Count++;
+            }
+            await _context.SaveChangesAsync(cancellationToken);
 
             try
             {
@@ -181,17 +248,31 @@ Thống kê mùa gần nhất (SeasonId={latestStat.SeasonId}):
         /// Phân tích video bóng đá qua Cloudinary URL.
         /// </summary>
         [HttpPost("analyze-video")]
+        [Authorize]
         public async Task<IActionResult> AnalyzeVideo([FromBody] VideoAnalysisRequest request)
         {
             if (string.IsNullOrWhiteSpace(request.VideoUrl))
                 return BadRequest(new { error = "VideoUrl is required" });
 
+            // Check subscription and deduct credit
+            var userId = _userService.GetUserId(User);
+            if (userId is null) return Unauthorized();
+
+            var subscription = await _context.UserSubscriptions
+                .FirstOrDefaultAsync(s => s.UserId == userId.Value);
+
+            bool isActive = subscription != null && subscription.Status == "Active" && subscription.ExpiresAt > DateTime.UtcNow;
+            if (!isActive || subscription!.AiVideoCreditsRemaining <= 0)
+                return BadRequest(new { error = "Bạn không có lượt phân tích AI Video. Vui lòng nâng cấp gói.", creditsRemaining = 0 });
+
+            subscription.AiVideoCreditsRemaining--;
+            subscription.UpdatedAt = DateTime.UtcNow;
+
             var response = await _geminiService.AnalyzeVideoAsync(request.VideoUrl, request.Prompt ?? "");
 
-            // Lưu lịch sử vào DB
             var record = new VideoAnalysis
             {
-                UserId = request.UserId,
+                UserId = userId.Value,
                 VideoUrl = request.VideoUrl,
                 VideoFileName = request.VideoFileName ?? "",
                 Prompt = request.Prompt ?? "",
@@ -201,7 +282,7 @@ Thống kê mùa gần nhất (SeasonId={latestStat.SeasonId}):
             _context.VideoAnalyses.Add(record);
             await _context.SaveChangesAsync();
 
-            return Ok(new { id = record.Id, response });
+            return Ok(new { id = record.Id, response, creditsRemaining = subscription.AiVideoCreditsRemaining });
         }
 
         [HttpGet("video-history")]

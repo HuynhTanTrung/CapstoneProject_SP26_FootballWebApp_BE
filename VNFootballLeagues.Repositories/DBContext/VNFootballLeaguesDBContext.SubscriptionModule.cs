@@ -197,6 +197,61 @@ public partial class VNFootballLeaguesDBContext
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
+        modelBuilder.Entity<DailyChatUsage>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.ToTable("DailyChatUsage");
+            entity.Property(e => e.Id).ValueGeneratedOnAdd();
+            entity.Property(e => e.UsageDate).HasColumnType("date");
+            entity.HasIndex(e => new { e.UserId, e.UsageDate }).IsUnique();
+            entity.HasOne(d => d.User).WithMany().HasForeignKey(d => d.UserId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ForumPost>(entity =>
+        {
+            entity.HasKey(e => e.PostId);
+            entity.ToTable("ForumPost");
+            entity.Property(e => e.PostId).ValueGeneratedOnAdd();
+            entity.Property(e => e.Title).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.Status).HasMaxLength(20).HasDefaultValue("pending");
+            entity.Property(e => e.LeagueTag).HasMaxLength(50);
+            entity.Property(e => e.RejectionReason).HasMaxLength(500);
+            entity.HasOne(d => d.User).WithMany().HasForeignKey(d => d.UserId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ForumComment>(entity =>
+        {
+            entity.HasKey(e => e.CommentId);
+            entity.ToTable("ForumComment");
+            entity.Property(e => e.CommentId).ValueGeneratedOnAdd();
+            entity.Property(e => e.Content).HasMaxLength(1000).IsRequired();
+            entity.Property(e => e.Status).HasMaxLength(20).HasDefaultValue("active");
+            entity.HasOne(d => d.Post).WithMany(p => p.Comments).HasForeignKey(d => d.PostId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(d => d.User).WithMany().HasForeignKey(d => d.UserId).OnDelete(DeleteBehavior.NoAction);
+            entity.HasOne(d => d.ParentComment).WithMany().HasForeignKey(d => d.ParentCommentId).OnDelete(DeleteBehavior.NoAction);
+        });
+
+        modelBuilder.Entity<ForumReaction>(entity =>
+        {
+            entity.HasKey(e => e.ReactionId);
+            entity.ToTable("ForumReaction");
+            entity.Property(e => e.ReactionId).ValueGeneratedOnAdd();
+            entity.Property(e => e.ReactionType).HasMaxLength(20).IsRequired();
+            entity.HasIndex(e => new { e.PostId, e.UserId }).IsUnique();
+            entity.HasOne(d => d.Post).WithMany().HasForeignKey(d => d.PostId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(d => d.User).WithMany().HasForeignKey(d => d.UserId).OnDelete(DeleteBehavior.NoAction);
+        });
+
+        modelBuilder.Entity<UserCommentBan>(entity =>
+        {
+            entity.HasKey(e => e.BanId);
+            entity.ToTable("UserCommentBan");
+            entity.Property(e => e.BanId).ValueGeneratedOnAdd();
+            entity.Property(e => e.Reason).HasMaxLength(500).IsRequired();
+            entity.Property(e => e.BannedBy).HasMaxLength(20).HasDefaultValue("AI");
+            entity.HasOne(d => d.User).WithMany().HasForeignKey(d => d.UserId).OnDelete(DeleteBehavior.Cascade);
+        });
+
         modelBuilder.Entity<CosmeticItem>(entity =>
         {
             entity.HasKey(e => e.ItemId);

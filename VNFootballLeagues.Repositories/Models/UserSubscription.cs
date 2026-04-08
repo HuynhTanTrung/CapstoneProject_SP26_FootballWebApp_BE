@@ -18,6 +18,10 @@ public partial class UserSubscription
 
     public DateTime? LastPaymentAt { get; set; }
 
+    public int AiVideoCreditsRemaining { get; set; } = 0;
+
+    public int ForumPostCreditsRemaining { get; set; } = 0;
+
     public DateTime CreatedAt { get; set; }
 
     public DateTime UpdatedAt { get; set; }
