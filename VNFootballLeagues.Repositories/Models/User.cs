@@ -17,6 +17,8 @@ public partial class User
 
     public string FullName { get; set; }
 
+    public string? AvatarUrl { get; set; }
+
     public bool IsEmailVerified { get; set; }
 
     public bool IsActive { get; set; }

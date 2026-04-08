@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using VNFootballLeagues.Repositories.Models;
 
@@ -11,9 +12,11 @@ using VNFootballLeagues.Repositories.Models;
 namespace VNFootballLeagues.Repositories.Migrations
 {
     [DbContext(typeof(VNFootballLeaguesDBContext))]
-    partial class VNFootballLeaguesDBContextModelSnapshot : ModelSnapshot
+    [Migration("20260408074547_AddAvatarUrl")]
+    partial class AddAvatarUrl
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -232,55 +235,6 @@ namespace VNFootballLeagues.Repositories.Migrations
                     b.HasIndex(new[] { "TeamId" }, "IX_Contract_TeamId");
 
                     b.ToTable("Contract", (string)null);
-                });
-
-            modelBuilder.Entity("VNFootballLeagues.Repositories.Models.CosmeticItem", b =>
-                {
-                    b.Property<int>("ItemId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ItemId"));
-
-                    b.Property<string>("AchievementKey")
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<string>("Category")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Description")
-                        .HasMaxLength(255)
-                        .HasColumnType("nvarchar(255)");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<int?>("PointCost")
-                        .HasColumnType("int");
-
-                    b.Property<string>("PreviewData")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.Property<string>("UnlockType")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
-
-                    b.HasKey("ItemId");
-
-                    b.ToTable("CosmeticItem", (string)null);
                 });
 
             modelBuilder.Entity("VNFootballLeagues.Repositories.Models.CupTree", b =>
@@ -2067,79 +2021,6 @@ namespace VNFootballLeagues.Repositories.Migrations
                     b.ToTable("User", (string)null);
                 });
 
-            modelBuilder.Entity("VNFootballLeagues.Repositories.Models.UserCosmetic", b =>
-                {
-                    b.Property<int>("UserCosmeticId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("UserCosmeticId"));
-
-                    b.Property<DateTime>("AcquiredAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<bool>("IsEquipped")
-                        .HasColumnType("bit");
-
-                    b.Property<int>("ItemId")
-                        .HasColumnType("int");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.HasKey("UserCosmeticId");
-
-                    b.HasIndex("ItemId");
-
-                    b.HasIndex("UserId", "ItemId")
-                        .IsUnique();
-
-                    b.ToTable("UserCosmetic", (string)null);
-                });
-
-            modelBuilder.Entity("VNFootballLeagues.Repositories.Models.UserLoadout", b =>
-                {
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<int?>("BadgeItemId")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("BannerItemId")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("CardItemId")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("EffectItemId")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("FrameItemId")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("NameColorItemId")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.HasKey("UserId");
-
-                    b.HasIndex("BadgeItemId");
-
-                    b.HasIndex("BannerItemId");
-
-                    b.HasIndex("CardItemId");
-
-                    b.HasIndex("EffectItemId");
-
-                    b.HasIndex("FrameItemId");
-
-                    b.HasIndex("NameColorItemId");
-
-                    b.ToTable("UserLoadout", (string)null);
-                });
-
             modelBuilder.Entity("VNFootballLeagues.Repositories.Models.UserPredictionStats", b =>
                 {
                     b.Property<Guid>("UserId")
@@ -2752,78 +2633,6 @@ namespace VNFootballLeagues.Repositories.Migrations
                     b.Navigation("Player");
                 });
 
-            modelBuilder.Entity("VNFootballLeagues.Repositories.Models.UserCosmetic", b =>
-                {
-                    b.HasOne("VNFootballLeagues.Repositories.Models.CosmeticItem", "Item")
-                        .WithMany("UserCosmetics")
-                        .HasForeignKey("ItemId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("VNFootballLeagues.Repositories.Models.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Item");
-
-                    b.Navigation("User");
-                });
-
-            modelBuilder.Entity("VNFootballLeagues.Repositories.Models.UserLoadout", b =>
-                {
-                    b.HasOne("VNFootballLeagues.Repositories.Models.CosmeticItem", "Badge")
-                        .WithMany()
-                        .HasForeignKey("BadgeItemId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("VNFootballLeagues.Repositories.Models.CosmeticItem", "Banner")
-                        .WithMany()
-                        .HasForeignKey("BannerItemId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("VNFootballLeagues.Repositories.Models.CosmeticItem", "Card")
-                        .WithMany()
-                        .HasForeignKey("CardItemId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("VNFootballLeagues.Repositories.Models.CosmeticItem", "Effect")
-                        .WithMany()
-                        .HasForeignKey("EffectItemId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("VNFootballLeagues.Repositories.Models.CosmeticItem", "Frame")
-                        .WithMany()
-                        .HasForeignKey("FrameItemId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("VNFootballLeagues.Repositories.Models.CosmeticItem", "NameColor")
-                        .WithMany()
-                        .HasForeignKey("NameColorItemId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("VNFootballLeagues.Repositories.Models.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Badge");
-
-                    b.Navigation("Banner");
-
-                    b.Navigation("Card");
-
-                    b.Navigation("Effect");
-
-                    b.Navigation("Frame");
-
-                    b.Navigation("NameColor");
-
-                    b.Navigation("User");
-                });
-
             modelBuilder.Entity("VNFootballLeagues.Repositories.Models.UserPredictionStats", b =>
                 {
                     b.HasOne("VNFootballLeagues.Repositories.Models.User", "User")
@@ -2902,11 +2711,6 @@ namespace VNFootballLeagues.Repositories.Migrations
             modelBuilder.Entity("VNFootballLeagues.Repositories.Models.Club", b =>
                 {
                     b.Navigation("Teams");
-                });
-
-            modelBuilder.Entity("VNFootballLeagues.Repositories.Models.CosmeticItem", b =>
-                {
-                    b.Navigation("UserCosmetics");
                 });
 
             modelBuilder.Entity("VNFootballLeagues.Repositories.Models.League", b =>
