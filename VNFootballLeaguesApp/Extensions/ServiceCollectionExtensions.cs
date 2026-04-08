@@ -115,6 +115,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IContestService, ContestService>();
         services.AddScoped<CheckInService>();
         services.AddScoped<CosmeticService>();
+        services.AddSingleton<CloudinaryService>();
 
         return services;
     }

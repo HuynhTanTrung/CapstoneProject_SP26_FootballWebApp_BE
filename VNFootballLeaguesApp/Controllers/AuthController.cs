@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using VNFootballLeagues.Repositories.Models;
 using VNFootballLeagues.Services.IServices;
 using VNFootballLeagues.Services.Models.Auth;
+using VNFootballLeagues.Services.Services;
 using VNFootballLeaguesApp.DTOs.Auth;
 using VNFootballLeaguesApp.DTOs.Common;
 using VNFootballLeaguesApp.DTOs.User;
@@ -18,12 +19,14 @@ public class AuthController : ControllerBase
     private readonly IAuthService _authService;
     private readonly IUserService _userService;
     private readonly VNFootballLeaguesDBContext _context;
+    private readonly CloudinaryService _cloudinary;
 
-    public AuthController(IAuthService authService, IUserService userService, VNFootballLeaguesDBContext context)
+    public AuthController(IAuthService authService, IUserService userService, VNFootballLeaguesDBContext context, CloudinaryService cloudinary)
     {
         _authService = authService;
         _userService = userService;
         _context = context;
+        _cloudinary = cloudinary;
     }
 
     [HttpPost("register")]
@@ -257,18 +260,28 @@ public class AuthController : ControllerBase
         if (file.Length > 5 * 1024 * 1024)
             return BadRequest(new ApiResponseDto<object> { Success = false, Message = "Ảnh tối đa 5MB." });
 
-        // Save to wwwroot/avatars
-        var uploadsDir = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "avatars");
-        Directory.CreateDirectory(uploadsDir);
+        string avatarUrl;
 
-        var ext = Path.GetExtension(file.FileName).ToLower();
-        var fileName = $"{userId}{ext}";
-        var filePath = Path.Combine(uploadsDir, fileName);
-
-        using (var stream = new FileStream(filePath, FileMode.Create))
-            await file.CopyToAsync(stream);
-
-        var avatarUrl = $"/avatars/{fileName}";
+        // Try Cloudinary first, fallback to local
+        if (_cloudinary.IsEnabled)
+        {
+            using var stream = file.OpenReadStream();
+            var cloudUrl = await _cloudinary.UploadAvatarAsync(stream, file.FileName, userId.Value.ToString());
+            if (cloudUrl == null)
+                return StatusCode(500, new ApiResponseDto<object> { Success = false, Message = "Upload Cloudinary thất bại." });
+            avatarUrl = cloudUrl;
+        }
+        else
+        {
+            var uploadsDir = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "avatars");
+            Directory.CreateDirectory(uploadsDir);
+            var ext = Path.GetExtension(file.FileName).ToLower();
+            var fileName = $"{userId}{ext}";
+            var filePath = Path.Combine(uploadsDir, fileName);
+            using (var stream = new FileStream(filePath, FileMode.Create))
+                await file.CopyToAsync(stream);
+            avatarUrl = $"/avatars/{fileName}";
+        }
 
         var user = await _userService.GetByIdAsync(userId.Value);
         if (user is null) return NotFound();
