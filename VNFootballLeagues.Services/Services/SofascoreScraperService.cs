@@ -14,6 +14,9 @@ public class SofascoreScraperService : ISofascoreScraperService
     private readonly ILogger<SofascoreScraperService> _logger;
     private static bool _browserDownloaded = false;
     private static readonly SemaphoreSlim _downloadLock = new(1, 1);
+    private static readonly SemaphoreSlim _scrapeLock = new(1, 1); // Only 1 scrape at a time
+    private static readonly Dictionary<string, (string Data, DateTime ExpiresAt)> _cache = new();
+    private static readonly TimeSpan _cacheDuration = TimeSpan.FromMinutes(5);
 
     public SofascoreScraperService(ILogger<SofascoreScraperService> logger)
     {
@@ -239,6 +242,44 @@ public class SofascoreScraperService : ISofascoreScraperService
     /// <param name="description">Description for logging purposes</param>
     /// <returns>JSON string response</returns>
     private async Task<string> ScrapeApiEndpointAsync(string apiUrl, string description)
+    {
+        // Check cache first
+        lock (_cache)
+        {
+            if (_cache.TryGetValue(apiUrl, out var cached) && cached.ExpiresAt > DateTime.UtcNow)
+            {
+                _logger.LogInformation("Cache hit for {Description}", description);
+                return cached.Data;
+            }
+        }
+
+        // Serialize scrape requests - only 1 at a time
+        await _scrapeLock.WaitAsync();
+        try
+        {
+            // Double-check cache after acquiring lock
+            lock (_cache)
+            {
+                if (_cache.TryGetValue(apiUrl, out var cached) && cached.ExpiresAt > DateTime.UtcNow)
+                    return cached.Data;
+            }
+
+            var result = await ScrapeApiEndpointInternalAsync(apiUrl, description);
+
+            lock (_cache)
+            {
+                _cache[apiUrl] = (result, DateTime.UtcNow.Add(_cacheDuration));
+            }
+
+            return result;
+        }
+        finally
+        {
+            _scrapeLock.Release();
+        }
+    }
+
+    private async Task<string> ScrapeApiEndpointInternalAsync(string apiUrl, string description)
     {
         IBrowser? browser = null;
         IPage? page = null;

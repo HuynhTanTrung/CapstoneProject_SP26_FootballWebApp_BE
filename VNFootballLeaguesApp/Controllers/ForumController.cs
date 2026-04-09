@@ -81,6 +81,28 @@ public class ForumController : ControllerBase
         return Ok(new ApiResponseDto<object> { Success = true, Message = message });
     }
 
+    [HttpPut("posts/{id}")]
+    [Authorize(Policy = "UserOrAdmin")]
+    public async Task<IActionResult> EditPost(int id, [FromBody] EditPostRequest req, CancellationToken ct)
+    {
+        var userId = _userService.GetUserId(User);
+        if (userId is null) return Unauthorized();
+        var (success, message) = await _forum.EditPostAsync(id, userId.Value, req.Title, req.Content, req.MediaUrls, req.MediaTypes, ct);
+        if (!success) return BadRequest(new ApiResponseDto<object> { Success = false, Message = message });
+        return Ok(new ApiResponseDto<object> { Success = true, Message = message });
+    }
+
+    [HttpDelete("posts/{id}")]
+    [Authorize(Policy = "UserOrAdmin")]
+    public async Task<IActionResult> DeletePost(int id, CancellationToken ct)
+    {
+        var userId = _userService.GetUserId(User);
+        if (userId is null) return Unauthorized();
+        var (success, message) = await _forum.DeletePostAsync(id, userId.Value, ct);
+        if (!success) return BadRequest(new ApiResponseDto<object> { Success = false, Message = message });
+        return Ok(new ApiResponseDto<object> { Success = true, Message = message });
+    }
+
     [HttpPost("posts/{id}/reactions")]
     [Authorize]
     public async Task<IActionResult> ToggleReaction(int id, [FromBody] ReactionRequest req, CancellationToken ct)
@@ -181,6 +203,7 @@ public class ForumController : ControllerBase
 }
 
 public record CreatePostRequest(string Title, string Content, string LeagueTag, List<string>? MediaUrls, List<string>? MediaTypes);
+public record EditPostRequest(string Title, string Content, List<string>? MediaUrls, List<string>? MediaTypes);
 public record AddCommentRequest(string Content, int? ParentCommentId);
 public record ReactionRequest(string ReactionType);
 public record RejectRequest(string Reason);

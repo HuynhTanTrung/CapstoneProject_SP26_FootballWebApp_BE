@@ -20,6 +20,7 @@ public class SePayWebhookService : ISePayWebhookService
     private readonly ISubscriptionPaymentNotificationService _subscriptionPaymentNotificationService;
     private readonly IUserSubscriptionRepository _userSubscriptionRepository;
     private readonly SePaySettings _sePaySettings;
+    private readonly NotificationService _notifications;
 
     public SePayWebhookService(
         VNFootballLeaguesDBContext context,
@@ -27,7 +28,8 @@ public class SePayWebhookService : ISePayWebhookService
         ISubscriptionPaymentRepository subscriptionPaymentRepository,
         ISubscriptionPaymentNotificationService subscriptionPaymentNotificationService,
         IUserSubscriptionRepository userSubscriptionRepository,
-        IOptions<SePaySettings> sePaySettings)
+        IOptions<SePaySettings> sePaySettings,
+        NotificationService notifications)
     {
         _context = context;
         _sePayWebhookLogRepository = sePayWebhookLogRepository;
@@ -35,6 +37,7 @@ public class SePayWebhookService : ISePayWebhookService
         _subscriptionPaymentNotificationService = subscriptionPaymentNotificationService;
         _userSubscriptionRepository = userSubscriptionRepository;
         _sePaySettings = sePaySettings.Value;
+        _notifications = notifications;
     }
 
     public async Task<SePayWebhookProcessResult> ProcessAsync(SePayWebhookPayload payload, string? authorizationHeader)
@@ -139,41 +142,44 @@ public class SePayWebhookService : ISePayWebhookService
                     ? subscription.ExpiresAt
                     : effectivePaidAt;
 
+                var credits = SubscriptionCredits.GetCredits(payment.PlanCode);
+                var isTopUp = SubscriptionCredits.IsTopUp(payment.PlanCode);
+
                 if (subscription is null)
                 {
-                    var credits = SubscriptionCredits.GetCredits(payment.PlanCode);
+                    // Top-up requires existing subscription; create minimal one if none
                     subscription = new UserSubscription
                     {
                         UserId = payment.UserId,
-                        PlanCode = payment.PlanCode,
-                        PlanName = payment.PlanName,
+                        PlanCode = isTopUp ? "TOPUP" : payment.PlanCode,
+                        PlanName = isTopUp ? "Top-up" : payment.PlanName,
                         Status = SubscriptionStatuses.Active,
                         StartedAt = effectivePaidAt,
-                        ExpiresAt = nextExpiryBase.AddDays(payment.DurationDays),
+                        ExpiresAt = isTopUp ? effectivePaidAt.AddDays(30) : nextExpiryBase.AddDays(payment.DurationDays),
                         LastPaymentAt = effectivePaidAt,
                         AiVideoCreditsRemaining = credits.AiVideo,
                         ForumPostCreditsRemaining = credits.ForumPost,
                         CreatedAt = now,
                         UpdatedAt = now
                     };
-
                     await _userSubscriptionRepository.AddAsync(subscription);
                 }
                 else
                 {
-                    if (subscription.ExpiresAt <= effectivePaidAt)
-                    {
+                    if (!isTopUp && subscription.ExpiresAt <= effectivePaidAt)
                         subscription.StartedAt = effectivePaidAt;
-                    }
 
-                    var credits = SubscriptionCredits.GetCredits(payment.PlanCode);
-                    subscription.PlanCode = payment.PlanCode;
-                    subscription.PlanName = payment.PlanName;
+                    if (!isTopUp)
+                    {
+                        subscription.PlanCode = payment.PlanCode;
+                        subscription.PlanName = payment.PlanName;
+                        subscription.ExpiresAt = nextExpiryBase.AddDays(payment.DurationDays);
+                    }
                     subscription.Status = SubscriptionStatuses.Active;
-                    subscription.ExpiresAt = nextExpiryBase.AddDays(payment.DurationDays);
                     subscription.LastPaymentAt = effectivePaidAt;
-                    subscription.AiVideoCreditsRemaining = credits.AiVideo;
-                    subscription.ForumPostCreditsRemaining = credits.ForumPost;
+                    // Always stack credits
+                    subscription.AiVideoCreditsRemaining = subscription.AiVideoCreditsRemaining + credits.AiVideo;
+                    subscription.ForumPostCreditsRemaining = subscription.ForumPostCreditsRemaining + credits.ForumPost;
                     subscription.UpdatedAt = now;
                     await _userSubscriptionRepository.UpdateAsync(subscription);
                 }
@@ -191,6 +197,17 @@ public class SePayWebhookService : ISePayWebhookService
                     OccurredAt = now,
                     Payment = payment
                 });
+                // Send in-app notification to user
+                if (isTopUp)
+                {
+                    string creditType = payment.PlanCode == "TOPUP_AI_VIDEO" ? "lượt AI Video Analysis" : "bài đăng diễn đàn";
+                    int creditAmount = payment.PlanCode == "TOPUP_AI_VIDEO" ? credits.AiVideo : credits.ForumPost;
+                    await _notifications.TopUpSuccessAsync(payment.UserId, creditType, creditAmount);
+                }
+                else
+                {
+                    await _notifications.SubscriptionSuccessAsync(payment.UserId, payment.PlanName, subscription.ExpiresAt);
+                }
 
                 return CreateResult(true, (int)HttpStatusCode.OK, "Webhook processed successfully.");
             }

@@ -121,6 +121,7 @@ builder.Services.AddHangfireServer(options =>
 });
 builder.Services.AddScoped<WeeklySyncJob>();
 builder.Services.AddScoped<PredictionSettlementJob>();
+builder.Services.AddScoped<NotificationService>();
 
 
 var app = builder.Build();

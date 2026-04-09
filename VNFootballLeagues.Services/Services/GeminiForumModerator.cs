@@ -45,7 +45,9 @@ public class GeminiForumModerator : IGeminiForumModerator
     public async Task<(bool Toxic, string Reason)> CheckCommentToxicityAsync(string content)
     {
         // Quick local filter for obvious bad words
-        var badWords = new[] { "đm", "vcl", "vl", "clgt", "đcm", "địt", "lồn", "cặc", "buồi", "đéo", "đụ", "đít" };
+        var badWords = new[] { "đm", "vcl", "vl", "clgt", "đcm", "địt", "lồn", "cặc", "buồi", "đéo", "đụ", "đít",
+            "óc chó", "đần độn", "khốn nạn", "mẹ mày", "bố mày", "súc vật", "chó đẻ", "thằng chó", "con chó",
+            "mày ngu", "thằng ngu", "con ngu", "đồ ngu", "ngu vl", "ngu vcl" };
         var lower = content.ToLower();
         if (badWords.Any(w => lower.Contains(w)))
             return (true, "Bình luận chứa từ ngữ thô tục.");

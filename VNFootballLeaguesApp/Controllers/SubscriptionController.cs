@@ -2,6 +2,7 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using VNFootballLeagues.Repositories.Models;
 using VNFootballLeagues.Services.IServices;
 using VNFootballLeagues.Services.Models.Subscriptions;
@@ -18,15 +19,18 @@ public class SubscriptionController : ControllerBase
     private readonly ISubscriptionService _subscriptionService;
     private readonly ISubscriptionPaymentNotificationService _subscriptionPaymentNotificationService;
     private readonly IUserService _userService;
+    private readonly VNFootballLeaguesDBContext _context;
 
     public SubscriptionController(
         ISubscriptionService subscriptionService,
         ISubscriptionPaymentNotificationService subscriptionPaymentNotificationService,
-        IUserService userService)
+        IUserService userService,
+        VNFootballLeaguesDBContext context)
     {
         _subscriptionService = subscriptionService;
         _subscriptionPaymentNotificationService = subscriptionPaymentNotificationService;
         _userService = userService;
+        _context = context;
     }
 
     [HttpGet("plans")]
@@ -103,6 +107,20 @@ public class SubscriptionController : ControllerBase
             Message = result.Message,
             Data = MapPayment(result.Payment)
         });
+    }
+
+    [HttpGet("payments/my")]
+    [Authorize]
+    public async Task<IActionResult> GetMyPayments()
+    {
+        var userId = _userService.GetUserId(User);
+        if (userId is null) return Unauthorized();
+        var payments = await _context.SubscriptionPayments
+            .Where(p => p.UserId == userId.Value)
+            .OrderByDescending(p => p.CreatedAt)
+            .Take(20)
+            .ToListAsync();
+        return Ok(new ApiResponseDto<object> { Success = true, Data = payments.Select(MapPayment) });
     }
 
     [HttpGet("payments/{paymentCode}")]

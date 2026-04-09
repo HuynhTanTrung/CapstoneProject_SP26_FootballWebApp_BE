@@ -18,19 +18,22 @@ public class SubscriptionService : ISubscriptionService
     private readonly ISubscriptionPaymentRepository _subscriptionPaymentRepository;
     private readonly SePaySettings _sePaySettings;
     private readonly SubscriptionSettings _subscriptionSettings;
+    private readonly NotificationService _notifications;
 
     public SubscriptionService(
         IUserRepository userRepository,
         IUserSubscriptionRepository userSubscriptionRepository,
         ISubscriptionPaymentRepository subscriptionPaymentRepository,
         IOptions<SePaySettings> sePaySettings,
-        IOptions<SubscriptionSettings> subscriptionSettings)
+        IOptions<SubscriptionSettings> subscriptionSettings,
+        NotificationService notifications)
     {
         _userRepository = userRepository;
         _userSubscriptionRepository = userSubscriptionRepository;
         _subscriptionPaymentRepository = subscriptionPaymentRepository;
         _sePaySettings = sePaySettings.Value;
         _subscriptionSettings = subscriptionSettings.Value;
+        _notifications = notifications;
     }
 
     public IReadOnlyCollection<SubscriptionPlanSettings> GetAvailablePlans()
@@ -247,16 +250,25 @@ public class SubscriptionService : ISubscriptionService
                 else
                 {
                     var credits = SubscriptionCredits.GetCredits(payment.PlanCode);
-                    subscription.PlanCode = payment.PlanCode;
-                    subscription.PlanName = payment.PlanName;
+                    var isTopUp = SubscriptionCredits.IsTopUp(payment.PlanCode);
+                    if (!isTopUp && subscription.ExpiresAt <= now) subscription.StartedAt = now;
+                    if (!isTopUp)
+                    {
+                        subscription.PlanCode = payment.PlanCode;
+                        subscription.PlanName = payment.PlanName;
+                        subscription.ExpiresAt = nextBase.AddDays(payment.DurationDays);
+                    }
                     subscription.Status = SubscriptionStatuses.Active;
-                    subscription.ExpiresAt = nextBase.AddDays(payment.DurationDays);
                     subscription.LastPaymentAt = now;
-                    subscription.AiVideoCreditsRemaining = credits.AiVideo;
-                    subscription.ForumPostCreditsRemaining = credits.ForumPost;
+                    // Stack credits — don't reset
+                    subscription.AiVideoCreditsRemaining = subscription.AiVideoCreditsRemaining + credits.AiVideo;
+                    subscription.ForumPostCreditsRemaining = subscription.ForumPostCreditsRemaining + credits.ForumPost;
                     subscription.UpdatedAt = now;
                     await _userSubscriptionRepository.UpdateAsync(subscription);
                 }
+
+                // Notify subscription success
+                await _notifications.SubscriptionSuccessAsync(userId, subscription.PlanName, subscription.ExpiresAt);
 
                 break;
             }

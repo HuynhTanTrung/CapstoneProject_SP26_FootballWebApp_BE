@@ -6,7 +6,12 @@ namespace VNFootballLeagues.Services.Services;
 public class CosmeticService
 {
     private readonly VNFootballLeaguesDBContext _db;
-    public CosmeticService(VNFootballLeaguesDBContext db) => _db = db;
+    private readonly NotificationService _notifications;
+    public CosmeticService(VNFootballLeaguesDBContext db, NotificationService notifications)
+    {
+        _db = db;
+        _notifications = notifications;
+    }
 
     // ── DTOs ──────────────────────────────────────────────────────────────
     public record CosmeticItemDto(int ItemId, string Name, string? Description, string Category,
@@ -55,6 +60,9 @@ public class CosmeticService
 
         _db.UserCosmetics.Add(new UserCosmetic { UserId = userId, ItemId = itemId });
         await _db.SaveChangesAsync(ct);
+
+        await _notifications.CosmeticPurchaseAsync(userId, item.Name, item.PointCost!.Value, stats.Points ?? 0, ct);
+
         return (true, $"Mua thành công! Còn lại {stats.Points}đ.");
     }
 

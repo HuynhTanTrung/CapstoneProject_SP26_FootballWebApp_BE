@@ -118,6 +118,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<CloudinaryService>();
         services.AddScoped<IGeminiForumModerator, GeminiForumModerator>();
         services.AddScoped<ForumService>();
+        services.AddScoped<NotificationService>();
 
         return services;
     }

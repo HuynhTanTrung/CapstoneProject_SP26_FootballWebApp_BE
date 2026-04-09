@@ -67,6 +67,13 @@ public class CheckInService
 
         await _db.SaveChangesAsync(ct);
 
+        // Notify streak milestones
+        if (streak == 7 || streak == 30 || streak == 100)
+        {
+            var notifSvc = new NotificationService(_db);
+            _ = Task.Run(() => notifSvc.CheckinStreakAsync(userId, streak));
+        }
+
         return new CheckInResultDto
         {
             AlreadyCheckedIn = false,

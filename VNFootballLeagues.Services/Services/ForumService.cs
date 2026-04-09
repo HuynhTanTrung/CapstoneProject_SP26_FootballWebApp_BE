@@ -7,11 +7,13 @@ public class ForumService
 {
     private readonly VNFootballLeaguesDBContext _db;
     private readonly IGeminiForumModerator _moderator;
+    private readonly NotificationService _notifications;
 
-    public ForumService(VNFootballLeaguesDBContext db, IGeminiForumModerator moderator)
+    public ForumService(VNFootballLeaguesDBContext db, IGeminiForumModerator moderator, NotificationService notifications)
     {
         _db = db;
         _moderator = moderator;
+        _notifications = notifications;
     }
 
     // ── DTOs ──────────────────────────────────────────────────────────────
@@ -145,7 +147,9 @@ public class ForumService
         var p = await _db.ForumPosts.FindAsync(new object[] { postId }, ct);
         if (p == null) return false;
         p.Status = "approved"; p.UpdatedAt = DateTime.UtcNow;
-        await _db.SaveChangesAsync(ct); return true;
+        await _db.SaveChangesAsync(ct);
+        await _notifications.PostApprovedAsync(p.UserId, p.Title, p.PostId, ct);
+        return true;
     }
 
     public async Task<bool> RejectPostAsync(int postId, string reason, CancellationToken ct = default)
@@ -153,7 +157,9 @@ public class ForumService
         var p = await _db.ForumPosts.FindAsync(new object[] { postId }, ct);
         if (p == null) return false;
         p.Status = "rejected"; p.RejectionReason = reason; p.UpdatedAt = DateTime.UtcNow;
-        await _db.SaveChangesAsync(ct); return true;
+        await _db.SaveChangesAsync(ct);
+        await _notifications.PostRejectedAsync(p.UserId, p.Title, reason, ct);
+        return true;
     }
 
     public async Task<bool> HidePostAsync(int postId, CancellationToken ct = default)
@@ -161,14 +167,16 @@ public class ForumService
         var p = await _db.ForumPosts.FindAsync(new object[] { postId }, ct);
         if (p == null) return false;
         p.Status = "hidden"; p.UpdatedAt = DateTime.UtcNow;
-        await _db.SaveChangesAsync(ct); return true;
+        await _db.SaveChangesAsync(ct);
+        await _notifications.PostHiddenAsync(p.UserId, p.Title, ct);
+        return true;
     }
 
     // ── Comments ──────────────────────────────────────────────────────────
     public async Task<List<CommentDto>> GetCommentsAsync(int postId, CancellationToken ct = default)
     {
         var comments = await _db.ForumComments.Include(c => c.User)
-            .Where(c => c.PostId == postId && c.Status == "active")
+            .Where(c => c.PostId == postId && (c.Status == "active" || c.Status == "warned"))
             .OrderBy(c => c.CreatedAt).ToListAsync(ct);
 
         // Get parent author names
@@ -231,30 +239,55 @@ public class ForumService
         _db.ForumComments.Add(comment);
         await _db.SaveChangesAsync(ct);
 
+        // Notify post author or parent comment author about reply
         _ = Task.Run(async () =>
         {
             try
             {
-                var (toxic, reason) = await _moderator.CheckCommentToxicityAsync(content);
-                if (toxic)
+                var commenter = await _db.Users.FindAsync(userId);
+                var commenterName = commenter?.FullName ?? commenter?.Username ?? "Ai đó";
+                if (parentCommentId.HasValue)
                 {
-                    comment.Status = "hidden";
-                    comment.AiWarningCount++;
-                    var warningCount = await _db.ForumComments
-                        .CountAsync(c => c.UserId == userId && c.AiWarningCount > 0);
-                    if (warningCount >= 2)
-                    {
-                        _db.UserCommentBans.Add(new UserCommentBan
-                        {
-                            UserId = userId, Reason = "Bình luận vi phạm cộng đồng nhiều lần.",
-                            BannedBy = "AI", BannedAt = DateTime.UtcNow, ExpiresAt = DateTime.UtcNow.AddDays(2)
-                        });
-                    }
-                    await _db.SaveChangesAsync();
+                    var parent = await _db.ForumComments.FindAsync(parentCommentId.Value);
+                    if (parent != null && parent.UserId != userId)
+                        await _notifications.CommentReplyAsync(parent.UserId, commenterName, post.Title, postId);
+                }
+                else if (post.UserId != userId)
+                {
+                    await _notifications.CommentReplyAsync(post.UserId, commenterName, post.Title, postId);
                 }
             }
             catch { }
         });
+
+        // AI moderation - run synchronously so status is set before FE refreshes
+        try
+        {
+            var (toxic, reason) = await _moderator.CheckCommentToxicityAsync(content);
+            if (toxic)
+            {
+                comment.Status = "warned";
+                comment.AiWarningCount++;
+                var warningCount = await _db.ForumComments
+                    .CountAsync(c => c.UserId == userId && c.AiWarningCount > 0, ct);
+                if (warningCount >= 2)
+                {
+                    _db.UserCommentBans.Add(new UserCommentBan
+                    {
+                        UserId = userId, Reason = "Bình luận vi phạm cộng đồng nhiều lần.",
+                        BannedBy = "AI", BannedAt = DateTime.UtcNow, ExpiresAt = DateTime.UtcNow.AddDays(2)
+                    });
+                    await _db.SaveChangesAsync(ct);
+                    await _notifications.CommentBanAsync(userId, 2, "Bình luận vi phạm cộng đồng nhiều lần.", "AI", ct);
+                }
+                else
+                {
+                    await _db.SaveChangesAsync(ct);
+                    await _notifications.CommentWarningAsync(userId, reason, ct);
+                }
+            }
+        }
+        catch { /* Gemini unavailable */ }
 
         return (true, "Đã thêm bình luận.");
     }
@@ -307,6 +340,36 @@ public class ForumService
         return (counts, myReaction);
     }
 
+    public async Task<(bool Success, string Message)> EditPostAsync(int postId, Guid userId, string title, string content, List<string>? mediaUrls, List<string>? mediaTypes, CancellationToken ct = default)
+    {
+        var post = await _db.ForumPosts.FindAsync(new object[] { postId }, ct);
+        if (post == null) return (false, "Bài đăng không tồn tại.");
+        if (post.UserId != userId) return (false, "Bạn không có quyền chỉnh sửa bài này.");
+        post.Title = title;
+        post.Content = content;
+        if (mediaUrls != null) post.MediaUrls = System.Text.Json.JsonSerializer.Serialize(mediaUrls);
+        if (mediaTypes != null) post.MediaTypes = System.Text.Json.JsonSerializer.Serialize(mediaTypes);
+        // Nếu bị từ chối → reset về pending để duyệt lại
+        if (post.Status == "rejected")
+        {
+            post.Status = "pending";
+            post.RejectionReason = null;
+        }
+        await _db.SaveChangesAsync(ct);
+        var msg = post.Status == "pending" ? "Đã cập nhật và gửi lại để duyệt." : "Đã cập nhật bài đăng.";
+        return (true, msg);
+    }
+
+    public async Task<(bool Success, string Message)> DeletePostAsync(int postId, Guid userId, CancellationToken ct = default)
+    {
+        var post = await _db.ForumPosts.FindAsync(new object[] { postId }, ct);
+        if (post == null) return (false, "Bài đăng không tồn tại.");
+        if (post.UserId != userId) return (false, "Bạn không có quyền xóa bài này.");
+        _db.ForumPosts.Remove(post);
+        await _db.SaveChangesAsync(ct);
+        return (true, "Đã xóa bài đăng.");
+    }
+
     public async Task<bool> HideCommentAsync(int commentId, CancellationToken ct = default)
     {
         var c = await _db.ForumComments.FindAsync(new object[] { commentId }, ct);
@@ -341,7 +404,9 @@ public class ForumService
             UserId = userId, Reason = reason, BannedBy = "Admin",
             BannedAt = DateTime.UtcNow, ExpiresAt = DateTime.UtcNow.AddDays(days)
         });
-        await _db.SaveChangesAsync(ct); return true;
+        await _db.SaveChangesAsync(ct);
+        await _notifications.CommentBanAsync(userId, days, reason, "Admin", ct);
+        return true;
     }
 
     public async Task<bool> UnbanUserCommentAsync(Guid userId, CancellationToken ct = default)

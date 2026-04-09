@@ -14,7 +14,7 @@ namespace VNFootballLeagues.Services.Services
     {
         private readonly VNFootballLeaguesDBContext _context;
         private readonly ILogger<SofascoreHybridService> _logger;
-        private static IBrowser _browser;
+        private static IBrowser? _browser;
         private static bool _initialized = false;
         private static readonly SemaphoreSlim _lock = new(1, 1);
         private static int _activePages = 0;
@@ -206,7 +206,7 @@ namespace VNFootballLeagues.Services.Services
                     {
                         status = false,
                         message = $"League with API ID {apiTournamentId} not found. Please sync leagues first.",
-                        data = (object)null
+                        data = (object?)null
                     };
                 }
 
@@ -219,7 +219,7 @@ namespace VNFootballLeagues.Services.Services
                     {
                         status = false,
                         message = $"Season with API ID {apiSeasonId} not found. Please sync seasons first.",
-                        data = (object)null
+                        data = (object?)null
                     };
                 }
 
@@ -233,7 +233,7 @@ namespace VNFootballLeagues.Services.Services
                     {
                         status = false,
                         message = "No rounds found",
-                        data = (object)null
+                        data = (object?)null
                     };
                 }
 
@@ -456,7 +456,7 @@ namespace VNFootballLeagues.Services.Services
                 {
                     status = false,
                     message = ex.Message,
-                    data = (object)null
+                    data = (object?)null
                 };
             }
         }
@@ -474,7 +474,7 @@ namespace VNFootballLeagues.Services.Services
                     {
                         status = false,
                         message = $"Match with ApiFixtureId {apiFixtureId} not found",
-                        data = (object)null
+                        data = (object?)null
                     };
                 }
 
@@ -489,7 +489,7 @@ namespace VNFootballLeagues.Services.Services
                     {
                         status = false,
                         message = $"No statistics found for match {apiFixtureId}",
-                        data = (object)null
+                        data = (object?)null
                     };
                 }
 
@@ -913,7 +913,7 @@ namespace VNFootballLeagues.Services.Services
                     {
                         status = false,
                         message = $"League with API ID {apiTournamentId} not found. Please sync leagues first.",
-                        data = (object)null
+                        data = (object?)null
                     };
                 }
 
@@ -993,7 +993,7 @@ namespace VNFootballLeagues.Services.Services
 
                 if (teamsList.Count == 0)
                 {
-                    return new { status = false, message = "No teams found", data = (object)null };
+                    return new { status = false, message = "No teams found", data = (object?)null };
                 }
 
                 _logger.LogInformation("Found {Count} teams for tournament {TournamentId}, season {SeasonId} (fromMatches={FromMatches})",
@@ -1307,7 +1307,7 @@ namespace VNFootballLeagues.Services.Services
                     {
                         status = false,
                         message = $"League with API ID {apiTournamentId} not found. Please sync leagues first.",
-                        data = (object)null
+                        data = (object?)null
                     };
                 }
 
@@ -1319,7 +1319,7 @@ namespace VNFootballLeagues.Services.Services
                     {
                         status = false,
                         message = $"Season with API ID {apiSeasonId} not found. Please sync seasons first.",
-                        data = (object)null
+                        data = (object?)null
                     };
                 }
 
@@ -1529,7 +1529,7 @@ namespace VNFootballLeagues.Services.Services
                     {
                         status = false,
                         message = $"League with API ID {apiTournamentId} not found. Please sync leagues first.",
-                        data = (object)null
+                        data = (object?)null
                     };
                 }
 
@@ -1542,7 +1542,7 @@ namespace VNFootballLeagues.Services.Services
                     {
                         status = false,
                         message = $"Season with API ID {apiSeasonId} not found for league {league.LeagueName}. Please sync seasons first.",
-                        data = (object)null
+                        data = (object?)null
                     };
                 }
 
@@ -1561,7 +1561,7 @@ namespace VNFootballLeagues.Services.Services
                     {
                         status = false,
                         message = $"No matches found for {league.LeagueName} season {season.Year} with valid ApiFixtureId",
-                        data = (object)null
+                        data = (object?)null
                     };
                 }
 
@@ -1840,7 +1840,7 @@ namespace VNFootballLeagues.Services.Services
                     {
                         status = false,
                         message = $"League with API ID {apiTournamentId} not found. Please sync leagues first.",
-                        data = (object)null
+                        data = (object?)null
                     };
                 }
 
@@ -1855,7 +1855,7 @@ namespace VNFootballLeagues.Services.Services
                     {
                         status = false,
                         message = "No seasons found in response",
-                        data = (object)null
+                        data = (object?)null
                     };
                 }
 
@@ -1964,7 +1964,7 @@ namespace VNFootballLeagues.Services.Services
                     {
                         status = false,
                         message = $"Match with ApiFixtureId {apiFixtureId} not found. Please sync matches first.",
-                        data = (object)null
+                        data = (object?)null
                     };
                 }
 
@@ -1981,7 +1981,7 @@ namespace VNFootballLeagues.Services.Services
                     {
                         status = false,
                         message = $"No incidents found for match {apiFixtureId}",
-                        data = (object)null
+                        data = (object?)null
                     };
                 }
 
@@ -2230,7 +2230,7 @@ namespace VNFootballLeagues.Services.Services
                     {
                         status = false,
                         message = $"League with API ID {apiTournamentId} not found. Please sync leagues first.",
-                        data = (object)null
+                        data = (object?)null
                     };
                 }
 
@@ -2243,7 +2243,7 @@ namespace VNFootballLeagues.Services.Services
                     {
                         status = false,
                         message = $"Season with API ID {apiSeasonId} not found. Please sync seasons first.",
-                        data = (object)null
+                        data = (object?)null
                     };
                 }
 
@@ -2261,7 +2261,7 @@ namespace VNFootballLeagues.Services.Services
                     {
                         status = false,
                         message = "No standings data found in response",
-                        data = (object)null
+                        data = (object?)null
                     };
                 }
 
@@ -2432,7 +2432,7 @@ namespace VNFootballLeagues.Services.Services
                     {
                         status = false,
                         message = $"Match with API ID {apiFixtureId} not found in database. Please sync matches first.",
-                        data = (object)null
+                        data = (object?)null
                     };
                 }
 
@@ -2448,13 +2448,34 @@ namespace VNFootballLeagues.Services.Services
                     {
                         status = false,
                         message = $"No players found for teams in this match. Please sync teams and players first.",
-                        data = (object)null
+                        data = (object?)null
                     };
                 }
 
                 int successCount = 0;
                 int failCount = 0;
                 var results = new List<object>();
+
+                // Fetch lineup to get match positions (player may play different position than their default)
+                var matchPositions = new Dictionary<int, string>(); // apiPlayerId -> position in this match
+                try
+                {
+                    var lineupJson = await FetchJson($"https://www.sofascore.com/api/v1/event/{apiFixtureId}/lineups");
+                    using var lineupDoc = JsonDocument.Parse(lineupJson);
+                    foreach (var side in new[] { "home", "away" })
+                    {
+                        if (!lineupDoc.RootElement.TryGetProperty(side, out var sideEl)) continue;
+                        if (!sideEl.TryGetProperty("players", out var playersEl)) continue;
+                        foreach (var p in playersEl.EnumerateArray())
+                        {
+                            if (!p.TryGetProperty("player", out var pEl) || !pEl.TryGetProperty("id", out var idEl)) continue;
+                            int apiId = idEl.GetInt32();
+                            string pos = p.TryGetProperty("position", out var posEl) ? posEl.GetString() : null;
+                            if (pos != null) matchPositions[apiId] = pos;
+                        }
+                    }
+                }
+                catch { /* lineup optional, fall back to player.Position */ }
 
                 // Fetch shotmap once for the whole match, group by player API ID
                 var penaltyScored = new Dictionary<int, int>();
@@ -2534,8 +2555,10 @@ namespace VNFootballLeagues.Services.Services
                                 .FirstOrDefaultAsync(ps => ps.MatchId == match.MatchId &&
                                                            ps.PlayerId == player.PlayerId);
 
-                            // Calculate system rating
-                            var position = player.Position;
+                            // Use match position (from lineup) if available, fallback to player's default position
+                            var position = (player.ApiPlayerId.HasValue && matchPositions.TryGetValue(player.ApiPlayerId.Value, out var mp))
+                                ? mp
+                                : player.Position;
                             var matchResult = PlayerRatingCalculator.GetMatchResult(playerStats, match);
                             playerStats.Rating = PlayerRatingCalculator.Calculate(playerStats, position, matchResult);
 
@@ -2625,7 +2648,7 @@ namespace VNFootballLeagues.Services.Services
                     {
                         status = false,
                         message = $"League with API ID {apiTournamentId} not found. Please sync leagues first.",
-                        data = (object)null
+                        data = (object?)null
                     };
                 }
 
@@ -2638,7 +2661,7 @@ namespace VNFootballLeagues.Services.Services
                     {
                         status = false,
                         message = $"Season with API ID {apiSeasonId} not found. Please sync seasons first.",
-                        data = (object)null
+                        data = (object?)null
                     };
                 }
 
@@ -2659,7 +2682,7 @@ namespace VNFootballLeagues.Services.Services
                     {
                         status = false,
                         message = $"No finished matches found for {league.LeagueName} season {season.Year}",
-                        data = (object)null
+                        data = (object?)null
                     };
                 }
 
@@ -2751,11 +2774,11 @@ namespace VNFootballLeagues.Services.Services
                     {
                         var league = await _context.Leagues.FirstOrDefaultAsync(l => l.ApiLeagueId == apiTournamentId);
                         if (league == null)
-                            return new { status = false, message = $"League with API ID {apiTournamentId} not found.", data = (object)null };
+                            return new { status = false, message = $"League with API ID {apiTournamentId} not found.", data = (object?)null };
 
                         var season = await _context.Seasons.FirstOrDefaultAsync(s => s.ApiSeasonId == apiSeasonId);
                         if (season == null)
-                            return new { status = false, message = $"Season with API ID {apiSeasonId} not found.", data = (object)null };
+                            return new { status = false, message = $"Season with API ID {apiSeasonId} not found.", data = (object?)null };
 
                         var matches = await _context.Matches
                             .Include(m => m.HomeTeam)
@@ -2769,7 +2792,7 @@ namespace VNFootballLeagues.Services.Services
                             .ToListAsync();
 
                         if (!matches.Any())
-                            return new { status = false, message = $"No finished matches found for round '{round}'", data = (object)null };
+                            return new { status = false, message = $"No finished matches found for round '{round}'", data = (object?)null };
 
                         int totalMatchesProcessed = 0, totalSuccess = 0, totalFailed = 0;
                         var matchResults = new List<object>();
@@ -3694,7 +3717,7 @@ namespace VNFootballLeagues.Services.Services
                     {
                         status = false,
                         message = $"Match with ApiFixtureId {apiFixtureId} not found. Please sync matches first.",
-                        data = (object)null
+                        data = (object?)null
                     };
                 }
 
@@ -3813,7 +3836,7 @@ namespace VNFootballLeagues.Services.Services
                     {
                         status = false,
                         message = $"League with API ID {apiTournamentId} not found.",
-                        data = (object)null
+                        data = (object?)null
                     };
                 }
 
@@ -3826,7 +3849,7 @@ namespace VNFootballLeagues.Services.Services
                     {
                         status = false,
                         message = $"Season with API ID {apiSeasonId} not found.",
-                        data = (object)null
+                        data = (object?)null
                     };
                 }
 
@@ -3844,7 +3867,7 @@ namespace VNFootballLeagues.Services.Services
                     {
                         status = false,
                         message = $"No matches found for {league.LeagueName} season {season.Year}",
-                        data = (object)null
+                        data = (object?)null
                     };
                 }
 
@@ -3931,7 +3954,7 @@ namespace VNFootballLeagues.Services.Services
                     {
                         status = false,
                         message = $"Team with API ID {apiTeamId} not found. Please sync teams first.",
-                        data = (object)null
+                        data = (object?)null
                     };
                 }
 
@@ -3946,7 +3969,7 @@ namespace VNFootballLeagues.Services.Services
                     {
                         status = false,
                         message = "No players found in response",
-                        data = (object)null
+                        data = (object?)null
                     };
                 }
 
@@ -4109,7 +4132,7 @@ namespace VNFootballLeagues.Services.Services
                     {
                         status = false,
                         message = $"Team with API ID {apiTeamId} not found. Please sync teams first.",
-                        data = (object)null
+                        data = (object?)null
                     };
                 }
 
@@ -4124,7 +4147,7 @@ namespace VNFootballLeagues.Services.Services
                     {
                         status = false,
                         message = $"No players found for team {team.TeamName}. Sync players first.",
-                        data = (object)null
+                        data = (object?)null
                     };
                 }
 
@@ -4299,7 +4322,7 @@ namespace VNFootballLeagues.Services.Services
                     {
                         status = false,
                         message = $"League with API ID {apiTournamentId} not found. Please sync leagues first.",
-                        data = (object)null
+                        data = (object?)null
                     };
                 }
 
@@ -4312,7 +4335,7 @@ namespace VNFootballLeagues.Services.Services
                     {
                         status = false,
                         message = $"Season with API ID {apiSeasonId} not found for league {league.LeagueName}. Please sync seasons first.",
-                        data = (object)null
+                        data = (object?)null
                     };
                 }
 
@@ -4329,7 +4352,7 @@ namespace VNFootballLeagues.Services.Services
                     {
                         status = false,
                         message = "No standings data found",
-                        data = (object)null
+                        data = (object?)null
                     };
                 }
 
@@ -4360,7 +4383,7 @@ namespace VNFootballLeagues.Services.Services
                     {
                         status = false,
                         message = "No teams found in standings",
-                        data = (object)null
+                        data = (object?)null
                     };
                 }
 
@@ -4508,7 +4531,7 @@ namespace VNFootballLeagues.Services.Services
                     {
                         status = false,
                         message = $"League with API ID {apiTournamentId} not found. Please sync leagues first.",
-                        data = (object)null
+                        data = (object?)null
                     };
                 }
 
@@ -4521,7 +4544,7 @@ namespace VNFootballLeagues.Services.Services
                     {
                         status = false,
                         message = $"Season with API ID {apiSeasonId} not found for league {league.LeagueName}. Please sync seasons first.",
-                        data = (object)null
+                        data = (object?)null
                     };
                 }
 
@@ -4538,7 +4561,7 @@ namespace VNFootballLeagues.Services.Services
                     {
                         status = false,
                         message = "No standings data found",
-                        data = (object)null
+                        data = (object?)null
                     };
                 }
 
@@ -4569,7 +4592,7 @@ namespace VNFootballLeagues.Services.Services
                     {
                         status = false,
                         message = "No teams found in standings",
-                        data = (object)null
+                        data = (object?)null
                     };
                 }
 
@@ -4718,7 +4741,7 @@ namespace VNFootballLeagues.Services.Services
                     {
                         status = false,
                         message = "No teams found in the database.",
-                        data = (object)null
+                        data = (object?)null
                     };
                 }
 
@@ -4733,7 +4756,7 @@ namespace VNFootballLeagues.Services.Services
                     {
                         status = false,
                         message = "No players found in the database.",
-                        data = (object)null
+                        data = (object?)null
                     };
                 }
 
@@ -4769,7 +4792,7 @@ namespace VNFootballLeagues.Services.Services
 
                 var transfersByPlayer = transfers
                     .Where(t => t.Player != null)
-                    .GroupBy(t => new { t.Player.PlayerId, t.Player.FullName, t.Player.Position, t.Player.Number, t.Player.Nationality, t.Player.ApiPlayerId })
+                    .GroupBy(t => new { t.Player!.PlayerId, t.Player.FullName, t.Player.Position, t.Player.Number, t.Player.Nationality, t.Player.ApiPlayerId })
                     .Select(g => new
                     {
                         playerId = g.Key.PlayerId,
@@ -4888,7 +4911,7 @@ namespace VNFootballLeagues.Services.Services
                     {
                         status = false,
                         message = $"League with API ID {apiTournamentId} not found.",
-                        data = (object)null
+                        data = (object?)null
                     };
                 }
 
@@ -4901,7 +4924,7 @@ namespace VNFootballLeagues.Services.Services
                     {
                         status = false,
                         message = $"Season with API ID {apiSeasonId} not found for league {league.LeagueName}.",
-                        data = (object)null
+                        data = (object?)null
                     };
                 }
 
@@ -4933,7 +4956,7 @@ namespace VNFootballLeagues.Services.Services
                     {
                         status = false,
                         message = $"No teams found for {league.LeagueName} season {season.Year}",
-                        data = (object)null
+                        data = (object?)null
                     };
                 }
 
