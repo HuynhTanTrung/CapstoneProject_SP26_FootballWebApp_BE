@@ -25,6 +25,7 @@ public partial class VNFootballLeaguesDBContext : DbContext
     public virtual DbSet<ForumComment> ForumComments { get; set; }
     public virtual DbSet<UserCommentBan> UserCommentBans { get; set; }
     public virtual DbSet<ForumReaction> ForumReactions { get; set; }
+    public virtual DbSet<CommentReport> CommentReports { get; set; }
 
     public virtual DbSet<Club> Clubs { get; set; }
 

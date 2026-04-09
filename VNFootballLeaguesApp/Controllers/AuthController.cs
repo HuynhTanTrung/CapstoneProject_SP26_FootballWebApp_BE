@@ -2,6 +2,7 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.EntityFrameworkCore;
 using VNFootballLeagues.Repositories.Models;
 using VNFootballLeagues.Services.IServices;
 using VNFootballLeagues.Services.Models.Auth;
@@ -295,5 +296,26 @@ public class AuthController : ControllerBase
             Message = "Upload thành công.",
             Data = new { avatarUrl }
         });
+    }
+
+    // ── Admin User Management ─────────────────────────────────────────────
+
+    [HttpGet("admin/users")]
+    [Authorize(Policy = "AdminOnly")]
+    public async Task<IActionResult> AdminGetUsers([FromQuery] string? search, [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
+    {
+        var q = _context.Users.AsQueryable();
+        if (!string.IsNullOrWhiteSpace(search))
+            q = q.Where(u => u.Username.Contains(search) || u.Email.Contains(search) || (u.FullName != null && u.FullName.Contains(search)));
+        var total = await q.CountAsync();
+        var userList = await q.OrderByDescending(u => u.CreatedAt).Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
+        var userIds = userList.Select(u => u.UserId).ToList();
+        var activeBans = await _context.UserCommentBans.Where(b => userIds.Contains(b.UserId) && b.ExpiresAt > DateTime.UtcNow).ToListAsync();
+        var result = userList.Select(u => {
+            var ban = activeBans.Where(b => b.UserId == u.UserId).OrderByDescending(b => b.ExpiresAt).FirstOrDefault();
+            var isAdmin = _context.UserRoles.Any(ur => ur.UserId == u.UserId && ur.Role.RoleName == "Admin");
+            return new { u.UserId, u.Username, u.Email, u.FullName, u.AvatarUrl, u.IsEmailVerified, u.IsActive, u.CreatedAt, commentBanned = ban != null, commentBanExpiry = ban?.ExpiresAt, isAdmin };
+        });
+        return Ok(new ApiResponseDto<object> { Success = true, Data = new { items = result, total, page, pageSize } });
     }
 }

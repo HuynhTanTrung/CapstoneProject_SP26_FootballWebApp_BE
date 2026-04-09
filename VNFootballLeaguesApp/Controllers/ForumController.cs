@@ -131,6 +131,52 @@ public class ForumController : ControllerBase
         return Ok(new { success = true, data = items, total });
     }
 
+    [HttpPost("comments/{id}/report")]
+    [Authorize]
+    public async Task<IActionResult> ReportComment(int id, [FromBody] ReportCommentRequest req, CancellationToken ct)
+    {
+        var userId = _userService.GetUserId(User);
+        if (userId is null) return Unauthorized();
+        var (success, message) = await _forum.ReportCommentAsync(id, userId.Value, req.Reason, ct);
+        if (!success) return BadRequest(new ApiResponseDto<object> { Success = false, Message = message });
+        return Ok(new ApiResponseDto<object> { Success = true, Message = message });
+    }
+
+    [HttpGet("admin/reports")]
+    [Authorize(Policy = "AdminOnly")]
+    public async Task<IActionResult> GetReports([FromQuery] string? status, CancellationToken ct)
+    {
+        var reports = await _forum.GetAdminReportsAsync(status, ct);
+        return Ok(new ApiResponseDto<object> { Success = true, Data = reports });
+    }
+
+    [HttpPut("admin/reports/{id}/status")]
+    [Authorize(Policy = "AdminOnly")]
+    public async Task<IActionResult> UpdateReportStatus(int id, [FromBody] UpdateReportStatusRequest req, CancellationToken ct)
+    {
+        var ok = await _forum.UpdateReportStatusAsync(id, req.Status, ct);
+        if (!ok) return NotFound();
+        return Ok(new ApiResponseDto<object> { Success = true, Message = "Đã cập nhật." });
+    }
+
+    [HttpPost("admin/reports/{id}/approve")]
+    [Authorize(Policy = "AdminOnly")]
+    public async Task<IActionResult> ApproveReport(int id, CancellationToken ct)
+    {
+        var (success, message) = await _forum.ApproveReportAsync(id, ct);
+        if (!success) return BadRequest(new ApiResponseDto<object> { Success = false, Message = message });
+        return Ok(new ApiResponseDto<object> { Success = true, Message = message });
+    }
+
+    [HttpPost("admin/reports/{id}/dismiss")]
+    [Authorize(Policy = "AdminOnly")]
+    public async Task<IActionResult> DismissReport(int id, [FromBody] DismissReportRequest req, CancellationToken ct)
+    {
+        var (success, message) = await _forum.DismissReportAsync(id, req.Reason ?? "", ct);
+        if (!success) return BadRequest(new ApiResponseDto<object> { Success = false, Message = message });
+        return Ok(new ApiResponseDto<object> { Success = true, Message = message });
+    }
+
     [HttpPost("admin/posts/{id}/approve")]
     [Authorize(Policy = "AdminOnly")]
     public async Task<IActionResult> ApprovePost(int id, CancellationToken ct)
@@ -202,6 +248,9 @@ public class ForumController : ControllerBase
     }
 }
 
+public record ReportCommentRequest(string Reason);
+public record UpdateReportStatusRequest(string Status);
+public record DismissReportRequest(string? Reason);
 public record CreatePostRequest(string Title, string Content, string LeagueTag, List<string>? MediaUrls, List<string>? MediaTypes);
 public record EditPostRequest(string Title, string Content, List<string>? MediaUrls, List<string>? MediaTypes);
 public record AddCommentRequest(string Content, int? ParentCommentId);

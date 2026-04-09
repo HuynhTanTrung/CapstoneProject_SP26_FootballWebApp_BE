@@ -315,5 +315,16 @@ public partial class VNFootballLeaguesDBContext
             entity.HasOne(d => d.Effect).WithMany().HasForeignKey(d => d.EffectItemId).OnDelete(DeleteBehavior.SetNull);
             entity.HasOne(d => d.Card).WithMany().HasForeignKey(d => d.CardItemId).OnDelete(DeleteBehavior.SetNull);
         });
+
+        modelBuilder.Entity<CommentReport>(entity =>
+        {
+            entity.HasKey(e => e.ReportId);
+            entity.ToTable("CommentReport");
+            entity.Property(e => e.ReportId).ValueGeneratedOnAdd();
+            entity.Property(e => e.Reason).IsRequired().HasMaxLength(500);
+            entity.Property(e => e.Status).IsRequired().HasMaxLength(20);
+            entity.HasOne(e => e.Comment).WithMany().HasForeignKey(e => e.CommentId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.Reporter).WithMany().HasForeignKey(e => e.ReporterId).OnDelete(DeleteBehavior.Restrict);
+        });
     }
 }

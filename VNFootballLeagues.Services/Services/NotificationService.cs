@@ -86,9 +86,25 @@ public class NotificationService
         CreateAsync(userId, "comment_warning", "Cảnh báo vi phạm ngôn từ ⚠️",
             $"Bình luận của bạn đã bị ẩn: {reason}. Tiếp tục vi phạm sẽ bị cấm bình luận.", null, ct);
 
+    public Task ReportApprovedForReporterAsync(Guid reporterId, string postTitle, int postId, CancellationToken ct = default) =>
+        CreateAsync(reporterId, "report_approved", "Báo cáo được chấp nhận ✅",
+            $"Báo cáo của bạn về bình luận trong bài \"{postTitle}\" đã được xử lý. Bình luận vi phạm đã bị ẩn.", $"/forum/{postId}", ct);
+
+    public Task ReportApprovedForAuthorAsync(Guid authorId, string postTitle, int postId, CancellationToken ct = default) =>
+        CreateAsync(authorId, "comment_hidden_report", "Bình luận bị ẩn do báo cáo 🚫",
+            $"Một bình luận của bạn trong bài \"{postTitle}\" đã bị ẩn sau khi được báo cáo và xem xét bởi Admin.", $"/forum/{postId}", ct);
+
+    public Task ReportDismissedAsync(Guid reporterId, string reason, CancellationToken ct = default) =>
+        CreateAsync(reporterId, "report_dismissed", "Báo cáo không được chấp nhận ℹ️",
+            $"Báo cáo của bạn đã được xem xét nhưng không đủ cơ sở để xử lý. {(string.IsNullOrEmpty(reason) ? "" : $"Lý do: {reason}")}", null, ct);
+
     public Task CommentBanAsync(Guid userId, int days, string reason, string bannedBy, CancellationToken ct = default) =>
         CreateAsync(userId, "comment_ban", $"Bị cấm bình luận {days} ngày 🚫",
             $"Lý do: {reason}. Cấm bởi: {bannedBy}.", null, ct);
+
+    public Task CommentUnbannedAsync(Guid userId, CancellationToken ct = default) =>
+        CreateAsync(userId, "comment_unbanned", "Lệnh cấm bình luận đã được gỡ ✅",
+            $"Tài khoản của bạn đã được gỡ cấm bình luận lúc {TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, VnTz):HH:mm dd/MM/yyyy}. Hãy tuân thủ quy định cộng đồng.", null, ct);
 
     public Task CosmeticPurchaseAsync(Guid userId, string itemName, int pointsSpent, int remaining, CancellationToken ct = default) =>
         CreateAsync(userId, "cosmetic_purchase", "Đổi quà thành công! 🎁",

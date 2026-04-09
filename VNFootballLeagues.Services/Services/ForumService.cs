@@ -224,7 +224,11 @@ public class ForumService
             .Where(b => b.UserId == userId && b.ExpiresAt > DateTime.UtcNow)
             .OrderByDescending(b => b.ExpiresAt).FirstOrDefaultAsync(ct);
         if (ban != null)
-            return (false, $"Bạn bị cấm bình luận đến {ban.ExpiresAt:dd/MM/yyyy HH:mm}.");
+        {
+            var vnTz = TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time");
+            var expiryVn = TimeZoneInfo.ConvertTimeFromUtc(ban.ExpiresAt, vnTz);
+            return (false, $"Bạn bị cấm bình luận đến {expiryVn:dd/MM/yyyy HH:mm}.");
+        }
 
         var post = await _db.ForumPosts.FindAsync(new object[] { postId }, ct);
         if (post == null || post.Status != "approved")
@@ -409,12 +413,119 @@ public class ForumService
         return true;
     }
 
+    // ── Comment Reports ───────────────────────────────────────────────────
+
+    public async Task<(bool Success, string Message)> ReportCommentAsync(int commentId, Guid reporterId, string reason, CancellationToken ct = default)
+    {
+        var comment = await _db.ForumComments.FindAsync(new object[] { commentId }, ct);
+        if (comment == null) return (false, "Bình luận không tồn tại.");
+        if (comment.UserId == reporterId) return (false, "Không thể báo cáo bình luận của chính mình.");
+
+        // Unique constraint — 1 user chỉ báo cáo 1 lần cho mỗi comment
+        if (await _db.CommentReports.AnyAsync(r => r.CommentId == commentId && r.ReporterId == reporterId, ct))
+            return (false, "Bạn đã báo cáo bình luận này rồi.");
+
+        _db.CommentReports.Add(new CommentReport
+        {
+            CommentId = commentId, ReporterId = reporterId,
+            Reason = reason, Status = "pending", CreatedAt = DateTime.UtcNow
+        });
+        await _db.SaveChangesAsync(ct);
+        return (true, "Đã gửi báo cáo. Cảm ơn bạn!");
+    }
+
+    public record CommentReportDto(int ReportId, int CommentId, string CommentContent,
+        string ReporterName, string Reason, string Status, string CreatedAt,
+        int PostId, string PostTitle, int TotalReports);
+
+    public async Task<List<CommentReportDto>> GetAdminReportsAsync(string? status, CancellationToken ct = default)
+    {
+        var q = _db.CommentReports
+            .Include(r => r.Reporter)
+            .Include(r => r.Comment).ThenInclude(c => c.Post)
+            .AsQueryable();
+        if (!string.IsNullOrEmpty(status)) q = q.Where(r => r.Status == status);
+
+        var reports = await q.OrderByDescending(r => r.CreatedAt).ToListAsync(ct);
+
+        // Group by comment to get total reports per comment
+        var countByComment = reports.GroupBy(r => r.CommentId)
+            .ToDictionary(g => g.Key, g => g.Count());
+
+        var vnTz = TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time");
+        return reports.Select(r => new CommentReportDto(
+            r.ReportId, r.CommentId,
+            r.Comment?.Content ?? "",
+            r.Reporter?.FullName ?? r.Reporter?.Username ?? "?",
+            r.Reason, r.Status,
+            TimeZoneInfo.ConvertTimeFromUtc(r.CreatedAt, vnTz).ToString("HH:mm dd/MM/yyyy"),
+            r.Comment?.PostId ?? 0,
+            r.Comment?.Post?.Title ?? "",
+            countByComment.GetValueOrDefault(r.CommentId, 1)
+        )).ToList();
+    }
+
+    public async Task<bool> UpdateReportStatusAsync(int reportId, string status, CancellationToken ct = default)
+    {
+        var report = await _db.CommentReports.FindAsync(new object[] { reportId }, ct);
+        if (report == null) return false;
+        report.Status = status;
+        await _db.SaveChangesAsync(ct);
+        return true;
+    }
+
+    public async Task<(bool Success, string Message)> ApproveReportAsync(int reportId, CancellationToken ct = default)
+    {
+        var report = await _db.CommentReports
+            .Include(r => r.Comment).ThenInclude(c => c.Post)
+            .Include(r => r.Reporter)
+            .FirstOrDefaultAsync(r => r.ReportId == reportId, ct);
+        if (report == null) return (false, "Báo cáo không tồn tại.");
+
+        // Hide the comment
+        var comment = report.Comment;
+        if (comment != null && comment.Status != "hidden")
+        {
+            comment.Status = "hidden";
+            await _db.SaveChangesAsync(ct);
+        }
+
+        // Update report status
+        report.Status = "reviewed";
+        await _db.SaveChangesAsync(ct);
+
+        // Notify both parties
+        var postTitle = report.Comment?.Post?.Title ?? "bài đăng";
+        var postId = report.Comment?.PostId ?? 0;
+        await _notifications.ReportApprovedForReporterAsync(report.ReporterId, postTitle, postId, ct);
+        if (comment != null && comment.UserId != report.ReporterId)
+            await _notifications.ReportApprovedForAuthorAsync(comment.UserId, postTitle, postId, ct);
+
+        return (true, "Đã duyệt báo cáo và ẩn bình luận.");
+    }
+
+    public async Task<(bool Success, string Message)> DismissReportAsync(int reportId, string reason, CancellationToken ct = default)
+    {
+        var report = await _db.CommentReports
+            .Include(r => r.Comment).ThenInclude(c => c.Post)
+            .FirstOrDefaultAsync(r => r.ReportId == reportId, ct);
+        if (report == null) return (false, "Báo cáo không tồn tại.");
+
+        report.Status = "dismissed";
+        await _db.SaveChangesAsync(ct);
+
+        await _notifications.ReportDismissedAsync(report.ReporterId, reason, ct);
+        return (true, "Đã từ chối báo cáo.");
+    }
+
     public async Task<bool> UnbanUserCommentAsync(Guid userId, CancellationToken ct = default)
     {
         var bans = await _db.UserCommentBans
             .Where(b => b.UserId == userId && b.ExpiresAt > DateTime.UtcNow).ToListAsync(ct);
         _db.UserCommentBans.RemoveRange(bans);
-        await _db.SaveChangesAsync(ct); return true;
+        await _db.SaveChangesAsync(ct);
+        await _notifications.CommentUnbannedAsync(userId, ct);
+        return true;
     }
 
     // ── Mappers ───────────────────────────────────────────────────────────
