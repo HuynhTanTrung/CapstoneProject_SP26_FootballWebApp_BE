@@ -1934,6 +1934,27 @@
   },
   {
     "ContainingType": "VNFootballLeagues.API.Controllers.SofascoreHybridController",
+    "Method": "AddFavoritePlayer",
+    "RelativePath": "api/SofascoreHybrid/addFavorite",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "userId",
+        "Type": "System.Guid",
+        "IsRequired": false
+      },
+      {
+        "Name": "apiPlayerId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "VNFootballLeagues.API.Controllers.SofascoreHybridController",
     "Method": "GetAllTeamPlayersByLeagueSeason",
     "RelativePath": "api/SofascoreHybrid/all-team-players",
     "HttpMethod": "GET",
@@ -2143,6 +2164,27 @@
     "IsController": true,
     "Order": 0,
     "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "VNFootballLeagues.API.Controllers.SofascoreHybridController",
+    "Method": "RemoveFavoritePlayer",
+    "RelativePath": "api/SofascoreHybrid/removeFavorite",
+    "HttpMethod": "DELETE",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "userId",
+        "Type": "System.Guid",
+        "IsRequired": false
+      },
+      {
+        "Name": "apiPlayerId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
     "ReturnTypes": []
   },
   {
@@ -2656,6 +2698,16 @@
   },
   {
     "ContainingType": "VNFootballLeaguesApp.Controllers.SubscriptionController",
+    "Method": "GetMyPayments",
+    "RelativePath": "api/subscriptions/my-payments",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "VNFootballLeaguesApp.Controllers.SubscriptionController",
     "Method": "CreatePayment",
     "RelativePath": "api/subscriptions/payments",
     "HttpMethod": "POST",
@@ -2738,16 +2790,6 @@
         "IsRequired": true
       }
     ],
-    "ReturnTypes": []
-  },
-  {
-    "ContainingType": "VNFootballLeaguesApp.Controllers.SubscriptionController",
-    "Method": "GetMyPayments",
-    "RelativePath": "api/subscriptions/payments/my",
-    "HttpMethod": "GET",
-    "IsController": true,
-    "Order": 0,
-    "Parameters": [],
     "ReturnTypes": []
   },
   {

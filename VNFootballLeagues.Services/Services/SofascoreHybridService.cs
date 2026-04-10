@@ -5072,5 +5072,96 @@ namespace VNFootballLeagues.Services.Services
                 };
             }
         }
+
+        public async Task<object> AddFavoritePlayerAsync(Guid userId, int apiPlayerId)
+        {
+            try
+            {
+                var user = await _context.Users.FindAsync(userId);
+                if (user == null)
+                {
+                    return new { status = false, message = "User not found" };
+                }
+
+                var player = await _context.Players
+                    .FirstOrDefaultAsync(p => p.ApiPlayerId == apiPlayerId);
+
+                if (player == null)
+                {
+                    return new { status = false, message = $"Player with ApiPlayerId {apiPlayerId} not found" };
+                }
+
+                var existing = await _context.UserFavoritePlayers
+                    .FirstOrDefaultAsync(ufp => ufp.UserId == userId && ufp.PlayerId == player.PlayerId);
+
+                if (existing != null)
+                {
+                    return new { status = false, message = "Player is already in favorites" };
+                }
+
+                var favorite = new UserFavoritePlayer
+                {
+                    FavoriteId = Guid.NewGuid(),
+                    UserId = userId,
+                    PlayerId = player.PlayerId,
+                    CreatedAt = DateTime.UtcNow,
+                };
+
+                _context.UserFavoritePlayers.Add(favorite);
+                await _context.SaveChangesAsync();
+
+                return new
+                {
+                    status = true,
+                    message = "Player added to favorites successfully",
+                    data = new
+                    {
+                        favorite.FavoriteId,
+                        favorite.UserId,
+                        PlayerId = player.PlayerId,
+                        ApiPlayerId = player.ApiPlayerId,
+                        PlayerName = player.FullName,
+                        favorite.CreatedAt,
+                    }
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error adding favorite player for user {UserId} with ApiPlayerId {ApiPlayerId}", userId, apiPlayerId);
+                return new { status = false, message = $"Error adding favorite: {ex.Message}" };
+            }
+        }
+
+        public async Task<object> RemoveFavoritePlayerAsync(Guid userId, int apiPlayerId)
+        {
+            try
+            {
+                var player = await _context.Players
+                    .FirstOrDefaultAsync(p => p.ApiPlayerId == apiPlayerId);
+
+                if (player == null)
+                {
+                    return new { status = false, message = $"Player with ApiPlayerId {apiPlayerId} not found" };
+                }
+
+                var favorite = await _context.UserFavoritePlayers
+                    .FirstOrDefaultAsync(ufp => ufp.UserId == userId && ufp.PlayerId == player.PlayerId);
+
+                if (favorite == null)
+                {
+                    return new { status = false, message = "Favorite not found" };
+                }
+
+                _context.UserFavoritePlayers.Remove(favorite);
+                await _context.SaveChangesAsync();
+
+                return new { status = true, message = "Player removed from favorites successfully" };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error removing favorite player for user {UserId} with ApiPlayerId {ApiPlayerId}", userId, apiPlayerId);
+                return new { status = false, message = $"Error removing favorite: {ex.Message}" };
+            }
+        }
     }
 }

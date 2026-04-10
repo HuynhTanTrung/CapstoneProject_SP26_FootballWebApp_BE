@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using VNFootballLeagues.Repositories.Models;
 using VNFootballLeagues.Services.IServices;
+using VNFootballLeaguesApp.DTOs.Common;
 
 namespace VNFootballLeagues.API.Controllers
 {
@@ -1116,6 +1117,30 @@ namespace VNFootballLeagues.API.Controllers
                 return Ok(new { status = true, message = "Cup tree synced successfully" });
             }
             catch (Exception ex) { return StatusCode(500, new { error = ex.Message }); }
+        }
+
+        [HttpPost("addFavorite")]
+        public async Task<IActionResult> AddFavoritePlayer([FromQuery] Guid userId, [FromQuery] int apiPlayerId)
+        {
+            var result = await _service.AddFavoritePlayerAsync(userId, apiPlayerId);
+            var status = result.GetType().GetProperty("status")?.GetValue(result) as bool?;
+
+            if (status == true)
+                return Ok(result);
+
+            return BadRequest(result);
+        }
+
+        [HttpDelete("removeFavorite")]
+        public async Task<IActionResult> RemoveFavoritePlayer([FromQuery] Guid userId, [FromQuery] int apiPlayerId)
+        {
+            var result = await _service.RemoveFavoritePlayerAsync(userId, apiPlayerId);
+            var status = result.GetType().GetProperty("status")?.GetValue(result) as bool?;
+
+            if (status == true)
+                return Ok(result);
+
+            return BadRequest(result);
         }
     }
 }
