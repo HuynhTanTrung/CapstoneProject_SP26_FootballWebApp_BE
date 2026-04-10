@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Mvc;
@@ -109,7 +109,7 @@ public class SubscriptionController : ControllerBase
         });
     }
 
-    [HttpGet("payments/my")]
+    [HttpGet("my-payments")]
     [Authorize]
     public async Task<IActionResult> GetMyPayments()
     {
@@ -383,3 +383,4 @@ public class SubscriptionController : ControllerBase
         await Response.Body.FlushAsync(cancellationToken);
     }
 }
+
