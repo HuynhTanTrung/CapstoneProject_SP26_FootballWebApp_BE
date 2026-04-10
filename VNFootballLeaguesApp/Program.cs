@@ -95,6 +95,7 @@ builder.Services.AddHostedService<DatabaseAutoUpdateHostedService>();
 builder.Services.AddHttpClient<IFootballApiService, FootballApiService>();
 builder.Services.AddSingleton<IGeminiService, GeminiService>();
 builder.Services.AddScoped<IChatConversationService, ChatConversationService>();
+builder.Services.AddScoped<IAdminService, AdminService>();
 
 // Register SofaScore scraper service
 builder.Services.AddScoped<ISofascoreScraperService, SofascoreScraperService>();

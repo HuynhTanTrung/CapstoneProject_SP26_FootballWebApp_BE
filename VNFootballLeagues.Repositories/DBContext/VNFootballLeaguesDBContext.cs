@@ -21,8 +21,6 @@ public partial class VNFootballLeaguesDBContext : DbContext
 
     public virtual DbSet<ChatSession> ChatSessions { get; set; }
 
-    public virtual DbSet<Club> Clubs { get; set; }
-
     public virtual DbSet<CupTree> CupTrees { get; set; }
 
     public virtual DbSet<Contract> Contracts { get; set; }
@@ -107,19 +105,6 @@ public partial class VNFootballLeaguesDBContext : DbContext
             entity.HasOne(d => d.User).WithMany(p => p.ChatSessions)
                 .HasForeignKey(d => d.UserId)
                 .HasConstraintName("FK_ChatSession_User");
-        });
-
-        modelBuilder.Entity<Club>(entity =>
-        {
-            entity.HasKey(e => e.ClubId).HasName("PK__Club__D35058E7F99CA873");
-
-            entity.ToTable("Club");
-
-            entity.Property(e => e.City).HasMaxLength(50);
-            entity.Property(e => e.ClubName)
-                .IsRequired()
-                .HasMaxLength(50);
-            entity.Property(e => e.Owner).HasMaxLength(50);
         });
 
         modelBuilder.Entity<Contract>(entity =>
