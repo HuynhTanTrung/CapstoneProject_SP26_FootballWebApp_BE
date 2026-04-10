@@ -54,4 +54,5 @@ public partial class Player
     public virtual Team Team { get; set; }
 
     public virtual ICollection<Transfer> Transfers { get; set; } = new List<Transfer>();
+    public virtual ICollection<UserFavoritePlayer> UserFavoritePlayers { get; set; } = new List<UserFavoritePlayer>();
 }

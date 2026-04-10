@@ -111,6 +111,14 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ISubscriptionService, SubscriptionService>();
         services.AddScoped<ISePayWebhookService, SePayWebhookService>();
         services.AddScoped<ISofascoreScraperService, SofascoreScraperService>();
+        services.AddScoped<IPredictionService, PredictionService>();
+        services.AddScoped<IContestService, ContestService>();
+        services.AddScoped<CheckInService>();
+        services.AddScoped<CosmeticService>();
+        services.AddSingleton<CloudinaryService>();
+        services.AddScoped<IGeminiForumModerator, GeminiForumModerator>();
+        services.AddScoped<ForumService>();
+        services.AddScoped<NotificationService>();
 
         return services;
     }

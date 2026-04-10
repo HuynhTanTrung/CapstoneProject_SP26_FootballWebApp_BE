@@ -2,8 +2,11 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.EntityFrameworkCore;
+using VNFootballLeagues.Repositories.Models;
 using VNFootballLeagues.Services.IServices;
 using VNFootballLeagues.Services.Models.Auth;
+using VNFootballLeagues.Services.Services;
 using VNFootballLeaguesApp.DTOs.Auth;
 using VNFootballLeaguesApp.DTOs.Common;
 using VNFootballLeaguesApp.DTOs.User;
@@ -16,11 +19,15 @@ public class AuthController : ControllerBase
 {
     private readonly IAuthService _authService;
     private readonly IUserService _userService;
+    private readonly VNFootballLeaguesDBContext _context;
+    private readonly CloudinaryService _cloudinary;
 
-    public AuthController(IAuthService authService, IUserService userService)
+    public AuthController(IAuthService authService, IUserService userService, VNFootballLeaguesDBContext context, CloudinaryService cloudinary)
     {
         _authService = authService;
         _userService = userService;
+        _context = context;
+        _cloudinary = cloudinary;
     }
 
     [HttpPost("register")]
@@ -175,6 +182,7 @@ public class AuthController : ControllerBase
             Username = result.User.Username,
             Email = result.User.Email,
             FullName = result.User.FullName,
+            AvatarUrl = result.User.AvatarUrl,
             IsEmailVerified = result.User.IsEmailVerified,
             Roles = result.Roles
         };
@@ -201,5 +209,113 @@ public class AuthController : ControllerBase
             Message = result.Message,
             Data = userProfile
         });
+    }
+
+    [HttpPut("profile")]
+    [Authorize]
+    public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileRequest request)
+    {
+        var userId = _userService.GetUserId(User);
+        if (userId is null) return Unauthorized();
+
+        var user = await _userService.GetByIdAsync(userId.Value);
+        if (user is null) return NotFound();
+
+        if (!string.IsNullOrWhiteSpace(request.FullName))
+            user.FullName = request.FullName.Trim();
+
+        user.UpdatedAt = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
+
+        return Ok(new ApiResponseDto<UserProfileDto>
+        {
+            Success = true,
+            Message = "Cập nhật thành công.",
+            Data = new UserProfileDto
+            {
+                UserId = user.UserId,
+                Username = user.Username,
+                Email = user.Email,
+                FullName = user.FullName,
+                AvatarUrl = user.AvatarUrl,
+                IsEmailVerified = user.IsEmailVerified,
+                Roles = await _userService.GetUserRolesAsync(user.UserId)
+            }
+        });
+    }
+
+    [HttpPost("avatar")]
+    [Authorize]
+    public async Task<IActionResult> UploadAvatar(IFormFile file)
+    {
+        var userId = _userService.GetUserId(User);
+        if (userId is null) return Unauthorized();
+
+        if (file == null || file.Length == 0)
+            return BadRequest(new ApiResponseDto<object> { Success = false, Message = "Không có file." });
+
+        var allowed = new[] { "image/jpeg", "image/png", "image/webp", "image/gif" };
+        if (!allowed.Contains(file.ContentType.ToLower()))
+            return BadRequest(new ApiResponseDto<object> { Success = false, Message = "Chỉ chấp nhận ảnh JPG, PNG, WebP, GIF." });
+
+        if (file.Length > 5 * 1024 * 1024)
+            return BadRequest(new ApiResponseDto<object> { Success = false, Message = "Ảnh tối đa 5MB." });
+
+        string avatarUrl;
+
+        // Try Cloudinary first, fallback to local
+        if (_cloudinary.IsEnabled)
+        {
+            using var stream = file.OpenReadStream();
+            var cloudUrl = await _cloudinary.UploadAvatarAsync(stream, file.FileName, userId.Value.ToString());
+            if (cloudUrl == null)
+                return StatusCode(500, new ApiResponseDto<object> { Success = false, Message = "Upload Cloudinary thất bại." });
+            avatarUrl = cloudUrl;
+        }
+        else
+        {
+            var uploadsDir = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "avatars");
+            Directory.CreateDirectory(uploadsDir);
+            var ext = Path.GetExtension(file.FileName).ToLower();
+            var fileName = $"{userId}{ext}";
+            var filePath = Path.Combine(uploadsDir, fileName);
+            using (var stream = new FileStream(filePath, FileMode.Create))
+                await file.CopyToAsync(stream);
+            avatarUrl = $"/avatars/{fileName}";
+        }
+
+        var user = await _userService.GetByIdAsync(userId.Value);
+        if (user is null) return NotFound();
+        user.AvatarUrl = avatarUrl;
+        user.UpdatedAt = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
+
+        return Ok(new ApiResponseDto<object>
+        {
+            Success = true,
+            Message = "Upload thành công.",
+            Data = new { avatarUrl }
+        });
+    }
+
+    // ── Admin User Management ─────────────────────────────────────────────
+
+    [HttpGet("admin/users")]
+    [Authorize(Policy = "AdminOnly")]
+    public async Task<IActionResult> AdminGetUsers([FromQuery] string? search, [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
+    {
+        var q = _context.Users.AsQueryable();
+        if (!string.IsNullOrWhiteSpace(search))
+            q = q.Where(u => u.Username.Contains(search) || u.Email.Contains(search) || (u.FullName != null && u.FullName.Contains(search)));
+        var total = await q.CountAsync();
+        var userList = await q.OrderByDescending(u => u.CreatedAt).Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
+        var userIds = userList.Select(u => u.UserId).ToList();
+        var activeBans = await _context.UserCommentBans.Where(b => userIds.Contains(b.UserId) && b.ExpiresAt > DateTime.UtcNow).ToListAsync();
+        var result = userList.Select(u => {
+            var ban = activeBans.Where(b => b.UserId == u.UserId).OrderByDescending(b => b.ExpiresAt).FirstOrDefault();
+            var isAdmin = _context.UserRoles.Any(ur => ur.UserId == u.UserId && ur.Role.RoleName == "Admin");
+            return new { u.UserId, u.Username, u.Email, u.FullName, u.AvatarUrl, u.IsEmailVerified, u.IsActive, u.CreatedAt, commentBanned = ban != null, commentBanExpiry = ban?.ExpiresAt, isAdmin };
+        });
+        return Ok(new ApiResponseDto<object> { Success = true, Data = new { items = result, total, page, pageSize } });
     }
 }

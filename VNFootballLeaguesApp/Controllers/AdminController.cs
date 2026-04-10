@@ -89,5 +89,29 @@ namespace VNFootballLeaguesApp.Controllers
 
             return BadRequest(result);
         }
+
+        [HttpGet("userDashboard")]
+        public async Task<IActionResult> GetUserDashboardStatistics()
+        {
+            var result = await _adminService.GetUserDashboardStatisticsAsync();
+            var status = result.GetType().GetProperty("status")?.GetValue(result) as bool?;
+
+            if (status == true)
+                return Ok(result);
+
+            return BadRequest(result);
+        }
+
+        [HttpGet("incomeDashboard")]
+        public async Task<IActionResult> GetMoneyEarnedDashboard()
+        {
+            var result = await _adminService.GetMoneyEarnedDashboardAsync();
+            var status = result.GetType().GetProperty("status")?.GetValue(result) as bool?;
+
+            if (status == true)
+                return Ok(result);
+
+            return BadRequest(result);
+        }
     }
 }

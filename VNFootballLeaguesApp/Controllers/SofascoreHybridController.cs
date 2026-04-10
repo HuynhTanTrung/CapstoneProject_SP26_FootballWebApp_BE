@@ -367,26 +367,6 @@ namespace VNFootballLeagues.API.Controllers
             }));
         }
 
-        [HttpGet("match-events")]
-        public async Task<IActionResult> GetAllMatchEvents()
-        {
-            var data = await _service.GetAllMatchEventsAsync();
-            return Ok(data.Select(x => new
-            {
-                x.EventId,
-                x.MatchId,
-                x.TeamId,
-                x.PlayerId,
-                x.AssistPlayerId,
-                x.EventType,
-                x.Detail,
-                x.EventTime,
-                x.ExtraTime,
-                x.Period,
-                x.Comments
-            }));
-        }
-
         /// <summary>Bảng xếp hạng đã sync; tournamentId và seasonId là ID SofaScore (Api).</summary>
         [HttpGet("standings")]
         public async Task<IActionResult> GetAllStandings([FromQuery] int tournamentId, [FromQuery] int seasonId)
@@ -850,32 +830,6 @@ namespace VNFootballLeagues.API.Controllers
             if (result.GetType().GetProperty("status")?.GetValue(result) is bool status && status)
                 return Ok(result);
             return BadRequest(result);
-        }
-
-        [HttpPost("sync-match-events")]
-        public async Task<IActionResult> SyncMatchEvents([FromQuery] int apiFixtureId)
-        {
-            try
-            {
-                if (apiFixtureId <= 0)
-                {
-                    return BadRequest(new { status = false, message = "Invalid apiFixtureId" });
-                }
-
-                var result = await _service.SyncMatchEventsAsync(apiFixtureId);
-
-                if (result.GetType().GetProperty("status")?.GetValue(result) is bool status && status)
-                {
-                    return Ok(result);
-                }
-
-                return BadRequest(result);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error syncing match events for fixture {ApiFixtureId}", apiFixtureId);
-                return StatusCode(500, new { status = false, message = "Internal server error" });
-            }
         }
 
         [HttpPost("sync-standings")]

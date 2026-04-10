@@ -21,6 +21,11 @@ public partial class VNFootballLeaguesDBContext : DbContext
 
     public virtual DbSet<ChatSession> ChatSessions { get; set; }
 
+    public virtual DbSet<ForumPost> ForumPosts { get; set; }
+    public virtual DbSet<ForumComment> ForumComments { get; set; }
+    public virtual DbSet<UserCommentBan> UserCommentBans { get; set; }
+    public virtual DbSet<ForumReaction> ForumReactions { get; set; }
+    public virtual DbSet<CommentReport> CommentReports { get; set; }
     public virtual DbSet<CupTree> CupTrees { get; set; }
 
     public virtual DbSet<Contract> Contracts { get; set; }
@@ -71,6 +76,7 @@ public partial class VNFootballLeaguesDBContext : DbContext
 
     public virtual DbSet<UserRole> UserRoles { get; set; }
 
+    public virtual DbSet<UserFavoritePlayer> UserFavoritePlayers { get; set; }
     public static string GetConnectionString(string connectionStringName)
     {
         var config = new ConfigurationBuilder()
@@ -602,6 +608,38 @@ public partial class VNFootballLeaguesDBContext : DbContext
             entity.HasOne(d => d.User).WithMany(p => p.UserRoles)
                 .HasForeignKey(d => d.UserId)
                 .HasConstraintName("FK_UserRole_User");
+        });
+
+        modelBuilder.Entity<UserFavoritePlayer>(entity =>
+        {
+            entity.HasKey(e => e.FavoriteId);
+
+            entity.ToTable("UserFavoritePlayer");
+
+            entity.Property(e => e.FavoriteId)
+                .HasDefaultValueSql("(newid())");
+
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("(getutcdate())");
+
+            entity.HasIndex(e => new { e.UserId, e.PlayerId })
+                .IsUnique()
+                .HasName("IX_UserFavoritePlayer_User_Player");
+
+            entity.HasIndex(e => e.UserId, "IX_UserFavoritePlayer_UserId");
+            entity.HasIndex(e => e.PlayerId, "IX_UserFavoritePlayer_PlayerId");
+
+            entity.HasOne(d => d.User)
+                .WithMany(u => u.UserFavoritePlayers)
+                .HasForeignKey(d => d.UserId)
+                .HasConstraintName("FK_UserFavoritePlayer_User")
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(d => d.Player)
+                .WithMany(p => p.UserFavoritePlayers)
+                .HasForeignKey(d => d.PlayerId)
+                .HasConstraintName("FK_UserFavoritePlayer_Player")
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         OnModelCreatingPartial(modelBuilder);

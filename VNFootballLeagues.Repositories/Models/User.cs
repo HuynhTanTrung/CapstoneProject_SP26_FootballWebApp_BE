@@ -17,6 +17,8 @@ public partial class User
 
     public string FullName { get; set; }
 
+    public string? AvatarUrl { get; set; }
+
     public bool IsEmailVerified { get; set; }
 
     public bool IsActive { get; set; }
@@ -38,4 +40,5 @@ public partial class User
     public virtual ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();
 
     public virtual ICollection<UserRole> UserRoles { get; set; } = new List<UserRole>();
+    public virtual ICollection<UserFavoritePlayer> UserFavoritePlayers { get; set; } = new List<UserFavoritePlayer>();
 }
