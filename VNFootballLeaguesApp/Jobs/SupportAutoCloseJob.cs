@@ -17,9 +17,9 @@ public class SupportAutoCloseJob
     private readonly ILogger<SupportAutoCloseJob> _logger;
 
     // Thời gian chờ sau khi admin reply trước khi gửi cảnh báo
-    private static readonly TimeSpan WarnAfter = TimeSpan.FromMinutes(1);
+    private static readonly TimeSpan WarnAfter = TimeSpan.FromMinutes(30);
     // Thời gian chờ sau khi gửi cảnh báo trước khi đóng
-    private static readonly TimeSpan CloseAfterWarn = TimeSpan.FromSeconds(30);
+    private static readonly TimeSpan CloseAfterWarn = TimeSpan.FromSeconds(120);
 
     public SupportAutoCloseJob(VNFootballLeaguesDBContext db, ILogger<SupportAutoCloseJob> logger)
     {
