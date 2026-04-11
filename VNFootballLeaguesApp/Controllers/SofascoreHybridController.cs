@@ -1142,5 +1142,29 @@ namespace VNFootballLeagues.API.Controllers
 
             return BadRequest(result);
         }
+
+        [HttpGet("getAllFavorite")]
+        public async Task<IActionResult> GetAllFavorites()
+        {
+            var result = await _service.GetAllFavoritesAsync();
+            var status = result.GetType().GetProperty("status")?.GetValue(result) as bool?;
+
+            if (status == true)
+                return Ok(result);
+
+            return BadRequest(result);
+        }
+
+        [HttpGet("getFavorite")]
+        public async Task<IActionResult> GetFavoriteByUser(Guid userId)
+        {
+            var result = await _service.GetFavoriteByUserAsync(userId);
+            var status = result.GetType().GetProperty("status")?.GetValue(result) as bool?;
+
+            if (status == true)
+                return Ok(result);
+
+            return BadRequest(result);
+        }
     }
 }

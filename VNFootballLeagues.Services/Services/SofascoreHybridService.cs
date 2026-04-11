@@ -5163,5 +5163,115 @@ namespace VNFootballLeagues.Services.Services
                 return new { status = false, message = $"Error removing favorite: {ex.Message}" };
             }
         }
+        public async Task<object> GetAllFavoritesAsync()
+        {
+            try
+            {
+                var favorites = await _context.UserFavoritePlayers
+                    .Include(ufp => ufp.User)
+                    .Include(ufp => ufp.Player)
+                    .OrderByDescending(ufp => ufp.CreatedAt)
+                    .Select(ufp => new
+                    {
+                        ufp.FavoriteId,
+                        ufp.CreatedAt,
+                        User = new
+                        {
+                            ufp.User.UserId,
+                            ufp.User.Username,
+                            ufp.User.Email,
+                            ufp.User.FullName
+                        },
+                        Player = new
+                        {
+                            ufp.Player.PlayerId,
+                            ufp.Player.ApiPlayerId,
+                            ufp.Player.FullName,
+                            ufp.Player.Position,
+                            ufp.Player.PhotoUrl,
+                            ufp.Player.TeamId
+                        }
+                    })
+                    .ToListAsync();
+
+                return new
+                {
+                    status = true,
+                    message = "All favorites retrieved successfully",
+                    data = favorites,
+                    totalCount = favorites.Count
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting all favorites");
+                return new { status = false, message = $"Error retrieving favorites: {ex.Message}" };
+            }
+        }
+
+        public async Task<object> GetFavoriteByUserAsync(Guid userId)
+        {
+            try
+            {
+                var user = await _context.Users.FindAsync(userId);
+                if (user == null)
+                {
+                    return new { status = false, message = "User not found" };
+                }
+
+                var favorites = await _context.UserFavoritePlayers
+                    .Include(ufp => ufp.Player)
+                        .ThenInclude(p => p.Team)
+                    .Where(ufp => ufp.UserId == userId)
+                    .OrderByDescending(ufp => ufp.CreatedAt)
+                    .Select(ufp => new
+                    {
+                        ufp.FavoriteId,
+                        ufp.CreatedAt,
+                        Player = new
+                        {
+                            ufp.Player.PlayerId,
+                            ufp.Player.ApiPlayerId,
+                            ufp.Player.FullName,
+                            ufp.Player.Position,
+                            ufp.Player.Number,
+                            ufp.Player.PhotoUrl,
+                            ufp.Player.Nationality,
+                            ufp.Player.Age,
+                            Team = ufp.Player.Team != null ? new
+                            {
+                                ufp.Player.Team.TeamId,
+                                ufp.Player.Team.ApiTeamId,
+                                ufp.Player.Team.TeamName,
+                                ufp.Player.Team.LogoUrl
+                            } : null
+                        }
+                    })
+                    .ToListAsync();
+
+                return new
+                {
+                    status = true,
+                    message = $"Favorites for user {user.Username} retrieved successfully",
+                    data = new
+                    {
+                        User = new
+                        {
+                            user.UserId,
+                            user.Username,
+                            user.Email,
+                            user.FullName
+                        },
+                        FavoritePlayers = favorites,
+                        totalFavorites = favorites.Count
+                    }
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting favorites for user {UserId}", userId);
+                return new { status = false, message = $"Error retrieving favorites: {ex.Message}" };
+            }
+        }
     }
 }
