@@ -67,6 +67,7 @@ public class ContestEntryDto
     public int Rank { get; set; }
     public int? TeamId { get; set; }
     public string? TeamName { get; set; }
+    public int? ApiTeamId { get; set; }
     public int? PlayerId { get; set; }
     public string? PlayerName { get; set; }
     public int? Points { get; set; }
@@ -80,6 +81,7 @@ public class ContestResultDto
     public int Rank { get; set; }
     public int? TeamId { get; set; }
     public string? TeamName { get; set; }
+    public int? ApiTeamId { get; set; }
     public int? PlayerId { get; set; }
     public string? PlayerName { get; set; }
 }

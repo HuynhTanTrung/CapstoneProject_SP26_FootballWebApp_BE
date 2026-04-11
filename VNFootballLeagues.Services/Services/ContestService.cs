@@ -165,39 +165,75 @@ public class ContestService : IContestService
             int totalPoints = 0;
             var userEntries = userGroup.ToList();
 
-            foreach (var entry in userEntries)
+            if (contest.ContestType == "TOP4")
             {
-                int pts = 0;
-                int isCorrect = 0;
+                // TOP4: grade as a whole unit
+                // Exact = all 4 teams correct AND all 4 positions correct
+                // Partial = all 4 teams are in the official top4 but at least 1 wrong position
+                // 0 = any team not in official top4
 
-                if (contest.ContestType == "TOP4")
-                {
-                    bool exactMatch = resultByRank.TryGetValue(entry.Rank, out var res) && res.TeamId == entry.TeamId;
-                    bool partialMatch = !exactMatch && entry.TeamId.HasValue && resultTeamIds.Contains(entry.TeamId);
-                    if (exactMatch) { pts = contest.PointsExact; isCorrect = 2; }
-                    else if (partialMatch) { pts = contest.PointsPartial; isCorrect = 1; }
-                }
-                else if (contest.ContestType == "CHAMPION")
-                {
-                    bool correct = entry.TeamId.HasValue && resultTeamIds.Contains(entry.TeamId);
-                    if (correct) { pts = contest.PointsExact; isCorrect = 2; }
-                }
-                else // POTM, TOP_SCORER, POTS
-                {
-                    bool correct = entry.PlayerId.HasValue && resultPlayerIds.Contains(entry.PlayerId);
-                    if (correct) { pts = contest.PointsExact; isCorrect = 2; }
-                }
+                bool allTeamsPresent = userEntries.All(e =>
+                    e.TeamId.HasValue && resultTeamIds.Contains(e.TeamId));
 
-                entry.Points = pts;
-                entry.IsCorrect = isCorrect;
-                totalPoints += pts;
+                bool allPositionsCorrect = allTeamsPresent && userEntries.All(e =>
+                    resultByRank.TryGetValue(e.Rank, out var res) && res.TeamId == e.TeamId);
+
+                int groupPts = 0;
+                int groupIsCorrect = 0;
+
+                if (allPositionsCorrect)
+                {
+                    groupPts = contest.PointsExact;
+                    groupIsCorrect = 2; // exact
+                }
+                else if (allTeamsPresent)
+                {
+                    groupPts = contest.PointsPartial;
+                    groupIsCorrect = 1; // right teams, wrong positions
+                }
+                // else 0
+
+                // Apply result: only rank 1 entry gets the points, others get 0 (to avoid summing)
+                foreach (var entry in userEntries)
+                {
+                    entry.IsCorrect = groupIsCorrect;
+                    entry.Points = entry.Rank == 1 ? groupPts : 0;
+                }
+                totalPoints = groupPts;
+            }
+            else
+            {
+                foreach (var entry in userEntries)
+                {
+                    int pts = 0;
+                    int isCorrect = 0;
+
+                    if (contest.ContestType == "CHAMPION")
+                    {
+                        bool correct = entry.TeamId.HasValue && resultTeamIds.Contains(entry.TeamId);
+                        if (correct) { pts = contest.PointsExact; isCorrect = 2; }
+                    }
+                    else // POTM, TOP_SCORER, POTS
+                    {
+                        bool correct = entry.PlayerId.HasValue && resultPlayerIds.Contains(entry.PlayerId);
+                        if (correct) { pts = contest.PointsExact; isCorrect = 2; }
+                    }
+
+                    entry.Points = pts;
+                    entry.IsCorrect = isCorrect;
+                    totalPoints += pts;
+                }
             }
 
             // Update UserPredictionStats
             {
                 var stats = await _db.UserPredictionStats.FindAsync(new object[] { userGroup.Key }, ct);
-                int contestEntryCount = userEntries.Count;
-                int correctCount = userEntries.Count(e => (e.IsCorrect ?? 0) > 0);
+                // For TOP4: count as 1 prediction (the whole group), not 4
+                int contestEntryCount = contest.ContestType == "TOP4" ? 1 : userEntries.Count;
+                int correctCount = contest.ContestType == "TOP4"
+                    ? (userEntries.First().IsCorrect > 0 ? 1 : 0)
+                    : userEntries.Count(e => (e.IsCorrect ?? 0) > 0);
+
                 if (stats == null)
                 {
                     _db.UserPredictionStats.Add(new UserPredictionStats
@@ -232,6 +268,74 @@ public class ContestService : IContestService
             .OrderByDescending(c => c.CreatedAt)
             .ToListAsync(ct);
         return await MapContestListAsync(contests, null, ct);
+    }
+
+    public async Task<List<ContestDto>> GetSettledContestsForUserAsync(Guid userId, CancellationToken ct = default)
+    {
+        // Get contest IDs where user has entries
+        var enteredIds = await _db.ContestEntries
+            .Where(e => e.UserId == userId)
+            .Select(e => e.ContestId)
+            .Distinct().ToListAsync(ct);
+
+        var contests = await _db.PredictionContests
+            .Where(c => c.Status == "SETTLED" && enteredIds.Contains(c.ContestId))
+            .OrderByDescending(c => c.ResultAt)
+            .ToListAsync(ct);
+
+        return await MapContestListAsync(contests, userId, ct);
+    }
+
+    public async Task<object> GetContestEntriesAsync(int contestId, CancellationToken ct = default)
+    {
+        var contest = await _db.PredictionContests.FindAsync(new object[] { contestId }, ct);
+        if (contest == null) return new { };
+
+        var entries = await _db.ContestEntries
+            .Include(e => e.User)
+            .Include(e => e.Team)
+            .Include(e => e.Player)
+            .Where(e => e.ContestId == contestId)
+            .OrderByDescending(e => e.Points)
+            .ToListAsync(ct);
+
+        var results = await _db.ContestResults
+            .Include(r => r.Team)
+            .Include(r => r.Player)
+            .Where(r => r.ContestId == contestId)
+            .OrderBy(r => r.Rank)
+            .ToListAsync(ct);
+
+        // Group by user for TOP4
+        var byUser = entries.GroupBy(e => e.UserId).Select(g => new {
+            userId = g.Key,
+            username = g.First().User?.FullName ?? g.First().User?.Username ?? "?",
+            totalPoints = g.Sum(e => e.Points ?? 0),
+            correctCount = g.Count(e => (e.IsCorrect ?? 0) == 2),
+            partialCount = g.Count(e => (e.IsCorrect ?? 0) == 1),
+            picks = g.OrderBy(e => e.Rank).Select(e => new {
+                e.Rank,
+                teamName = e.Team?.TeamName,
+                apiTeamId = e.Team?.ApiTeamId,
+                playerName = e.Player?.FullName,
+                e.Points,
+                e.IsCorrect
+            }).ToList()
+        }).OrderByDescending(u => u.totalPoints).ToList();
+
+        return new {
+            contestId,
+            title = contest.Title,
+            contestType = contest.ContestType,
+            officialResults = results.Select(r => new {
+                r.Rank,
+                teamName = r.Team?.TeamName,
+                apiTeamId = r.Team?.ApiTeamId,
+                playerName = r.Player?.FullName
+            }),
+            totalEntrants = byUser.Count,
+            entries = byUser
+        };
     }
 
     // ── Pickers ──────────────────────────────────────────────────────────────
@@ -300,8 +404,8 @@ public class ContestService : IContestService
         // Results
         var results = await _db.ContestResults
             .Where(r => r.ContestId == c.ContestId)
-            .Join(_db.Teams, r => r.TeamId, t => t.TeamId, (r, t) => new { r, TeamName = t.TeamName })
-            .Select(x => new ContestResultDto { Rank = x.r.Rank, TeamId = x.r.TeamId, TeamName = x.TeamName })
+            .Join(_db.Teams, r => r.TeamId, t => t.TeamId, (r, t) => new { r, TeamName = t.TeamName, ApiTeamId = t.ApiTeamId })
+            .Select(x => new ContestResultDto { Rank = x.r.Rank, TeamId = x.r.TeamId, TeamName = x.TeamName, ApiTeamId = x.ApiTeamId })
             .ToListAsync(ct);
 
         var playerResults = await _db.ContestResults
@@ -327,6 +431,8 @@ public class ContestService : IContestService
                 {
                     string? teamName = e.TeamId.HasValue
                         ? (await _db.Teams.FindAsync(new object[] { e.TeamId.Value }, ct))?.TeamName : null;
+                    int? apiTeamId = e.TeamId.HasValue
+                        ? (await _db.Teams.FindAsync(new object[] { e.TeamId.Value }, ct))?.ApiTeamId : null;
                     string? playerName = e.PlayerId.HasValue
                         ? (await _db.Players.FindAsync(new object[] { e.PlayerId.Value }, ct))?.FullName : null;
                     dto.MyEntries.Add(new ContestEntryDto
@@ -335,6 +441,7 @@ public class ContestService : IContestService
                         Rank = e.Rank,
                         TeamId = e.TeamId,
                         TeamName = teamName,
+                        ApiTeamId = apiTeamId,
                         PlayerId = e.PlayerId,
                         PlayerName = playerName,
                         Points = e.Points,

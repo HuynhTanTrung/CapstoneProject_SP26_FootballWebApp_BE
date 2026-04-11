@@ -10,11 +10,13 @@ public interface IContestService
 
     // ── User ─────────────────────────────────────────────────────────────────
     Task<(bool Success, string Message)> SubmitEntryAsync(Guid userId, SubmitContestEntryRequest request, CancellationToken ct = default);
+    Task<List<ContestDto>> GetSettledContestsForUserAsync(Guid userId, CancellationToken ct = default);
 
     // ── Admin ────────────────────────────────────────────────────────────────
     Task<ContestDto> CreateContestAsync(CreateContestRequest request, CancellationToken ct = default);
     Task<(bool Success, string Message, int Settled)> SettleContestAsync(SettleContestRequest request, CancellationToken ct = default);
     Task<List<ContestDto>> GetAllContestsAsync(CancellationToken ct = default);
+    Task<object> GetContestEntriesAsync(int contestId, CancellationToken ct = default);
 
     // ── Teams/Players for picker ─────────────────────────────────────────────
     Task<List<TeamPickerDto>> GetTeamsForPickerAsync(int? leagueId, int? seasonId, CancellationToken ct = default);

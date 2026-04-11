@@ -99,4 +99,24 @@ public class ContestController : ControllerBase
         if (!success) return BadRequest(new ApiResponseDto<object> { Success = false, Message = message });
         return Ok(new ApiResponseDto<object> { Success = true, Message = message, Data = new { settled } });
     }
+
+    /// <summary>Danh sách contest đã kết thúc của user hiện tại.</summary>
+    [HttpGet("settled")]
+    [Authorize(Policy = "UserOrAdmin")]
+    public async Task<IActionResult> GetSettled(CancellationToken ct)
+    {
+        var userId = _userService.GetUserId(User);
+        if (userId == null) return Unauthorized();
+        var list = await _contestService.GetSettledContestsForUserAsync(userId.Value, ct);
+        return Ok(new ApiResponseDto<List<ContestDto>> { Success = true, Message = "OK", Data = list });
+    }
+
+    /// <summary>Chi tiết entries của 1 contest đã kết thúc (admin).</summary>
+    [HttpGet("admin/{contestId:int}/entries")]
+    [Authorize(Policy = "AdminOnly")]
+    public async Task<IActionResult> GetEntries(int contestId, CancellationToken ct)
+    {
+        var entries = await _contestService.GetContestEntriesAsync(contestId, ct);
+        return Ok(new ApiResponseDto<object> { Success = true, Data = entries });
+    }
 }
