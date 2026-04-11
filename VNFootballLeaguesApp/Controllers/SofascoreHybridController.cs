@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -17,17 +18,20 @@ namespace VNFootballLeagues.API.Controllers
         private readonly ISofascoreScraperService _sofascoreScraperService;
         private readonly VNFootballLeaguesDBContext _context;
         private readonly ILogger<SofascoreHybridController> _logger;
+        private readonly IUserService _userService;
 
         public SofascoreHybridController(
             ISofascoreHybridService service,
             ISofascoreScraperService sofascoreScraperService,
             VNFootballLeaguesDBContext context,
-            ILogger<SofascoreHybridController> logger)
+            ILogger<SofascoreHybridController> logger,
+            IUserService userService)
         {
             _service = service;
             _sofascoreScraperService = sofascoreScraperService;
             _context = context;
             _logger = logger;
+            _userService = userService;
         }
 
         [HttpGet("leagues")]
@@ -1119,28 +1123,50 @@ namespace VNFootballLeagues.API.Controllers
             catch (Exception ex) { return StatusCode(500, new { error = ex.Message }); }
         }
 
+        /// <summary>Thêm cầu thủ vào danh sách yêu thích</summary>
         [HttpPost("addFavorite")]
-        public async Task<IActionResult> AddFavoritePlayer([FromQuery] Guid userId, [FromQuery] int apiPlayerId)
+        [Authorize]
+        public async Task<IActionResult> AddFavoritePlayer([FromQuery] int apiPlayerId)
         {
-            var result = await _service.AddFavoritePlayerAsync(userId, apiPlayerId);
+            var userId = _userService.GetUserId(User);
+            if (userId is null) return Unauthorized();
+            var result = await _service.AddFavoritePlayerAsync(userId.Value, apiPlayerId);
             var status = result.GetType().GetProperty("status")?.GetValue(result) as bool?;
-
-            if (status == true)
-                return Ok(result);
-
-            return BadRequest(result);
+            return status == true ? Ok(result) : BadRequest(result);
         }
 
+        /// <summary>Xóa cầu thủ khỏi danh sách yêu thích</summary>
         [HttpDelete("removeFavorite")]
-        public async Task<IActionResult> RemoveFavoritePlayer([FromQuery] Guid userId, [FromQuery] int apiPlayerId)
+        [Authorize]
+        public async Task<IActionResult> RemoveFavoritePlayer([FromQuery] int apiPlayerId)
         {
-            var result = await _service.RemoveFavoritePlayerAsync(userId, apiPlayerId);
+            var userId = _userService.GetUserId(User);
+            if (userId is null) return Unauthorized();
+            var result = await _service.RemoveFavoritePlayerAsync(userId.Value, apiPlayerId);
             var status = result.GetType().GetProperty("status")?.GetValue(result) as bool?;
+            return status == true ? Ok(result) : BadRequest(result);
+        }
 
-            if (status == true)
-                return Ok(result);
+        /// <summary>Lấy tất cả favorites (admin)</summary>
+        [HttpGet("getAllFavorite")]
+        [Authorize]
+        public async Task<IActionResult> GetAllFavorites()
+        {
+            var result = await _service.GetAllFavoritesAsync();
+            var status = result.GetType().GetProperty("status")?.GetValue(result) as bool?;
+            return status == true ? Ok(result) : BadRequest(result);
+        }
 
-            return BadRequest(result);
+        /// <summary>Lấy danh sách cầu thủ yêu thích của user hiện tại</summary>
+        [HttpGet("getFavorite")]
+        [Authorize]
+        public async Task<IActionResult> GetFavoriteByUser()
+        {
+            var userId = _userService.GetUserId(User);
+            if (userId is null) return Unauthorized();
+            var result = await _service.GetFavoriteByUserAsync(userId.Value);
+            var status = result.GetType().GetProperty("status")?.GetValue(result) as bool?;
+            return status == true ? Ok(result) : BadRequest(result);
         }
     }
 }

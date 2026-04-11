@@ -55,5 +55,7 @@ namespace VNFootballLeagues.Services.IServices
         Task<List<Team>> GetTeamsByIdsAsync(List<int> teamIds);
         Task<object> AddFavoritePlayerAsync(Guid userId, int apiPlayerId);
         Task<object> RemoveFavoritePlayerAsync(Guid userId, int apiPlayerId);
+        Task<object> GetAllFavoritesAsync();
+        Task<object> GetFavoriteByUserAsync(Guid userId);
     }
 }

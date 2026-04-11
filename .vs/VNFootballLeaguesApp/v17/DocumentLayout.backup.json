@@ -7,6 +7,10 @@
       "RelativeMoniker": "D:0:0:{CA24E47A-AFC9-43A7-9A53-F2E428E876B0}|VNFootballLeaguesApp\\VNFootballLeaguesApp.csproj|solutionrelative:vnfootballleaguesapp\\controllers\\sofascorehybridcontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
+      "AbsoluteMoniker": "D:0:0:{507A813A-3797-4F13-B951-A4CBE6F9C215}|VNFootballLeagues.Services\\VNFootballLeagues.Services.csproj|d:\\capstoneproject_sp26_footballwebapp_be\\vnfootballleagues.services\\iservices\\isofascorehybridservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{507A813A-3797-4F13-B951-A4CBE6F9C215}|VNFootballLeagues.Services\\VNFootballLeagues.Services.csproj|solutionrelative:vnfootballleagues.services\\iservices\\isofascorehybridservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
       "AbsoluteMoniker": "D:0:0:{507A813A-3797-4F13-B951-A4CBE6F9C215}|VNFootballLeagues.Services\\VNFootballLeagues.Services.csproj|d:\\capstoneproject_sp26_footballwebapp_be\\vnfootballleagues.services\\services\\sofascorehybridservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{507A813A-3797-4F13-B951-A4CBE6F9C215}|VNFootballLeagues.Services\\VNFootballLeagues.Services.csproj|solutionrelative:vnfootballleagues.services\\services\\sofascorehybridservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     }
@@ -18,7 +22,7 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 10,
+          "SelectedChildIndex": 11,
           "Children": [
             {
               "$type": "Bookmark",
@@ -62,26 +66,39 @@
             },
             {
               "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "ISofascoreHybridService.cs",
+              "DocumentMoniker": "D:\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeagues.Services\\IServices\\ISofascoreHybridService.cs",
+              "RelativeDocumentMoniker": "VNFootballLeagues.Services\\IServices\\ISofascoreHybridService.cs",
+              "ToolTip": "D:\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeagues.Services\\IServices\\ISofascoreHybridService.cs",
+              "RelativeToolTip": "VNFootballLeagues.Services\\IServices\\ISofascoreHybridService.cs",
+              "ViewState": "AgIAADYAAAAAAAAAAAAAADoAAAA5AAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-04-11T05:35:28.413Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
               "DocumentIndex": 0,
               "Title": "SofascoreHybridController.cs",
               "DocumentMoniker": "D:\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeaguesApp\\Controllers\\SofascoreHybridController.cs",
               "RelativeDocumentMoniker": "VNFootballLeaguesApp\\Controllers\\SofascoreHybridController.cs",
               "ToolTip": "D:\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeaguesApp\\Controllers\\SofascoreHybridController.cs",
               "RelativeToolTip": "VNFootballLeaguesApp\\Controllers\\SofascoreHybridController.cs",
-              "ViewState": "AgIAAFQEAAAAAAAAAAAgwGwEAAAAAAAAAAAAAA==",
+              "ViewState": "AgIAAG0EAAAAAAAAAAAowIgEAAAnAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2026-04-10T17:03:01.821Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 1,
+              "DocumentIndex": 2,
               "Title": "SofascoreHybridService.cs",
               "DocumentMoniker": "D:\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeagues.Services\\Services\\SofascoreHybridService.cs",
               "RelativeDocumentMoniker": "VNFootballLeagues.Services\\Services\\SofascoreHybridService.cs",
-              "ToolTip": "D:\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeagues.Services\\Services\\SofascoreHybridService.cs",
-              "RelativeToolTip": "VNFootballLeagues.Services\\Services\\SofascoreHybridService.cs",
-              "ViewState": "AgIAANATAAAAAAAAAAAowNsTAAARAAAAAAAAAA==",
+              "ToolTip": "D:\\CapstoneProject_SP26_FootballWebApp_BE\\VNFootballLeagues.Services\\Services\\SofascoreHybridService.cs*",
+              "RelativeToolTip": "VNFootballLeagues.Services\\Services\\SofascoreHybridService.cs*",
+              "ViewState": "AgIAAE4UAAAAAAAAAAAowFsUAABFAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2026-04-10T17:03:01.194Z",
               "EditorCaption": ""
