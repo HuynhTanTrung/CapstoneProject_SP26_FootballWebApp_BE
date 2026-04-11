@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Internal;
 using Microsoft.Extensions.Logging;
 using PuppeteerSharp;
@@ -14,6 +14,7 @@ namespace VNFootballLeagues.Services.Services
     {
         private readonly VNFootballLeaguesDBContext _context;
         private readonly ILogger<SofascoreHybridService> _logger;
+        private readonly NotificationService? _notificationService;
         private static IBrowser? _browser;
         private static bool _initialized = false;
         private static readonly SemaphoreSlim _lock = new(1, 1);
@@ -22,10 +23,12 @@ namespace VNFootballLeagues.Services.Services
 
         public SofascoreHybridService(
             VNFootballLeaguesDBContext context,
-            ILogger<SofascoreHybridService> logger)
+            ILogger<SofascoreHybridService> logger,
+            NotificationService? notificationService = null)
         {
             _context = context;
             _logger = logger;
+            _notificationService = notificationService;
         }
 
         private async Task EnsureBrowserExistsAsync()
@@ -84,11 +87,11 @@ namespace VNFootballLeagues.Services.Services
 
                 _initialized = true;
 
-                _logger.LogInformation("Browser initialized successfully ✅");
+                _logger.LogInformation("Browser initialized successfully");
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "❌ Failed to initialize browser");
+                _logger.LogError(ex, "Failed to initialize browser");
                 throw;
             }
             finally
@@ -498,7 +501,7 @@ namespace VNFootballLeagues.Services.Services
 
                 if (statistics.ValueKind == JsonValueKind.Array)
                 {
-                    // Only process the "ALL" period (first period) — merge all groups into one row per team
+                // Only process the "ALL" period (first period) - merge all groups into one row per team
                     var allPeriod = statistics.EnumerateArray()
                         .FirstOrDefault(p => p.TryGetProperty("period", out var per) && per.GetString() == "ALL");
 
@@ -1283,7 +1286,7 @@ namespace VNFootballLeagues.Services.Services
                 return new
                 {
                     status = true,
-                    message = $"Synced {sofascoreTeamIds.Count} teams — {totalAdded} added, {totalUpdated} updated, {totalSkipped} skipped",
+                    message = $"Synced {sofascoreTeamIds.Count} teams - {totalAdded} added, {totalUpdated} updated, {totalSkipped} skipped",
                     data = new { totalAdded, totalUpdated, totalSkipped, teams = results }
                 };
             }
@@ -1505,7 +1508,7 @@ namespace VNFootballLeagues.Services.Services
                 return new
                 {
                     status = true,
-                    message = $"Player stats synced for {league.LeagueName} {season.Year} — {added} added, {updated} updated, {skipped} skipped, {errors} errors",
+                    message = $"Player stats synced for {league.LeagueName} {season.Year} - {added} added, {updated} updated, {skipped} skipped, {errors} errors",
                     data = new { added, updated, skipped, errors, leagueId = league.LeagueId, seasonId = season.SeasonId }
                 };
             }
@@ -1588,7 +1591,7 @@ namespace VNFootballLeagues.Services.Services
                             int matchAdded = 0;
                             int matchUpdated = 0;
 
-                            // Only process "ALL" period — merge all groups into one row per team
+                // Only process "ALL" period - merge all groups into one row per team
                             var allPeriod = statistics.EnumerateArray()
                                 .FirstOrDefault(p => p.TryGetProperty("period", out var per) && per.GetString() == "ALL");
                             if (allPeriod.ValueKind == JsonValueKind.Undefined)
@@ -2506,7 +2509,7 @@ namespace VNFootballLeagues.Services.Services
                 }
                 catch { /* shotmap optional, continue without it */ }
 
-                // Extra time & penalty shootout fields — populated by LiveMatchPollingService
+                // Extra time & penalty shootout fields - populated by LiveMatchPollingService
                 // during live tracking. Not fetched here to avoid Puppeteer timeout.
                 bool isExtraTime = false;
                 var extraTimeGoals = new Dictionary<int, int>();
@@ -2606,6 +2609,14 @@ namespace VNFootballLeagues.Services.Services
                 }
 
                 await _context.SaveChangesAsync();
+                // Notify users with favorite players in this match
+                var playerIds = await _context.PlayerMatchStatistics
+                    .Where(p => p.MatchId == match.MatchId)
+                    .Select(p => p.PlayerId)
+                    .Distinct()
+                    .ToListAsync();
+                foreach (var pid in playerIds.Where(p => p.HasValue).Select(p => p!.Value))
+                    await NotifyFavoritePlayerUpdatedAsync(pid, "match stats");
 
                 return new
                 {
@@ -2828,7 +2839,7 @@ namespace VNFootballLeagues.Services.Services
                         return new
                         {
                             status = true,
-                            message = $"Round '{round}' — {league.LeagueName} {season.Year}: {totalMatchesProcessed} matches, {totalSuccess} stats saved, {totalFailed} failed",
+                    message = $"Round {round} - {league.LeagueName} {season.Year}: {totalMatchesProcessed} matches, {totalSuccess} stats saved, {totalFailed} failed",
                             data = new
                             {
                                 leagueId = league.LeagueId,
@@ -2851,7 +2862,7 @@ namespace VNFootballLeagues.Services.Services
                     }
                 }
 
-        // ==================== GetAll (đọc từ DB) ====================
+                // ==================== GetAll (read from DB) ====================
 
         public async Task<List<League>> GetAllLeaguesAsync()
         {
@@ -2871,7 +2882,7 @@ namespace VNFootballLeagues.Services.Services
                     resolvedLeagueId = leagueEntity.LeagueId;
             }
 
-            // Chưa sync giải nhưng cần xem mùa: chỉ có Api tournament id → lấy trực tiếp từ SofaScore
+                // League not synced but need season: only has ApiTournamentId -> fetch directly from SofaScore
             if (tournamentId.HasValue && tournamentId.Value > 0 && leagueEntity == null)
                 return await FetchSeasonListFromSofaAsync(tournamentId.Value, null);
 
@@ -2894,7 +2905,7 @@ namespace VNFootballLeagues.Services.Services
                 }).ToList();
             }
 
-            // Đã có giải trong DB nhưng chưa sync mùa → lấy từ API
+                // League exists in DB but season not synced -> fetch from API
             if (tournamentId.HasValue && tournamentId.Value > 0)
                 return await FetchSeasonListFromSofaAsync(tournamentId.Value, leagueEntity?.LeagueId);
 
@@ -3180,7 +3191,7 @@ namespace VNFootballLeagues.Services.Services
                     .Where(s => !playerId.HasValue || s.PlayerId == playerId.Value)
                     .ToListAsync();
 
-                // Build a lookup: matchId → (seasonId, leagueId)
+                // Build a lookup: matchId -> (seasonId, leagueId)
                 var matchSeasonMap = matchIds.ToDictionary(m => m.MatchId, m => (m.SeasonId, m.LeagueId));
 
                 // Group by (playerId, teamId, seasonId, leagueId) and aggregate
@@ -3334,6 +3345,7 @@ namespace VNFootballLeagues.Services.Services
                             updated++;
                         }
                         await _context.SaveChangesAsync();
+                        // notification sent after loop
                         details.Add(new { leagueId = ls.LeagueId, seasonId = ls.SeasonId, year = ls.Year, status = "ok" });
                         await Task.Delay(300);
                     }
@@ -3346,11 +3358,12 @@ namespace VNFootballLeagues.Services.Services
 
                 // Aggregate defensive stats from match stats for this player
                 await AggregateSeasonStatsFromMatchStatsAsync(playerId: player.PlayerId);
+                await NotifyFavoritePlayerUpdatedAsync(player.PlayerId, "season stats");
 
                 return new
                 {
                     status = true,
-                    message = $"Synced stats for player {player.FullName} — {added} added, {updated} updated, {skipped} skipped",
+                    message = $"Synced stats for player {player.FullName} - {added} added, {updated} updated, {skipped} skipped",
                     data = new { added, updated, skipped, details }
                 };
             }
@@ -4231,7 +4244,7 @@ namespace VNFootballLeagues.Services.Services
                                 feeRaw.TryGetProperty("value", out var feeValue))
                             {
                                 decimal value = feeValue.GetDecimal();
-                                transferFee = value == 0 ? "Free" : $"{value:N0} €";
+                                transferFee = value == 0 ? "Free" : $"{value:N0} EUR";
                             }
 
                             var existingTransfer = await _context.Transfers
@@ -5273,5 +5286,35 @@ namespace VNFootballLeagues.Services.Services
                 return new { status = false, message = $"Error retrieving favorites: {ex.Message}" };
             }
         }
+        private async Task NotifyFavoritePlayerUpdatedAsync(int playerId, string updateType, CancellationToken ct = default)
+        {
+            if (_notificationService == null) return;
+            try
+            {
+                var player = await _context.Players.FirstOrDefaultAsync(p => p.PlayerId == playerId, ct);
+                if (player == null) return;
+
+                var userIds = await _context.UserFavoritePlayers
+                    .Where(f => f.PlayerId == playerId)
+                    .Select(f => f.UserId)
+                    .ToListAsync(ct);
+
+                if (!userIds.Any()) return;
+
+                var title = $"Favorite player updated";
+                var message = $"{player.FullName ?? player.FirstName} has new $1 updated.";
+                var link = $"/players/{player.ApiPlayerId}";
+
+                await _notificationService.CreateBulkAsync(userIds, "favorite_player_updated", title, message, link, ct);
+                _logger.LogInformation("Sent favorite_player_updated to {Count} users for player {PlayerId}", userIds.Count, playerId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to send favorite player notification for {PlayerId}", playerId);
+            }
+        }
     }
 }
+
+
+
