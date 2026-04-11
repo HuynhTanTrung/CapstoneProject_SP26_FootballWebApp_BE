@@ -43,5 +43,23 @@ public class CloudinaryService
         return result.SecureUrl?.ToString();
     }
 
+    /// <summary>Upload ảnh hỗ trợ (support chat) lên Cloudinary.</summary>
+    public async Task<string?> UploadSupportImageAsync(Stream fileStream, string fileName, string ticketId)
+    {
+        if (!_enabled || _cloudinary == null) return null;
+
+        var publicId = $"support/{ticketId}/{Guid.NewGuid()}";
+        var uploadParams = new ImageUploadParams
+        {
+            File = new FileDescription(fileName, fileStream),
+            PublicId = publicId,
+            Overwrite = false,
+            Folder = "vnfootball"
+        };
+
+        var result = await _cloudinary.UploadAsync(uploadParams);
+        return result.SecureUrl?.ToString();
+    }
+
     public bool IsEnabled => _enabled;
 }

@@ -122,6 +122,7 @@ builder.Services.AddHangfireServer(options =>
 });
 builder.Services.AddScoped<WeeklySyncJob>();
 builder.Services.AddScoped<PredictionSettlementJob>();
+builder.Services.AddScoped<SupportAutoCloseJob>();
 builder.Services.AddScoped<NotificationService>();
 
 
@@ -203,6 +204,12 @@ RecurringJob.AddOrUpdate<PredictionSettlementJob>(
     "prediction-settlement",
     job => job.SettlePendingPredictionsAsync(),
     "*/15 * * * *");
+
+// Auto-close support tickets (mỗi 1 phút)
+RecurringJob.AddOrUpdate<SupportAutoCloseJob>(
+    "support-auto-close",
+    job => job.RunAsync(),
+    "* * * * *");
 
 // Map SignalR hub
 app.MapHub<LiveMatchHub>("/hubs/livematch");

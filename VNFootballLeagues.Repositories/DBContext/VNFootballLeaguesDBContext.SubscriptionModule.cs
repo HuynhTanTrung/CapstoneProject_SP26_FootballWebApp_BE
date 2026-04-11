@@ -326,5 +326,35 @@ public partial class VNFootballLeaguesDBContext
             entity.HasOne(e => e.Comment).WithMany().HasForeignKey(e => e.CommentId).OnDelete(DeleteBehavior.Cascade);
             entity.HasOne(e => e.Reporter).WithMany().HasForeignKey(e => e.ReporterId).OnDelete(DeleteBehavior.Restrict);
         });
+
+        modelBuilder.Entity<SupportTicket>(entity =>
+        {
+            entity.HasKey(e => e.TicketId);
+            entity.ToTable("SupportTicket");
+            entity.Property(e => e.TicketId).HasDefaultValueSql("(newid())");
+            entity.Property(e => e.Category).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.Status).IsRequired().HasMaxLength(20).HasDefaultValue("open");
+            entity.Property(e => e.Subject).HasMaxLength(200);
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("(getutcdate())");
+            entity.Property(e => e.UpdatedAt).HasDefaultValueSql("(getutcdate())");
+            entity.Property(e => e.LastAdminReplyAt).IsRequired(false);
+            entity.Property(e => e.AutoCloseWarningSent).HasDefaultValue(false);
+            entity.HasIndex(e => e.UserId);
+            entity.HasIndex(e => e.Status);
+            entity.HasOne(e => e.User).WithMany().HasForeignKey(e => e.UserId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<SupportMessage>(entity =>
+        {
+            entity.HasKey(e => e.MessageId);
+            entity.ToTable("SupportMessage");
+            entity.Property(e => e.MessageId).HasDefaultValueSql("(newid())");
+            entity.Property(e => e.SenderRole).IsRequired().HasMaxLength(10);
+            entity.Property(e => e.Content).HasMaxLength(2000);
+            entity.Property(e => e.ImageUrl).HasMaxLength(500);
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("(getutcdate())");
+            entity.HasIndex(e => e.TicketId);
+            entity.HasOne(e => e.Ticket).WithMany(t => t.Messages).HasForeignKey(e => e.TicketId).OnDelete(DeleteBehavior.Cascade);
+        });
     }
 }
