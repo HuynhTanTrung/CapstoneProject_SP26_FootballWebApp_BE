@@ -96,6 +96,7 @@ builder.Services.Configure<DatabaseAutoUpdateSettings>(builder.Configuration.Get
 builder.Services.AddHostedService<DatabaseAutoUpdateHostedService>();
 builder.Services.AddHttpClient<IFootballApiService, FootballApiService>();
 builder.Services.AddSingleton<IGeminiService, GeminiService>();
+builder.Services.AddScoped<IAIAnalysisService, AIAnalysisService>();
 builder.Services.AddScoped<IChatConversationService, ChatConversationService>();
 builder.Services.AddScoped<IAdminService, AdminService>();
 

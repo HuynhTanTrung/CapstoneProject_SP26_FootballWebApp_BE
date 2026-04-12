@@ -12,13 +12,31 @@ namespace VNFootballLeagues.Services.Services
 
         public GeminiService(IConfiguration configuration)
         {
-            _apiKey = configuration["GeminiSettings:ApiKey"] 
-                ?? throw new ArgumentNullException("GeminiSettings:ApiKey is not configured");
+            _apiKey = ResolveApiKey(configuration);
 
             _httpClient = new HttpClient
             {
                 Timeout = TimeSpan.FromSeconds(300)
             };
+        }
+
+        private static string ResolveApiKey(IConfiguration configuration)
+        {
+            var apiKey = configuration["GeminiSettings:ApiKey"];
+
+            if (string.IsNullOrWhiteSpace(apiKey))
+            {
+                apiKey = configuration["GEMINI_API_KEY"];
+            }
+
+            if (string.IsNullOrWhiteSpace(apiKey))
+            {
+                throw new ArgumentNullException(
+                    "GeminiSettings:ApiKey",
+                    "Gemini API key is not configured. Set GeminiSettings:ApiKey or GEMINI_API_KEY.");
+            }
+
+            return apiKey.Trim();
         }
 
         public Task<string> ChatAsync(string message) =>
