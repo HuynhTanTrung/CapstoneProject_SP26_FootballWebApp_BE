@@ -1,6 +1,10 @@
+using System.Text.RegularExpressions;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using VNFootballLeagues.Repositories.Models;
 using VNFootballLeagues.Services.IServices;
-using VNFootballLeagues.Services.Services;
+using VNFootballLeaguesApp.DTOs.Football;
 
 namespace VNFootballLeaguesApp.Controllers
 {
@@ -8,11 +12,14 @@ namespace VNFootballLeaguesApp.Controllers
     [Route("api/[controller]")]
     public class FootballController : ControllerBase
     {
+        private static readonly Regex RoundNumberRegex = new(@"\d+", RegexOptions.Compiled);
         private readonly IFootballApiService _service;
+        private readonly VNFootballLeaguesDBContext _db;
 
-        public FootballController(IFootballApiService service)
+        public FootballController(IFootballApiService service, VNFootballLeaguesDBContext db)
         {
             _service = service;
+            _db = db;
         }
 
         [HttpPost("sync-leagues")]
@@ -603,6 +610,172 @@ namespace VNFootballLeaguesApp.Controllers
             }));
         }
 
+        [Authorize]
+        [HttpGet("rounds")]
+        public async Task<IActionResult> GetRounds([FromQuery] int seasonId)
+        {
+            if (seasonId <= 0)
+            {
+                return BadRequest(new
+                {
+                    success = false,
+                    message = "seasonId không hợp lệ"
+                });
+            }
+
+            var rounds = await _db.Matches
+                .AsNoTracking()
+                .Where(m => m.SeasonId == seasonId && !string.IsNullOrWhiteSpace(m.Round))
+                .GroupBy(m => m.Round!)
+                .Select(g => new RoundDto(g.Key, g.Count()))
+                .ToListAsync(HttpContext.RequestAborted);
+
+            var orderedRounds = rounds
+                .OrderBy(r => ExtractRoundNumber(r.Round) ?? int.MaxValue)
+                .ThenBy(r => r.Round, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            return Ok(orderedRounds);
+        }
+
+        [Authorize]
+        [HttpGet("matches/by-round")]
+        public async Task<IActionResult> GetMatchesByRound([FromQuery] int seasonId, [FromQuery] string round)
+        {
+            if (seasonId <= 0)
+            {
+                return BadRequest(new
+                {
+                    success = false,
+                    message = "seasonId không hợp lệ"
+                });
+            }
+
+            if (string.IsNullOrWhiteSpace(round))
+            {
+                return BadRequest(new
+                {
+                    success = false,
+                    message = "round là bắt buộc"
+                });
+            }
+
+            var matches = await _db.Matches
+                .AsNoTracking()
+                .Include(m => m.HomeTeam)
+                .Include(m => m.AwayTeam)
+                .Where(m => m.SeasonId == seasonId && m.Round == round)
+                .OrderBy(m => m.MatchDate)
+                .ThenBy(m => m.MatchId)
+                .Select(m => new MatchListItemDto(
+                    m.MatchId,
+                    m.MatchDate,
+                    m.HomeTeamId,
+                    m.HomeTeam != null ? m.HomeTeam.TeamName ?? string.Empty : string.Empty,
+                    m.AwayTeamId,
+                    m.AwayTeam != null ? m.AwayTeam.TeamName ?? string.Empty : string.Empty,
+                    m.HomeGoals,
+                    m.AwayGoals,
+                    m.Status ?? string.Empty,
+                    m.Round ?? string.Empty))
+                .ToListAsync(HttpContext.RequestAborted);
+
+            return Ok(matches);
+        }
+
+        [Authorize]
+        [HttpGet("matches/{matchId:int}/players")]
+        public async Task<IActionResult> GetPlayersByMatch(int matchId)
+        {
+            if (matchId <= 0)
+            {
+                return BadRequest(new
+                {
+                    success = false,
+                    message = "matchId không hợp lệ"
+                });
+            }
+
+            var players = await _db.PlayerMatchStatistics
+                .AsNoTracking()
+                .Include(s => s.Player)
+                .Include(s => s.Team)
+                .Where(s => s.MatchId == matchId && s.PlayerId.HasValue)
+                .OrderBy(s => s.Team != null ? s.Team.TeamName : string.Empty)
+                .ThenByDescending(s => s.Rating ?? s.SofascoreRating ?? 0)
+                .ThenBy(s => s.Player != null ? s.Player.FullName : string.Empty)
+                .Select(s => new PlayerInMatchDto(
+                    s.PlayerId ?? 0,
+                    s.Player != null ? s.Player.FullName ?? string.Empty : string.Empty,
+                    s.TeamId,
+                    s.Team != null ? s.Team.TeamName ?? string.Empty : string.Empty,
+                    s.Player != null ? s.Player.Position ?? string.Empty : string.Empty,
+                    s.Rating ?? s.SofascoreRating,
+                    s.Minutes))
+                .ToListAsync(HttpContext.RequestAborted);
+
+            return Ok(players);
+        }
+
+        [Authorize]
+        [HttpGet("matches/{matchId:int}/events")]
+        public async Task<IActionResult> GetMatchEventsByMatch(int matchId)
+        {
+            if (matchId <= 0)
+            {
+                return BadRequest(new
+                {
+                    success = false,
+                    message = "matchId không hợp lệ"
+                });
+            }
+
+            var events = await _db.MatchEvents
+                .AsNoTracking()
+                .Include(e => e.Player)
+                .Include(e => e.Team)
+                .Where(e => e.MatchId == matchId)
+                .ToListAsync(HttpContext.RequestAborted);
+
+            var assistPlayerIds = events
+                .Where(e => e.AssistPlayerId.HasValue)
+                .Select(e => e.AssistPlayerId!.Value)
+                .Distinct()
+                .ToList();
+
+            var assistPlayers = assistPlayerIds.Count == 0
+                ? new Dictionary<int, string>()
+                : await _db.Players
+                    .AsNoTracking()
+                    .Where(p => assistPlayerIds.Contains(p.PlayerId))
+                    .ToDictionaryAsync(p => p.PlayerId, p => p.FullName ?? string.Empty, HttpContext.RequestAborted);
+
+            var orderedEvents = events
+                .OrderBy(e => GetPeriodSortOrder(e.Period))
+                .ThenBy(e => e.EventTime ?? int.MaxValue)
+                .ThenBy(e => e.ExtraTime ?? 0)
+                .Select(e => new MatchEventDto(
+                    e.EventId,
+                    e.MatchId,
+                    e.TeamId,
+                    e.Team?.TeamName ?? string.Empty,
+                    e.PlayerId,
+                    e.Player?.FullName ?? string.Empty,
+                    e.AssistPlayerId,
+                    e.AssistPlayerId.HasValue && assistPlayers.TryGetValue(e.AssistPlayerId.Value, out var assistName)
+                        ? assistName
+                        : string.Empty,
+                    e.EventType ?? string.Empty,
+                    e.Detail ?? string.Empty,
+                    e.EventTime,
+                    e.ExtraTime,
+                    e.Period ?? string.Empty,
+                    e.Comments ?? string.Empty))
+                .ToList();
+
+            return Ok(orderedEvents);
+        }
+
         //[HttpGet("transfers")]
         //public async Task<IActionResult> GetAllTransfers()
         //{
@@ -681,6 +854,33 @@ namespace VNFootballLeaguesApp.Controllers
                 x.FailedToScoreHome,
                 x.FailedToScoreAway
             }));
+        }
+
+        private static int? ExtractRoundNumber(string round)
+        {
+            var match = RoundNumberRegex.Match(round);
+            return match.Success && int.TryParse(match.Value, out var value) ? value : null;
+        }
+
+        private static int GetPeriodSortOrder(string? period)
+        {
+            if (string.IsNullOrWhiteSpace(period))
+            {
+                return 99;
+            }
+
+            var normalized = period.Trim().ToLowerInvariant();
+            return normalized switch
+            {
+                "1st half" => 1,
+                "first half" => 1,
+                "2nd half" => 2,
+                "second half" => 2,
+                "regular" => 2,
+                "extra time" => 3,
+                "penalties" => 4,
+                _ => 99
+            };
         }
     }
 }

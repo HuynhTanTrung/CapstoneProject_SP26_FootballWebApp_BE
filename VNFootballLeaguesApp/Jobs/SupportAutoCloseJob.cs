@@ -33,58 +33,58 @@ public class SupportAutoCloseJob
 
         // Lấy tất cả ticket đang in_progress có LastAdminReplyAt
         var tickets = await _db.SupportTickets
-            .Where(t => t.Status == "in_progress" && t.LastAdminReplyAt != null)
-            .ToListAsync();
+           .Where(t => t.Status == "in_progress" && t.LastAdminReplyAt != null)
+           .ToListAsync();
 
         foreach (var ticket in tickets)
         {
-            var lastAdminReply = ticket.LastAdminReplyAt!.Value;
+           var lastAdminReply = ticket.LastAdminReplyAt!.Value;
 
-            // Kiểm tra xem user có nhắn gì sau lần admin reply cuối không
-            var hasUserReplyAfter = await _db.SupportMessages
-                .AnyAsync(m => m.TicketId == ticket.TicketId
-                            && m.SenderRole == "user"
-                            && m.CreatedAt > lastAdminReply);
+           // Kiểm tra xem user có nhắn gì sau lần admin reply cuối không
+           var hasUserReplyAfter = await _db.SupportMessages
+               .AnyAsync(m => m.TicketId == ticket.TicketId
+                           && m.SenderRole == "user"
+                           && m.CreatedAt > lastAdminReply);
 
-            if (hasUserReplyAfter)
-            {
-                // User đã reply → reset, không auto-close
-                ticket.AutoCloseWarningSent = false;
-                continue;
-            }
+           if (hasUserReplyAfter)
+           {
+               // User đã reply → reset, không auto-close
+               ticket.AutoCloseWarningSent = false;
+               continue;
+           }
 
-            var timeSinceAdminReply = now - lastAdminReply;
+           var timeSinceAdminReply = now - lastAdminReply;
 
-            if (!ticket.AutoCloseWarningSent && timeSinceAdminReply >= WarnAfter)
-            {
-                // Gửi tin nhắn cảnh báo
-                _db.SupportMessages.Add(new SupportMessage
-                {
-                    MessageId = Guid.NewGuid(),
-                    TicketId = ticket.TicketId,
-                    SenderRole = "admin",
-                    Content = "Yêu cầu hỗ trợ của bạn sẽ tự động đóng sau 2 phút nếu không có thêm thắc mắc. Nếu bạn cần hỗ trợ thêm, hãy nhắn tin ngay.",
-                    CreatedAt = now
-                });
-                ticket.AutoCloseWarningSent = true;
-                ticket.UpdatedAt = now;
-                _logger.LogInformation("Sent auto-close warning for ticket {TicketId}", ticket.TicketId);
-            }
-            else if (ticket.AutoCloseWarningSent && timeSinceAdminReply >= WarnAfter + CloseAfterWarn)
-            {
-                // Đóng ticket
-                _db.SupportMessages.Add(new SupportMessage
-                {
-                    MessageId = Guid.NewGuid(),
-                    TicketId = ticket.TicketId,
-                    SenderRole = "admin",
-                    Content = "Yêu cầu hỗ trợ đã được tự động đóng. Nếu bạn cần hỗ trợ thêm, hãy mở chat và nhắn tin mới.",
-                    CreatedAt = now
-                });
-                ticket.Status = "resolved";
-                ticket.UpdatedAt = now;
-                _logger.LogInformation("Auto-closed ticket {TicketId}", ticket.TicketId);
-            }
+           if (!ticket.AutoCloseWarningSent && timeSinceAdminReply >= WarnAfter)
+           {
+               // Gửi tin nhắn cảnh báo
+               _db.SupportMessages.Add(new SupportMessage
+               {
+                   MessageId = Guid.NewGuid(),
+                   TicketId = ticket.TicketId,
+                   SenderRole = "admin",
+                   Content = "Yêu cầu hỗ trợ của bạn sẽ tự động đóng sau 2 phút nếu không có thêm thắc mắc. Nếu bạn cần hỗ trợ thêm, hãy nhắn tin ngay.",
+                   CreatedAt = now
+               });
+               ticket.AutoCloseWarningSent = true;
+               ticket.UpdatedAt = now;
+               _logger.LogInformation("Sent auto-close warning for ticket {TicketId}", ticket.TicketId);
+           }
+           else if (ticket.AutoCloseWarningSent && timeSinceAdminReply >= WarnAfter + CloseAfterWarn)
+           {
+               // Đóng ticket
+               _db.SupportMessages.Add(new SupportMessage
+               {
+                   MessageId = Guid.NewGuid(),
+                   TicketId = ticket.TicketId,
+                   SenderRole = "admin",
+                   Content = "Yêu cầu hỗ trợ đã được tự động đóng. Nếu bạn cần hỗ trợ thêm, hãy mở chat và nhắn tin mới.",
+                   CreatedAt = now
+               });
+               ticket.Status = "resolved";
+               ticket.UpdatedAt = now;
+               _logger.LogInformation("Auto-closed ticket {TicketId}", ticket.TicketId);
+           }
         }
 
         await _db.SaveChangesAsync();
