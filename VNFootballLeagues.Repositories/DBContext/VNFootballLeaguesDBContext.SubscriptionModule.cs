@@ -356,5 +356,18 @@ public partial class VNFootballLeaguesDBContext
             entity.HasIndex(e => e.TicketId);
             entity.HasOne(e => e.Ticket).WithMany(t => t.Messages).HasForeignKey(e => e.TicketId).OnDelete(DeleteBehavior.Cascade);
         });
+
+        modelBuilder.Entity<AIAnalysisHistory>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.ToTable("AIAnalysisHistory");
+            entity.Property(e => e.Id).HasDefaultValueSql("(newid())");
+            entity.Property(e => e.AnalysisType).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.AnalysisVi).IsRequired();
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("(getutcdate())");
+            entity.HasIndex(e => e.UserId);
+            entity.HasIndex(e => new { e.MatchId, e.PlayerId });
+            entity.HasOne(e => e.User).WithMany().HasForeignKey(e => e.UserId).OnDelete(DeleteBehavior.Cascade);
+        });
     }
 }

@@ -11,4 +11,5 @@ public class UserSubscriptionDto
     public DateTime? LastPaymentAt { get; set; }
     public int AiVideoCreditsRemaining { get; set; }
     public int ForumPostCreditsRemaining { get; set; }
+    public int AiMatchAnalysisRemaining { get; set; }
 }

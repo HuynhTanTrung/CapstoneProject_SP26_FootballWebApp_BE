@@ -711,7 +711,8 @@ namespace VNFootballLeaguesApp.Controllers
                     s.Team != null ? s.Team.TeamName ?? string.Empty : string.Empty,
                     s.Player != null ? s.Player.Position ?? string.Empty : string.Empty,
                     s.Rating ?? s.SofascoreRating,
-                    s.Minutes))
+                    s.Minutes,
+                    s.Player != null ? s.Player.PhotoUrl : null))
                 .ToListAsync(HttpContext.RequestAborted);
 
             return Ok(players);

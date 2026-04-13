@@ -21,7 +21,8 @@ public record PlayerInMatchDto(
     string TeamName,
     string Position,
     decimal? Rating,
-    int? Minutes);
+    int? Minutes,
+    string? PhotoUrl = null);
 
 public record MatchEventDto(
     int EventId,

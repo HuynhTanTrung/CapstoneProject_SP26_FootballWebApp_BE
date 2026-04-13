@@ -6,7 +6,6 @@ using Microsoft.Extensions.Logging;
 using VNFootballLeagues.Repositories.Models;
 using VNFootballLeagues.Services.Dtos;
 using VNFootballLeagues.Services.IServices;
-
 namespace VNFootballLeagues.Services.Services;
 
 public class AIAnalysisService : IAIAnalysisService
@@ -149,19 +148,28 @@ public class AIAnalysisService : IAIAnalysisService
         _logger = logger;
     }
 
-    public async Task<AIAnalysisResponse> AnalyzePlayerRatingAsync(int matchId, int playerId, CancellationToken ct = default)
+    public async Task<AIAnalysisResponse> AnalyzePlayerRatingAsync(int matchId, int playerId, Guid userId, CancellationToken ct = default)
     {
-        if (matchId <= 0)
-        {
-            throw new ArgumentException("matchId không hợp lệ");
-        }
-
-        if (playerId <= 0)
-        {
-            throw new ArgumentException("playerId không hợp lệ");
-        }
+        if (matchId <= 0) throw new ArgumentException("matchId không hợp lệ");
+        if (playerId <= 0) throw new ArgumentException("playerId không hợp lệ");
 
         ct.ThrowIfCancellationRequested();
+
+        // Check cache: cùng user + matchId + playerId trong 24h
+        var cached = await _db.AIAnalysisHistories
+            .Where(h => h.UserId == userId && h.MatchId == matchId && h.PlayerId == playerId
+                     && h.AnalysisType == "player-rating"
+                     && h.CreatedAt >= DateTime.UtcNow.AddHours(-24))
+            .OrderByDescending(h => h.CreatedAt)
+            .FirstOrDefaultAsync(ct);
+
+        if (cached != null)
+        {
+            var cachedCtx = string.IsNullOrEmpty(cached.ContextJson)
+                ? (object)new { }
+                : System.Text.Json.JsonSerializer.Deserialize<object>(cached.ContextJson)!;
+            return new AIAnalysisResponse(true, "player-rating", cached.AnalysisVi, cachedCtx, "Kết quả từ cache");
+        }
 
         var match = await _db.Matches
             .AsNoTracking()
@@ -199,17 +207,55 @@ public class AIAnalysisService : IAIAnalysisService
             [("user", $"Dữ liệu cầu thủ:\n```json\n{json}\n```")]);
 
         var success = !result.StartsWith("Lỗi", StringComparison.OrdinalIgnoreCase);
+
+        // Lưu lịch sử nếu thành công
+        if (success)
+        {
+            _db.AIAnalysisHistories.Add(new VNFootballLeagues.Repositories.Models.AIAnalysisHistory
+            {
+                Id = Guid.NewGuid(),
+                UserId = userId,
+                AnalysisType = "player-rating",
+                MatchId = matchId,
+                PlayerId = playerId,
+                AnalysisVi = result,
+                ContextJson = json,
+                CreatedAt = DateTime.UtcNow
+            });
+            // Trừ credit
+            var sub = await _db.UserSubscriptions.FirstOrDefaultAsync(s => s.UserId == userId, ct);
+            if (sub != null && sub.AiMatchAnalysisRemaining > 0)
+            {
+                sub.AiMatchAnalysisRemaining = Math.Max(0, sub.AiMatchAnalysisRemaining - 1);
+                sub.UpdatedAt = DateTime.UtcNow;
+            }
+            await _db.SaveChangesAsync(ct);
+        }
+
         return new AIAnalysisResponse(success, "player-rating", result, payload, null);
     }
 
-    public async Task<AIAnalysisResponse> AnalyzeMatchAsync(int matchId, CancellationToken ct = default)
+    public async Task<AIAnalysisResponse> AnalyzeMatchAsync(int matchId, Guid userId, CancellationToken ct = default)
     {
-        if (matchId <= 0)
-        {
-            throw new ArgumentException("matchId không hợp lệ");
-        }
+        if (matchId <= 0) throw new ArgumentException("matchId không hợp lệ");
 
         ct.ThrowIfCancellationRequested();
+
+        // Check cache: cùng user + matchId trong 24h
+        var cached = await _db.AIAnalysisHistories
+            .Where(h => h.UserId == userId && h.MatchId == matchId && h.PlayerId == null
+                     && h.AnalysisType == "match"
+                     && h.CreatedAt >= DateTime.UtcNow.AddHours(-24))
+            .OrderByDescending(h => h.CreatedAt)
+            .FirstOrDefaultAsync(ct);
+
+        if (cached != null)
+        {
+            var cachedCtx = string.IsNullOrEmpty(cached.ContextJson)
+                ? (object)new { }
+                : System.Text.Json.JsonSerializer.Deserialize<object>(cached.ContextJson)!;
+            return new AIAnalysisResponse(true, "match", cached.AnalysisVi, cachedCtx, "Kết quả từ cache");
+        }
 
         var match = await _db.Matches
             .AsNoTracking()
@@ -271,7 +317,43 @@ public class AIAnalysisService : IAIAnalysisService
             [("user", $"Dữ liệu trận đấu:\n```json\n{json}\n```")]);
 
         var success = !result.StartsWith("Lỗi", StringComparison.OrdinalIgnoreCase);
+
+        if (success)
+        {
+            _db.AIAnalysisHistories.Add(new VNFootballLeagues.Repositories.Models.AIAnalysisHistory
+            {
+                Id = Guid.NewGuid(),
+                UserId = userId,
+                AnalysisType = "match",
+                MatchId = matchId,
+                PlayerId = null,
+                AnalysisVi = result,
+                ContextJson = json,
+                CreatedAt = DateTime.UtcNow
+            });
+            // Trừ credit
+            var sub = await _db.UserSubscriptions.FirstOrDefaultAsync(s => s.UserId == userId, ct);
+            if (sub != null && sub.AiMatchAnalysisRemaining > 0)
+            {
+                sub.AiMatchAnalysisRemaining = Math.Max(0, sub.AiMatchAnalysisRemaining - 1);
+                sub.UpdatedAt = DateTime.UtcNow;
+            }
+            await _db.SaveChangesAsync(ct);
+        }
+
         return new AIAnalysisResponse(success, "match", result, payload, warning);
+    }
+
+    public async Task<IReadOnlyList<AIAnalysisHistoryDto>> GetUserHistoryAsync(Guid userId, int page = 1, int pageSize = 20)
+    {
+        var items = await _db.AIAnalysisHistories
+            .Where(h => h.UserId == userId)
+            .OrderByDescending(h => h.CreatedAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(h => new AIAnalysisHistoryDto(h.Id, h.AnalysisType, h.MatchId, h.PlayerId, h.AnalysisVi, h.CreatedAt))
+            .ToListAsync();
+        return items;
     }
 
     private object BuildPlayerRatingPayload(Match match, Player? player, PlayerMatchStatistic stat)

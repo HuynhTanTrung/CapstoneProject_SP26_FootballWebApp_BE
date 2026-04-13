@@ -675,7 +675,7 @@ namespace VNFootballLeagues.API.Controllers
         }
 
         [HttpGet("transfers")]
-        public async Task<IActionResult> GetAllTransfers()
+        public async Task<IActionResult> GetAllTransfers([FromQuery] int? tournamentId, [FromQuery] int? seasonId)
         {
             try
             {
@@ -690,13 +690,42 @@ namespace VNFootballLeagues.API.Controllers
                     return Ok(result);
                 }
 
-                var messageProp = resultType.GetProperty("message");
-                var message = messageProp?.GetValue(result)?.ToString() ?? "Unknown error";
-                return NotFound(new { status = false, message });
+                // Trả về empty thay vì 404 để FE không bị lỗi
+                return Ok(new { status = true, data = new { transfersByPlayer = Array.Empty<object>() } });
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error getting all transfers");
+                return Ok(new { status = true, data = new { transfersByPlayer = Array.Empty<object>() } });
+            }
+        }
+
+        /// <summary>Lấy lịch sử chuyển nhượng của 1 cầu thủ từ DB (nhanh hơn GetAllTransfers).</summary>
+        [HttpGet("player-transfers/{playerId}")]
+        public async Task<IActionResult> GetPlayerTransfers(int playerId)
+        {
+            try
+            {
+                var transfers = await _context.Database
+                    .SqlQueryRaw<PlayerTransferDto>(@"
+                        SELECT 
+                            t.TransferId,
+                            t.TransferDate,
+                            t.TransferType,
+                            t.TransferFee,
+                            COALESCE(ft.TeamName, N'Không rõ') AS FromTeam,
+                            COALESCE(tt.TeamName, N'Không rõ') AS ToTeam
+                        FROM Transfers t
+                        LEFT JOIN Team ft ON ft.TeamId = t.FromTeamId
+                        LEFT JOIN Team tt ON tt.TeamId = t.ToTeamId
+                        WHERE t.PlayerId = {0}
+                        ORDER BY t.TransferDate DESC", playerId)
+                    .ToListAsync();
+                return Ok(new { status = true, data = transfers });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting transfers for player {PlayerId}", playerId);
                 return StatusCode(500, new { status = false, message = "Internal server error" });
             }
         }
@@ -1169,4 +1198,14 @@ namespace VNFootballLeagues.API.Controllers
             return status == true ? Ok(result) : BadRequest(result);
         }
     }
+}
+
+public class PlayerTransferDto
+{
+    public int TransferId { get; set; }
+    public DateTime? TransferDate { get; set; }
+    public string? TransferType { get; set; }
+    public string? TransferFee { get; set; }
+    public string? FromTeam { get; set; }
+    public string? ToTeam { get; set; }
 }

@@ -10,3 +10,11 @@ public record AIAnalysisResponse(
     string AnalysisVi,
     object Context,
     string? Warning);
+
+public record AIAnalysisHistoryDto(
+    Guid Id,
+    string AnalysisType,
+    int MatchId,
+    int? PlayerId,
+    string AnalysisVi,
+    DateTime CreatedAt);

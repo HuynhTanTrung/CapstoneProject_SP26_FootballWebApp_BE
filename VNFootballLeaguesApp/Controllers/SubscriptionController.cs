@@ -321,7 +321,8 @@ public class SubscriptionController : ControllerBase
             ExpiresAt = subscription.ExpiresAt,
             LastPaymentAt = subscription.LastPaymentAt,
             AiVideoCreditsRemaining = subscription.AiVideoCreditsRemaining,
-            ForumPostCreditsRemaining = subscription.ForumPostCreditsRemaining
+            ForumPostCreditsRemaining = subscription.ForumPostCreditsRemaining,
+            AiMatchAnalysisRemaining = subscription.AiMatchAnalysisRemaining
         };
     }
 

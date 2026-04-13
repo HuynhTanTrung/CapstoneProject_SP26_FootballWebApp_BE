@@ -22,6 +22,8 @@ public partial class UserSubscription
 
     public int ForumPostCreditsRemaining { get; set; } = 0;
 
+    public int AiMatchAnalysisRemaining { get; set; } = 0;
+
     public DateTime CreatedAt { get; set; }
 
     public DateTime UpdatedAt { get; set; }
