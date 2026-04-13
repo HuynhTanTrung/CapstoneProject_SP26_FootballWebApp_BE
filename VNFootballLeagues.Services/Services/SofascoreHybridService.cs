@@ -5302,7 +5302,7 @@ namespace VNFootballLeagues.Services.Services
                 if (!userIds.Any()) return;
 
                 var title = $"Favorite player updated";
-                var message = $"{player.FullName ?? player.FirstName} has new $1 updated.";
+                var message = $"{player.FullName ?? player.FirstName} has new {updateType} updated.";
                 var link = $"/players/{player.ApiPlayerId}";
 
                 await _notificationService.CreateBulkAsync(userIds, "favorite_player_updated", title, message, link, ct);
@@ -5315,6 +5315,7 @@ namespace VNFootballLeagues.Services.Services
         }
     }
 }
+
 
 
 

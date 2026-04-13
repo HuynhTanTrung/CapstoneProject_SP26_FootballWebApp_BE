@@ -354,7 +354,10 @@ namespace VNFootballLeaguesApp.Controllers
         [HttpGet("players/{id}")]
         public async Task<IActionResult> GetPlayerById(int id)
         {
+            // Try internal PlayerId first, then ApiPlayerId
             var x = await _service.GetPlayerByIdAsync(id);
+            if (x == null)
+                x = await _db.Players.AsNoTracking().FirstOrDefaultAsync(p => p.ApiPlayerId == id);
             if (x == null) return NotFound();
             return Ok(new
             {
