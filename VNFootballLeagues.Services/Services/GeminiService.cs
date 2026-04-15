@@ -25,18 +25,10 @@ namespace VNFootballLeagues.Services.Services
             var apiKey = configuration["GeminiSettings:ApiKey"];
 
             if (string.IsNullOrWhiteSpace(apiKey))
-            {
                 apiKey = configuration["GEMINI_API_KEY"];
-            }
 
-            if (string.IsNullOrWhiteSpace(apiKey))
-            {
-                throw new ArgumentNullException(
-                    "GeminiSettings:ApiKey",
-                    "Gemini API key is not configured. Set GeminiSettings:ApiKey or GEMINI_API_KEY.");
-            }
-
-            return apiKey.Trim();
+            // Return empty string instead of throwing — callers will handle gracefully
+            return apiKey?.Trim() ?? string.Empty;
         }
 
         public Task<string> ChatAsync(string message) =>
@@ -46,6 +38,8 @@ namespace VNFootballLeagues.Services.Services
         {
             if (turns == null || turns.Count == 0)
                 return "Không có nội dung để gửi.";
+            if (string.IsNullOrWhiteSpace(_apiKey))
+                return "Tính năng AI chưa được cấu hình. Vui lòng liên hệ quản trị viên.";
 
             try
             {
@@ -97,6 +91,8 @@ namespace VNFootballLeagues.Services.Services
         {
             if (turns == null || turns.Count == 0)
                 return "Không có nội dung để gửi.";
+            if (string.IsNullOrWhiteSpace(_apiKey))
+                return "Tính năng AI chưa được cấu hình. Vui lòng liên hệ quản trị viên.";
             try
             {
                 var url = $"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={_apiKey}";
