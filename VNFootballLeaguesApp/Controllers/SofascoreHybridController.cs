@@ -713,11 +713,9 @@ namespace VNFootballLeagues.API.Controllers
                             t.TransferDate,
                             t.TransferType,
                             t.TransferFee,
-                            COALESCE(ft.TeamName, N'Không rõ') AS FromTeam,
-                            COALESCE(tt.TeamName, N'Không rõ') AS ToTeam
+                            COALESCE(t.FromTeam, N'Không rõ') AS FromTeam,
+                            COALESCE(t.ToTeam, N'Không rõ') AS ToTeam
                         FROM Transfers t
-                        LEFT JOIN Team ft ON ft.TeamId = t.FromTeamId
-                        LEFT JOIN Team tt ON tt.TeamId = t.ToTeamId
                         WHERE t.PlayerId = {0}
                         ORDER BY t.TransferDate DESC", playerId)
                     .ToListAsync();
