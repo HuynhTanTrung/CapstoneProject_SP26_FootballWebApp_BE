@@ -383,5 +383,123 @@ public class SubscriptionController : ControllerBase
         await Response.WriteAsync($"data: {jsonPayload}\n\n", cancellationToken);
         await Response.Body.FlushAsync(cancellationToken);
     }
+    // ==================== Admin Endpoints ====================
+
+    /// <summary>Admin: Get all payments with filters</summary>
+    [HttpGet("admin/payments")]
+    [Authorize(Policy = "AdminOnly")]
+    public async Task<IActionResult> AdminGetAllPayments(
+        [FromQuery] string? status = null,
+        [FromQuery] string? planCode = null,
+        [FromQuery] string? search = null,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20)
+    {
+        var query = _context.SubscriptionPayments
+            .AsNoTracking()
+            .Join(_context.Users,
+                p => p.UserId,
+                u => u.UserId,
+                (p, u) => new { Payment = p, User = u })
+            .AsQueryable();
+
+        if (!string.IsNullOrEmpty(status))
+            query = query.Where(x => x.Payment.Status == status);
+        if (!string.IsNullOrEmpty(planCode))
+            query = query.Where(x => x.Payment.PlanCode == planCode);
+        if (!string.IsNullOrEmpty(search))
+            query = query.Where(x => x.User.Username.Contains(search) || x.User.Email.Contains(search) || x.Payment.PaymentCode.Contains(search));
+
+        var total = await query.CountAsync();
+        var items = await query
+            .OrderByDescending(x => x.Payment.CreatedAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(x => new
+            {
+                x.Payment.PaymentId,
+                x.Payment.PaymentCode,
+                x.Payment.UserId,
+                Username = x.User.Username,
+                Email = x.User.Email,
+                x.Payment.PlanCode,
+                x.Payment.PlanName,
+                x.Payment.Amount,
+                x.Payment.Status,
+                x.Payment.CreatedAt,
+                x.Payment.PaidAt,
+                x.Payment.Provider
+            })
+            .ToListAsync();
+
+        return Ok(new ApiResponseDto<object>
+        {
+            Success = true,
+            Data = new { total, page, pageSize, items }
+        });
+    }
+
+    /// <summary>Admin: Get all active subscriptions</summary>
+    [HttpGet("admin/subscriptions")]
+    [Authorize(Policy = "AdminOnly")]
+    public async Task<IActionResult> AdminGetAllSubscriptions(
+        [FromQuery] string? status = null,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20)
+    {
+        var query = _context.UserSubscriptions.AsNoTracking().AsQueryable();
+        if (!string.IsNullOrEmpty(status))
+            query = query.Where(s => s.Status == status);
+
+        var total = await query.CountAsync();
+        var items = await query
+            .OrderByDescending(s => s.CreatedAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(s => new
+            {
+                s.UserId,
+                s.PlanCode,
+                s.PlanName,
+                s.Status,
+                s.StartedAt,
+                s.ExpiresAt,
+                s.LastPaymentAt
+            })
+            .ToListAsync();
+
+        return Ok(new ApiResponseDto<object>
+        {
+            Success = true,
+            Data = new { total, page, pageSize, items }
+        });
+    }
+
+    /// <summary>Admin: Get revenue stats</summary>
+    [HttpGet("admin/stats")]
+    [Authorize(Policy = "AdminOnly")]
+    public async Task<IActionResult> AdminGetStats()
+    {
+        var totalRevenue = await _context.SubscriptionPayments
+            .Where(p => p.Status == "Paid")
+            .SumAsync(p => (decimal?)p.Amount) ?? 0;
+
+        var totalPaid = await _context.SubscriptionPayments.CountAsync(p => p.Status == "Paid");
+        var totalPending = await _context.SubscriptionPayments.CountAsync(p => p.Status == "Pending");
+        var totalCancelled = await _context.SubscriptionPayments.CountAsync(p => p.Status == "Cancelled");
+        var totalActive = await _context.UserSubscriptions.CountAsync(s => s.Status == "Active" && s.ExpiresAt > DateTime.UtcNow);
+
+        var revenueByPlan = await _context.SubscriptionPayments
+            .Where(p => p.Status == "Paid")
+            .GroupBy(p => p.PlanCode)
+            .Select(g => new { planCode = g.Key, revenue = g.Sum(p => (decimal?)p.Amount) ?? 0, count = g.Count() })
+            .ToListAsync();
+
+        return Ok(new ApiResponseDto<object>
+        {
+            Success = true,
+            Data = new { totalRevenue, totalPaid, totalPending, totalCancelled, totalActive, revenueByPlan }
+        });
+    }
 }
 
