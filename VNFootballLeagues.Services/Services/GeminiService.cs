@@ -20,6 +20,28 @@ namespace VNFootballLeagues.Services.Services
             };
         }
 
+        private static string ParseGeminiError(System.Net.HttpStatusCode statusCode, string responseString)
+        {
+            try
+            {
+                using var doc = JsonDocument.Parse(responseString);
+                var code = doc.RootElement.GetProperty("error").GetProperty("code").GetInt32();
+                var status = doc.RootElement.GetProperty("error").GetProperty("status").GetString();
+                return (code, status) switch
+                {
+                    (503, _) or (_, "UNAVAILABLE") => "⚠️ AI đang bị quá tải, vui lòng thử lại sau ít phút.",
+                    (429, _) or (_, "RESOURCE_EXHAUSTED") => "⚠️ Đã vượt quá giới hạn yêu cầu AI. Vui lòng thử lại sau.",
+                    (400, _) or (_, "INVALID_ARGUMENT") => "⚠️ Yêu cầu không hợp lệ. Vui lòng kiểm tra nội dung gửi lên.",
+                    (401, _) or (403, _) or (_, "PERMISSION_DENIED") => "⚠️ API key không hợp lệ hoặc không có quyền truy cập.",
+                    _ => $"⚠️ AI tạm thời không khả dụng (lỗi {code}). Vui lòng thử lại sau."
+                };
+            }
+            catch
+            {
+                return $"⚠️ AI tạm thời không khả dụng ({statusCode}). Vui lòng thử lại sau.";
+            }
+        }
+
         private static string ResolveApiKey(IConfiguration configuration)
         {
             var apiKey = configuration["GeminiSettings:ApiKey"];
@@ -61,7 +83,7 @@ namespace VNFootballLeagues.Services.Services
 
                 if (!response.IsSuccessStatusCode)
                 {
-                    return $"Lỗi API: {response.StatusCode} - {responseString}";
+                    return ParseGeminiError(response.StatusCode, responseString);
                 }
 
                 using var doc = JsonDocument.Parse(responseString);
@@ -111,7 +133,7 @@ namespace VNFootballLeagues.Services.Services
                 var response = await _httpClient.PostAsync(url, content);
                 var responseString = await response.Content.ReadAsStringAsync();
                 if (!response.IsSuccessStatusCode)
-                    return $"Lỗi API: {response.StatusCode} - {responseString}";
+                    return ParseGeminiError(response.StatusCode, responseString);
                 using var doc = JsonDocument.Parse(responseString);
                 return doc.RootElement.GetProperty("candidates")[0].GetProperty("content").GetProperty("parts")[0].GetProperty("text").GetString() ?? "Không có phản hồi.";
             }
@@ -215,7 +237,7 @@ namespace VNFootballLeagues.Services.Services
                 var httpResponse = await _httpClient.PostAsync(analyzeUrl, new StringContent(json, Encoding.UTF8, "application/json"));
                 var responseString = await httpResponse.Content.ReadAsStringAsync();
                 if (!httpResponse.IsSuccessStatusCode)
-                    return $"Lỗi API: {httpResponse.StatusCode} - {responseString}";
+                    return ParseGeminiError(httpResponse.StatusCode, responseString);
                 using var doc = JsonDocument.Parse(responseString);
                 return doc.RootElement.GetProperty("candidates")[0].GetProperty("content").GetProperty("parts")[0].GetProperty("text").GetString() ?? "Không có phản hồi.";
             }
