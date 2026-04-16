@@ -298,6 +298,38 @@ public class AuthController : ControllerBase
         });
     }
 
+    [HttpPost("change-password")]
+    [Authorize]
+    public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequestDto dto)
+    {
+        if (dto.NewPassword != dto.ConfirmNewPassword)
+            return BadRequest(new ApiResponseDto<object> { Success = false, Message = "Mật khẩu xác nhận không khớp." });
+
+        var userId = _userService.GetUserId(User);
+        if (userId is null) return Unauthorized();
+
+        var user = await _userService.GetByIdAsync(userId.Value);
+        if (user is null) return NotFound();
+
+        if (!BCrypt.Net.BCrypt.Verify(dto.CurrentPassword, user.PasswordHash))
+            return BadRequest(new ApiResponseDto<object> { Success = false, Message = "Mật khẩu hiện tại không đúng." });
+
+        if (dto.NewPassword.Length < 8)
+            return BadRequest(new ApiResponseDto<object> { Success = false, Message = "Mật khẩu mới phải có ít nhất 8 ký tự." });
+
+        if (!System.Text.RegularExpressions.Regex.IsMatch(dto.NewPassword, @"[A-Z]") ||
+            !System.Text.RegularExpressions.Regex.IsMatch(dto.NewPassword, @"[a-z]") ||
+            !System.Text.RegularExpressions.Regex.IsMatch(dto.NewPassword, @"[0-9]") ||
+            !System.Text.RegularExpressions.Regex.IsMatch(dto.NewPassword, @"[^A-Za-z0-9]"))
+            return BadRequest(new ApiResponseDto<object> { Success = false, Message = "Mật khẩu mới phải có chữ hoa, chữ thường, số và ký tự đặc biệt." });
+
+        user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.NewPassword, workFactor: 12);
+        user.UpdatedAt = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
+
+        return Ok(new ApiResponseDto<object> { Success = true, Message = "Đổi mật khẩu thành công." });
+    }
+
     // ── Admin User Management ─────────────────────────────────────────────
 
     [HttpGet("admin/users")]
