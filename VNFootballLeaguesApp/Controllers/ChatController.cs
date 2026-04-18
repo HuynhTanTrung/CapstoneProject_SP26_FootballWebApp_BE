@@ -172,11 +172,15 @@ namespace VNFootballLeaguesApp.Controllers
 
         private async Task<string> BuildSystemPromptAsync(string message, string? extraContext = null)
         {
-            var systemPrompt = @"Bạn là trợ lý AI chuyên về hệ thống thống kê bóng đá Việt Nam 'VN Player Rating'.
+            var now = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow,
+                TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time"));
+            var systemPrompt = $@"Bạn là trợ lý AI chuyên về hệ thống thống kê bóng đá Việt Nam 'VN Player Rating'.
 Hệ thống theo dõi 3 giải đấu: V-League 1, V-League 2, Vietnam Cup.
 Bạn có thể trả lời về: cầu thủ, đội bóng, trận đấu, thống kê, xếp hạng, chuyển nhượng.
-QUAN TRỌNG: Khi đề cập đến cầu thủ cụ thể, BẮT BUỘC phải cung cấp link dạng: [Tên cầu thủ](/players/{playerId}) - dùng đúng playerId số nguyên từ dữ liệu được cung cấp.
-Trả lời bằng tiếng Việt, ngắn gọn và chính xác.";
+QUAN TRỌNG: Khi đề cập đến cầu thủ cụ thể, BẮT BUỘC phải cung cấp link dạng: [Tên cầu thủ](/players/{{playerId}}) - dùng đúng playerId số nguyên từ dữ liệu được cung cấp.
+Trả lời bằng tiếng Việt, ngắn gọn và chính xác.
+Ngày giờ hiện tại (UTC+7): {now:dd/MM/yyyy HH:mm}.
+HƯỚNG DẪN ĐIỀU HƯỚNG: Khi người dùng hỏi về phân tích chuyên sâu trận đấu hoặc cầu thủ (ví dụ: 'phân tích trận', 'phân tích cầu thủ', 'AI phân tích', 'thống kê chi tiết trận'), hãy gợi ý họ dùng tính năng AI Phân tích chuyên sâu tại [AI Phân tích](/ai-video) để có phân tích đầy đủ hơn.";
 
             // Tìm cầu thủ liên quan trong DB dựa trên từ khóa trong câu hỏi
             var msgLower = message.ToLower();

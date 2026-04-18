@@ -21,9 +21,19 @@ public class ImageProxyController : ControllerBase
     ///        /api/ImageProxy/sofascore/player/67890
     ///        /api/ImageProxy/sofascore/tournament/626/dark
     /// </summary>
-    [HttpGet("sofascore/{type}/{id}/{theme?}")]
-    [ResponseCache(Duration = 86400)] // Cache for 24 hours
-    public async Task<IActionResult> GetSofascoreImage(string type, string id, string? theme = null)
+    [HttpGet("sofascore/team/{id}")]
+    [ResponseCache(Duration = 86400)]
+    public Task<IActionResult> GetTeamImage(string id) => ProxyImage("team", id, null);
+
+    [HttpGet("sofascore/player/{id}")]
+    [ResponseCache(Duration = 86400)]
+    public Task<IActionResult> GetPlayerImage(string id) => ProxyImage("player", id, null);
+
+    [HttpGet("sofascore/tournament/{id}/{theme?}")]
+    [ResponseCache(Duration = 86400)]
+    public Task<IActionResult> GetTournamentImage(string id, string? theme = "dark") => ProxyImage("tournament", id, theme);
+
+    private async Task<IActionResult> ProxyImage(string type, string id, string? theme)
     {
         try
         {
@@ -40,12 +50,18 @@ public class ImageProxyController : ControllerBase
                 return BadRequest("Invalid image type. Use: team, player, or tournament");
 
             var client = _httpClientFactory.CreateClient();
-            client.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36");
+            client.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
+            client.DefaultRequestHeaders.Add("Referer", "https://www.sofascore.com/");
+            client.DefaultRequestHeaders.Add("Origin", "https://www.sofascore.com");
+            client.DefaultRequestHeaders.Add("Accept", "image/webp,image/apng,image/*,*/*;q=0.8");
             
             var response = await client.GetAsync(url);
             
             if (!response.IsSuccessStatusCode)
-                return NotFound();
+            {
+                _logger.LogWarning("Sofascore returned {StatusCode} for URL: {Url}", (int)response.StatusCode, url);
+                return StatusCode((int)response.StatusCode, $"Sofascore returned {(int)response.StatusCode} for {url}");
+            }
 
             var imageBytes = await response.Content.ReadAsByteArrayAsync();
             var contentType = response.Content.Headers.ContentType?.ToString() ?? "image/png";
