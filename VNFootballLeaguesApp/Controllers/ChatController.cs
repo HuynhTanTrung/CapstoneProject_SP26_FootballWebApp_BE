@@ -87,17 +87,7 @@ namespace VNFootballLeaguesApp.Controllers
                 });
             }
 
-            // Increment usage
-            if (usage == null)
-            {
-                _context.DailyChatUsages.Add(new DailyChatUsage { UserId = request.UserId, UsageDate = today, Count = 1 });
-            }
-            else
-            {
-                usage.Count++;
-            }
-            await _context.SaveChangesAsync(cancellationToken);
-
+            // Increment usage AFTER successful AI response (don't charge on error)
             try
             {
                 // Inject player context vào message nếu có cầu thủ liên quan
@@ -133,6 +123,12 @@ namespace VNFootballLeaguesApp.Controllers
 
                     var aiResponse = await _geminiService.ChatWithSystemContextAsync(systemPrompt, turns);
 
+                    // Deduct credit only after successful response
+                    if (usage == null)
+                        _context.DailyChatUsages.Add(new DailyChatUsage { UserId = request.UserId, UsageDate = today, Count = 1 });
+                    else
+                        usage.Count++;
+
                     _context.ChatMessages.Add(new ChatMessage { MessageId = Guid.NewGuid(), SessionId = session.SessionId, Sender = "Assistant", Text = aiResponse, Timestamp = DateTime.UtcNow });
                     await _context.SaveChangesAsync(cancellationToken);
 
@@ -141,6 +137,14 @@ namespace VNFootballLeaguesApp.Controllers
 
                 // Không có player context → dùng ChatConversationService bình thường
                 var result = await _chatConversation.SendMessageAsync(request.UserId, request.SessionId, request.Message, cancellationToken);
+
+                // Deduct credit only after successful response
+                if (usage == null)
+                    _context.DailyChatUsages.Add(new DailyChatUsage { UserId = request.UserId, UsageDate = today, Count = 1 });
+                else
+                    usage.Count++;
+                await _context.SaveChangesAsync(cancellationToken);
+
                 return Ok(new { sessionId = result.SessionId, sessionTitle = result.SessionTitle, message = request.Message.Trim(), response = result.Response });
             }
             catch (InvalidOperationException ex)
@@ -180,7 +184,8 @@ Bạn có thể trả lời về: cầu thủ, đội bóng, trận đấu, th�
 QUAN TRỌNG: Khi đề cập đến cầu thủ cụ thể, BẮT BUỘC phải cung cấp link dạng: [Tên cầu thủ](/players/{{playerId}}) - dùng đúng playerId số nguyên từ dữ liệu được cung cấp.
 Trả lời bằng tiếng Việt, ngắn gọn và chính xác.
 Ngày giờ hiện tại (UTC+7): {now:dd/MM/yyyy HH:mm}.
-HƯỚNG DẪN ĐIỀU HƯỚNG: Khi người dùng hỏi về phân tích chuyên sâu trận đấu hoặc cầu thủ (ví dụ: 'phân tích trận', 'phân tích cầu thủ', 'AI phân tích', 'thống kê chi tiết trận'), hãy gợi ý họ dùng tính năng AI Phân tích chuyên sâu tại [AI Phân tích](/ai-video) để có phân tích đầy đủ hơn.";
+HƯỚNG DẪN ĐIỀU HƯỚNG: Khi người dùng hỏi về phân tích chuyên sâu trận đấu hoặc cầu thủ (ví dụ: 'phân tích trận', 'phân tích cầu thủ', 'AI phân tích', 'thống kê chi tiết trận'), hãy gợi ý họ dùng tính năng AI Phân tích chuyên sâu tại [AI Phân tích](/ai-video) để có phân tích đầy đủ hơn.
+BẮT BUỘC: Dù có hay không có dữ liệu trận đấu, khi người dùng hỏi về phân tích trận đấu cụ thể, LUÔN LUÔN kết thúc câu trả lời bằng: 'Để xem phân tích chi tiết, hãy truy cập [AI Phân tích](/ai-video).'.";
 
             // Tìm cầu thủ liên quan trong DB dựa trên từ khóa trong câu hỏi
             var msgLower = message.ToLower();
@@ -269,10 +274,11 @@ Thống kê mùa gần nhất (SeasonId={latestStat.SeasonId}):
             if (!isActive || subscription!.AiVideoCreditsRemaining <= 0)
                 return BadRequest(new { error = "Bạn không có lượt phân tích AI Video. Vui lòng nâng cấp gói.", creditsRemaining = 0 });
 
+            // Deduct credit only after successful Gemini response
+            var response = await _geminiService.AnalyzeVideoAsync(request.VideoUrl, request.Prompt ?? "");
+
             subscription.AiVideoCreditsRemaining--;
             subscription.UpdatedAt = DateTime.UtcNow;
-
-            var response = await _geminiService.AnalyzeVideoAsync(request.VideoUrl, request.Prompt ?? "");
 
             var record = new VideoAnalysis
             {
