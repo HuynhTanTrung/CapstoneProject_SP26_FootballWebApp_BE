@@ -1,0 +1,38 @@
+Function Code,SB_FUNC_01,,,,,,,,
+Function Name,CreatePayment (Subscription),,,,,,,,
+Class,SubscriptionController / SubscriptionService,,,,,,,,
+Lines of Code,70,,,,,,,,
+Test Requirement,"Create a subscription payment for a given plan code. Validates user existence, plan validity, SePay settings completeness. Returns existing pending payment if one already exists for the same plan.",,,,,,,,,
+,,,,,,,,,
+Passed,,Failed,,Untested,,N/A/B,,Total Test Cases
+,,,,,,3,4,2,9
+,,,,,,,,,
+,UTCID01,UTCID02,UTCID03,UTCID04,UTCID05,UTCID06,UTCID07,UTCID08,UTCID09
+Condition,,,,,,,,,,
+Precondition: Connected to server,O,O,O,O,O,O,,O,O
+User is authenticated,O,O,O,O,O,O,,O,O
+User is not authenticated,,,,,,,O,,
+planCode = "MONTHLY" (valid),O,O,O,,,,,,
+planCode = "QUARTERLY" (valid),,,, O,,,,,
+planCode = "" empty string (boundary),,,,, O,,,,
+planCode = "INVALID_PLAN" (abnormal),,,,,, O,,,
+planCode = null (abnormal),,,,,,,,O,
+SePay settings complete (BankCode + AccountNumber + AccountName set),O,O,O,O,,,,, 
+SePay settings incomplete — BankCode missing (abnormal),,,,,,,,,O
+Existing pending payment for same plan already in DB,, O,,,,,,,
+No existing pending payment for this user,O,,O,O,,,,, 
+Confirm,,,,,,,,,,
+Return 200 with new payment (QrUrl + PaymentCode),O,,O,O,,,,, 
+Return 200 with existing pending payment (reused),,O,,,,,,,
+Return 400 "Subscription plan is invalid",,,,, O,O,,,
+Return 400 "SePay settings are incomplete",,,,,,,,,O
+Return 400 "User not found",,,,,,,,O,
+Return 401 Unauthorized,,,,,,,O,,
+New payment record saved to DB,O,,O,O,,,,, 
+PaymentCode format starts with "SUB" + timestamp,O,,O,O,,,,, 
+QrUrl contains accountNumber + bankCode + amount + paymentCode,O,,O,O,,,,, 
+Result,,,,,,,,,,
+Type (N/A/B),N,N,N,N,B,A,A,A,A
+Passed/Failed,,,,,,,,,
+Executed Date,,,,,,,,,
+Defect ID,,,,,,,,,

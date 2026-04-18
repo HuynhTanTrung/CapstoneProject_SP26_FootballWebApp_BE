@@ -1,0 +1,41 @@
+Function Code,PR_FUNC_01,,,,,,,,,
+Function Name,SubmitPrediction,,,,,,,,,
+Class,PredictionsController / PredictionService,,,,,,,,,
+Lines of Code,80,,,,,,,,,
+Test Requirement,"Submit a match score prediction. Validates score >= 0, match exists, match status allows prediction, user has not already predicted. Exact score = 3 pts; correct outcome = 1 pt; wrong = 0 pt.",,,,,,,,,
+,,,,,,,,,,
+Passed,,Failed,,Untested,,N/A/B,,,Total Test Cases
+,,,,,,3,5,2,10
+,,,,,,,,,,
+,UTCID01,UTCID02,UTCID03,UTCID04,UTCID05,UTCID06,UTCID07,UTCID08,UTCID09,UTCID10
+Condition,,,,,,,,,,,
+Precondition: Connected to server,O,O,O,O,O,O,O,,O,O
+User is authenticated,O,O,O,O,O,O,O,,O,O
+User is not authenticated,,,,,,,,O,,
+matchId = valid upcoming match (status NS),O,O,O,O,,,,,,
+matchId = non-existent (e.g. 99999),,,,, O,,,,,
+Match status = "NS" (not started — allowed),O,O,O,,,,,,,
+Match status = "FT" (finished — blocked),,,,O,,,,,,
+Match status = "LIVE" (in play — blocked),,,,,, O,,,,
+PredictedHomeGoals = 2 and PredictedAwayGoals = 1 (normal),O,O,,,,,,,, 
+PredictedHomeGoals = 0 and PredictedAwayGoals = 0 (boundary),,, O,,,,,,,
+PredictedHomeGoals = -1 (abnormal),,,,,,, O,,,
+User has NOT predicted this match before,O,,O,,,,,,,
+User has ALREADY predicted this match (duplicate),,,,,,,,, O,
+Confirm,,,,,,,,,,,
+Return 200 "Đã gửi dự đoán",O,,O,,,,,,,
+Return 400 "Tỉ số không hợp lệ",,,,,,, O,,,
+Return 400 "Trận đã diễn ra hoặc đã kết thúc",,,,O,, O,,,,
+Return 400 "Không tìm thấy trận đấu",,,,, O,,,,,
+Return 400 "Bạn đã dự đoán trận này rồi",,,,,,,,, O,
+Return 401 Unauthorized,,,,,,,,O,,
+Prediction record saved to DB,O,,O,,,,,,,
+UserPredictionStats.TotalPredictions incremented,O,,O,,,,,,,
+Settled score = 3 pts (exact score match),, O,,,,,,,,
+Settled score = 1 pt (correct outcome only),,,,,,,,,,O
+Settled score = 0 pts (wrong outcome),,,,,,,,,,
+Result,,,,,,,,,,,
+Type (N/A/B),N,N,B,A,A,A,A,A,A,N
+Passed/Failed,,,,,,,,,,
+Executed Date,,,,,,,,,,
+Defect ID,,,,,,,,,,

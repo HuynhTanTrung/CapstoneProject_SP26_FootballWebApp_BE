@@ -1,0 +1,36 @@
+Function Code,AV_FUNC_01,,,,,,,,
+Function Name,AnalyzeVideo,,,,,,,,
+Class,ChatController,,,,,,,,
+Lines of Code,40,,,,,,,,
+Test Requirement,"Analyze a football video via Cloudinary URL using Gemini AI. Requires active subscription with AiVideoCreditsRemaining > 0. Deducts 1 credit on success.",,,,,,,,,
+,,,,,,,,,
+Passed,,Failed,,Untested,,N/A/B,,,Total Test Cases
+,,,,,,3,4,2,9
+,,,,,,,,,
+,UTCID01,UTCID02,UTCID03,UTCID04,UTCID05,UTCID06,UTCID07,UTCID08,UTCID09
+Condition,,,,,,,,,,
+Precondition: Connected to server,O,O,O,O,O,O,,O,O
+User is authenticated,O,O,O,O,O,O,,O,O
+User is not authenticated,,,,,,,O,,
+VideoUrl = valid Cloudinary URL (https://res.cloudinary.com/...),O,O,O,O,,,,, 
+VideoUrl = empty string "",,,,,O,,,,
+VideoUrl = null,,,,,,O,,,
+VideoUrl = non-Cloudinary URL (e.g. http://example.com/vid.mp4),,,,,,,,O,
+Subscription status = Active and ExpiresAt > now,O,O,O,,,,,,
+AiVideoCreditsRemaining > 0,O,O,O,,,,,,
+AiVideoCreditsRemaining = 0 (boundary),,,,O,,,,, 
+Subscription expired (ExpiresAt < now),,,,,,,,,O
+Prompt = valid string "Phân tích pha bóng này",O,O,,,,,,,
+Prompt = null (optional field),,, O,,,,,,
+Confirm,,,,,,,,,,
+Return 200 OK with response and creditsRemaining,O,O,O,,,,,,
+Return 400 "VideoUrl is required",,,,,O,O,,,
+Return 400 "Không có lượt phân tích AI Video",,,, O,,,,, O
+Return 401 Unauthorized,,,,,,,O,,
+creditsRemaining decremented by 1 after success,O,O,O,,,,,,
+Record saved to VideoAnalyses table in DB,O,O,O,,,,,,
+Result,,,,,,,,,,
+Type (N/A/B),N,N,N,B,B,A,A,A,A
+Passed/Failed,,,,,,,,,
+Executed Date,,,,,,,,,
+Defect ID,,,,,,,,,

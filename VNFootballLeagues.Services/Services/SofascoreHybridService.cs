@@ -4192,14 +4192,12 @@ namespace VNFootballLeagues.Services.Services
 
                             int apiTransferId = transferIdEl.GetInt32();
 
-                            // Use direct team name fields from API
                             string fromTeam = null;
                             string toTeam = null;
                             DateTime? transferDate = null;
                             string transferType = null;
                             string transferFee = null;
 
-                            // Get team names from direct fields
                             if (transferEl.TryGetProperty("fromTeamName", out var fromTeamNameEl))
                             {
                                 fromTeam = fromTeamNameEl.GetString();
@@ -4210,7 +4208,6 @@ namespace VNFootballLeagues.Services.Services
                                 toTeam = toTeamNameEl.GetString();
                             }
 
-                            // Get transfer date
                             if (transferEl.TryGetProperty("transferDateTimestamp", out var dateTs))
                             {
                                 long timestamp = dateTs.GetInt64();
@@ -4231,20 +4228,25 @@ namespace VNFootballLeagues.Services.Services
                                 };
                             }
 
-                            // Get transfer fee
                             if (transferEl.TryGetProperty("transferFeeDescription", out var feeDescEl))
                             {
                                 string feeDesc = feeDescEl.GetString();
-                                transferFee = !string.IsNullOrEmpty(feeDesc) && feeDesc != "-" && feeDesc != "Unknown"
-                                    ? feeDesc
-                                    : null;
+                                if (!string.IsNullOrEmpty(feeDesc) && feeDesc != "-" && feeDesc != "Unknown")
+                                {
+                                    transferFee = feeDesc;
+                                }
                             }
 
-                            if (string.IsNullOrEmpty(transferFee) && transferEl.TryGetProperty("transferFeeRaw", out var feeRaw) &&
-                                feeRaw.TryGetProperty("value", out var feeValue))
+                            if (string.IsNullOrEmpty(transferFee) && transferEl.TryGetProperty("transferFeeRaw", out var feeRaw))
                             {
-                                decimal value = feeValue.GetDecimal();
-                                transferFee = value == 0 ? "Free" : $"{value:N0} EUR";
+                                if (feeRaw.TryGetProperty("value", out var feeValue))
+                                {
+                                    string value = feeValue.ToString();
+                                    if (!string.IsNullOrEmpty(value) && value != "-" && value != "Unknown")
+                                    {
+                                        transferFee = value;
+                                    }
+                                }
                             }
 
                             var existingTransfer = await _context.Transfers

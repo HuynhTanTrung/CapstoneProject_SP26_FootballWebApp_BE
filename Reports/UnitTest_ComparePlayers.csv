@@ -1,0 +1,32 @@
+Function Code,CO_FUNC_01,,,,,,,
+Function Name,ComparePlayers,,,,,,,
+Class,VietnamLeagueController (FootballController),,,,,,,
+Lines of Code,60,,,,,,,
+Test Requirement,"Compare season statistics of two players by internal IDs. Both must exist in DB.",,,,,,,
+,,,,,,,,
+Passed,,Failed,,Untested,,N/A/B,,Total Test Cases
+,,,,,,2,4,2,8
+,,,,,,,,
+,UTCID01,UTCID02,UTCID03,UTCID04,UTCID05,UTCID06,UTCID07,UTCID08
+Condition,,,,,,,,,
+Precondition: Connected to server,O,O,O,O,O,O,O,O
+player1Id = valid existing ID (e.g. 1),O,O,O,O,O,,,
+player1Id = 0 (boundary),,,,,,,O,
+player1Id = -1 (abnormal),,,,,,,,O
+player2Id = valid existing ID (e.g. 2),O,O,O,O,,O,,
+player2Id = same as player1Id (boundary),,,,, O,,,
+player2Id = non-existent ID (e.g. 99999),,, O,,,,,
+player1Id = non-existent ID (e.g. 99999),, O,,,,,,
+Both players have season statistics,O,,,,O,,,
+Player has no season statistics (empty stats),,,,O,,,,
+Confirm,,,,,,,,,
+Return 200 OK,O,,,O,O,,,
+Return 404 Not Found,,O,O,,,,,
+Return 400 Bad Request,,,,,,,O,O
+Response body contains Player1 and Player2 keys,O,,,O,O,,,
+Statistics array is empty for one player,,,,O,,,,
+Result,,,,,,,,,
+Type (N/A/B),N,A,A,N,B,B,B,A
+Passed/Failed,,,,,,,,
+Executed Date,,,,,,,,
+Defect ID,,,,,,,,

@@ -274,7 +274,6 @@ D:\FPT University\YEAR 2026\SEP490\Hệ Thống Đánh Giá Cầu Thủ\SEP490_B
 D:\FPT University\YEAR 2026\SEP490\Hệ Thống Đánh Giá Cầu Thủ\SEP490_BE\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\obj\Debug\net9.0\ref\VNFootballLeaguesApp.dll
 D:\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\bin\Debug\net9.0\Microsoft.Azure.Documents.ServiceInterop.dll
 D:\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\bin\Debug\net9.0\Cosmos.CRTCompat.dll
-D:\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\bin\Debug\net9.0\appsettings.Development.json
 D:\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\bin\Debug\net9.0\appsettings.json
 D:\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\bin\Debug\net9.0\VNFootballLeaguesApp.staticwebassets.runtime.json
 D:\CapstoneProject_SP26_FootballWebApp_BE\VNFootballLeaguesApp\bin\Debug\net9.0\VNFootballLeaguesApp.staticwebassets.endpoints.json

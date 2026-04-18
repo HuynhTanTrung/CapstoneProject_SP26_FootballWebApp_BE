@@ -1,0 +1,42 @@
+Function Code,AR_FUNC_01,,,,,,,,,
+Function Name,AnalyzePlayerRating (AI Explain),,,,,,,,,
+Class,AIAnalysisController / AIAnalysisService,,,,,,,,,
+Lines of Code,80,,,,,,,,,
+Test Requirement,"Generate AI explanation for a player match rating via Gemini. Requires valid matchId + playerId, active subscription with AiMatchAnalysisRemaining > 0. Returns cached result within 24h.",,,,,,,,,
+,,,,,,,,,,
+Passed,,Failed,,Untested,,N/A/B,,,Total Test Cases
+,,,,,,4,4,2,10
+,,,,,,,,,,
+,UTCID01,UTCID02,UTCID03,UTCID04,UTCID05,UTCID06,UTCID07,UTCID08,UTCID09,UTCID10
+Condition,,,,,,,,,,,
+Precondition: Connected to server,O,O,O,O,O,O,O,,O,O
+User is authenticated,O,O,O,O,O,O,O,,O,O
+User is not authenticated,,,,,,,,O,,
+matchId = valid existing match (e.g. 1),O,O,O,O,O,,,,,
+matchId = 0 (boundary),,,,,,O,,,,
+matchId = -1 (abnormal),,,,,,,O,,,
+matchId = non-existent (e.g. 99999),,,,,,,,, O,
+playerId = valid player in that match (e.g. 5),O,O,O,O,,,,,,
+playerId = 0 (boundary),,,,, O,,,,,
+playerId = non-existent for that match (abnormal),,,,,,,,,,O
+Subscription active and AiMatchAnalysisRemaining > 0,O,O,O,,,,,,, 
+AiMatchAnalysisRemaining = 0 (boundary),,,, O,,,,,,
+Cache hit: same user + matchId + playerId within 24h,,, O,,,,,,,
+Player has rating data (Rating or SofascoreRating not null),O,O,,,,,,,, 
+Player has no rating data (both null),,,,, O,,,,,
+Confirm,,,,,,,,,,,
+Return 200 OK with AnalysisVi and creditsRemaining,O,O,,,,,,,, 
+Return 200 from cache (Warning = "Kết quả từ cache"),,, O,,,,,,,
+Return 400 "Bạn đã hết lượt AI Phân tích",,,,O,,,,,,
+Return 400 "matchId không hợp lệ",,,,,,O,O,,,
+Return 400 "Chưa có rating cho cầu thủ",,,,, O,,,,,
+Return 401 Unauthorized,,,,,,,,O,,
+Return 404 "Không tìm thấy trận đấu",,,,,,,,,O,
+Return 404 "Cầu thủ không thi đấu trận này",,,,,,,,,,O
+creditsRemaining decremented by 1 after success,O,O,,,,,,,, 
+History record saved to AIAnalysisHistories table,O,O,,,,,,,, 
+Result,,,,,,,,,,,
+Type (N/A/B),N,N,N,B,B,B,A,A,A,A
+Passed/Failed,,,,,,,,,,
+Executed Date,,,,,,,,,,
+Defect ID,,,,,,,,,,
