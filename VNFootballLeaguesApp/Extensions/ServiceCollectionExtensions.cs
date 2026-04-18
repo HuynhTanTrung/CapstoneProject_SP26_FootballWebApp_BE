@@ -70,7 +70,7 @@ public static class ServiceCollectionExtensions
 
             options.AddFixedWindowLimiter("registerPolicy", opt =>
             {
-                opt.PermitLimit = 10;
+                opt.PermitLimit = 20;
                 opt.Window = TimeSpan.FromHours(1);
                 opt.QueueLimit = 0;
             });
