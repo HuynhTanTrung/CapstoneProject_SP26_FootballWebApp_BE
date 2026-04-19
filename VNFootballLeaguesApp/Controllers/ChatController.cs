@@ -123,11 +123,15 @@ namespace VNFootballLeaguesApp.Controllers
 
                     var aiResponse = await _geminiService.ChatWithSystemContextAsync(systemPrompt, turns);
 
-                    // Deduct credit only after successful response
-                    if (usage == null)
-                        _context.DailyChatUsages.Add(new DailyChatUsage { UserId = request.UserId, UsageDate = today, Count = 1 });
-                    else
-                        usage.Count++;
+                    // Deduct credit only after successful response (not on Gemini errors)
+                    var isGeminiError = aiResponse.StartsWith("⚠️") || aiResponse.StartsWith("Lỗi");
+                    if (!isGeminiError)
+                    {
+                        if (usage == null)
+                            _context.DailyChatUsages.Add(new DailyChatUsage { UserId = request.UserId, UsageDate = today, Count = 1 });
+                        else
+                            usage.Count++;
+                    }
 
                     _context.ChatMessages.Add(new ChatMessage { MessageId = Guid.NewGuid(), SessionId = session.SessionId, Sender = "Assistant", Text = aiResponse, Timestamp = DateTime.UtcNow });
                     await _context.SaveChangesAsync(cancellationToken);
@@ -138,12 +142,16 @@ namespace VNFootballLeaguesApp.Controllers
                 // Không có player context → dùng ChatConversationService bình thường
                 var result = await _chatConversation.SendMessageAsync(request.UserId, request.SessionId, request.Message, cancellationToken);
 
-                // Deduct credit only after successful response
-                if (usage == null)
-                    _context.DailyChatUsages.Add(new DailyChatUsage { UserId = request.UserId, UsageDate = today, Count = 1 });
-                else
-                    usage.Count++;
-                await _context.SaveChangesAsync(cancellationToken);
+                // Deduct credit only after successful response (not on Gemini errors)
+                var isError = result.Response.StartsWith("⚠️") || result.Response.StartsWith("Lỗi");
+                if (!isError)
+                {
+                    if (usage == null)
+                        _context.DailyChatUsages.Add(new DailyChatUsage { UserId = request.UserId, UsageDate = today, Count = 1 });
+                    else
+                        usage.Count++;
+                    await _context.SaveChangesAsync(cancellationToken);
+                }
 
                 return Ok(new { sessionId = result.SessionId, sessionTitle = result.SessionTitle, message = request.Message.Trim(), response = result.Response });
             }
@@ -180,12 +188,13 @@ namespace VNFootballLeaguesApp.Controllers
                 TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time"));
             var systemPrompt = $@"Bạn là trợ lý AI chuyên về hệ thống thống kê bóng đá Việt Nam 'VN Player Rating'.
 Hệ thống theo dõi 3 giải đấu: V-League 1, V-League 2, Vietnam Cup.
-Bạn có thể trả lời về: cầu thủ, đội bóng, trận đấu, thống kê, xếp hạng, chuyển nhượng.
+GIỚI HẠN PHẠM VI: Bạn CHỈ được trả lời các câu hỏi liên quan đến bóng đá Việt Nam (V-League 1, V-League 2, Vietnam Cup, cầu thủ Việt Nam, đội bóng Việt Nam). Nếu người dùng hỏi về bất kỳ giải đấu nước ngoài nào (Premier League, La Liga, Champions League, World Cup, v.v.) hoặc cầu thủ nước ngoài không thi đấu tại Việt Nam, hãy từ chối lịch sự và nhắc lại phạm vi của hệ thống.
 QUAN TRỌNG: Khi đề cập đến cầu thủ cụ thể, BẮT BUỘC phải cung cấp link dạng: [Tên cầu thủ](/players/{{playerId}}) - dùng đúng playerId số nguyên từ dữ liệu được cung cấp.
 Trả lời bằng tiếng Việt, ngắn gọn và chính xác.
 Ngày giờ hiện tại (UTC+7): {now:dd/MM/yyyy HH:mm}.
 HƯỚNG DẪN ĐIỀU HƯỚNG: Khi người dùng hỏi về phân tích chuyên sâu trận đấu hoặc cầu thủ (ví dụ: 'phân tích trận', 'phân tích cầu thủ', 'AI phân tích', 'thống kê chi tiết trận'), hãy gợi ý họ dùng tính năng AI Phân tích chuyên sâu tại [AI Phân tích](/ai-video) để có phân tích đầy đủ hơn.
-BẮT BUỘC: Dù có hay không có dữ liệu trận đấu, khi người dùng hỏi về phân tích trận đấu cụ thể, LUÔN LUÔN kết thúc câu trả lời bằng: 'Để xem phân tích chi tiết, hãy truy cập [AI Phân tích](/ai-video).'.";
+BẮT BUỘC: Dù có hay không có dữ liệu trận đấu, khi người dùng hỏi về phân tích trận đấu cụ thể, LUÔN LUÔN kết thúc câu trả lời bằng: 'Để xem phân tích chi tiết, hãy truy cập [AI Phân tích](/ai-video).'
+KHI TRẢ LỜI VỀ THỐNG KÊ CẦU THỦ: Chỉ cung cấp tóm tắt ngắn gọn (rating, bàn thắng, kiến tạo, số trận). Để xem thống kê đầy đủ theo từng mùa giải, hãy gợi ý user truy cập trang cầu thủ và nâng cấp [Premium](/pricing) để xem tab Thống kê chi tiết.";
 
             // Tìm cầu thủ liên quan trong DB dựa trên từ khóa trong câu hỏi
             var msgLower = message.ToLower();
@@ -236,14 +245,21 @@ Vị trí: {p.Position} | Tuổi: {p.Age} | Quốc tịch: {p.Nationality}
 Link trang cầu thủ: /players/{p.PlayerId}
 Ảnh: {p.PhotoUrl}";
                     if (latestStat != null)
+                    {
+                        var posStats = p.Position switch
+                        {
+                            "G" => $"- Sạch lưới: {latestStat.CleanSheets ?? 0} | Cứu thua: {latestStat.Saves ?? 0}",
+                            "D" => $"- Tắc bóng: {latestStat.Tackles ?? 0} | Cắt bóng: {latestStat.Interceptions ?? 0}",
+                            _   => $"- Bàn thắng: {latestStat.Goals} | Kiến tạo: {latestStat.Assists}"
+                        };
                         systemPrompt += $@"
-Thống kê mùa gần nhất (SeasonId={latestStat.SeasonId}):
+Thống kê tổng quan (SeasonId={latestStat.SeasonId}):
 - Đánh giá: {latestStat.Rating?.ToString("F1") ?? "N/A"}
 - Trận đấu: {latestStat.Appearances} | Phút: {latestStat.Minutes}
-- Bàn thắng: {latestStat.Goals} | Kiến tạo: {latestStat.Assists}
-- Sút trúng đích: {latestStat.ShotsOnTarget} | Chuyền then chốt: {latestStat.PassesKey}
-- Rê bóng thành công: {latestStat.DribblesSuccess} | Tắc bóng: {latestStat.Tackles}
-- Thẻ vàng: {latestStat.YellowCards} | Thẻ đỏ: {latestStat.RedCards}";
+{posStats}
+- Thẻ vàng: {latestStat.YellowCards} | Thẻ đỏ: {latestStat.RedCards}
+(Thống kê chi tiết hơn chỉ dành cho thành viên Premium)";
+                    }
                 }
             }
 
