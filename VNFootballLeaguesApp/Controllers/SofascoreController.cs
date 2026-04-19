@@ -217,13 +217,16 @@ public class SofascoreController : ControllerBase
     [HttpGet("team/last-matches")]
     public async Task<IActionResult> GetTeamLastMatches([FromQuery] int teamId, [FromQuery] int page = 0)
     {
-        if (teamId <= 0)
-        {
-            return BadRequest(new { error = "Invalid teamId" });
-        }
-
+        if (teamId <= 0) return BadRequest(new { error = "Invalid teamId" });
         try
         {
+            using var client = new HttpClient();
+            client.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
+            client.DefaultRequestHeaders.Add("Referer", "https://www.sofascore.com/");
+            client.DefaultRequestHeaders.Add("Accept", "application/json");
+            var response = await client.GetAsync($"https://www.sofascore.com/api/v1/team/{teamId}/events/last/{page}");
+            if (response.IsSuccessStatusCode)
+                return Content(await response.Content.ReadAsStringAsync(), "application/json");
             string jsonResponse = await _sofascoreScraperService.GetTeamLastMatchesAsync(teamId, page);
             return Content(jsonResponse, "application/json");
         }
@@ -234,19 +237,19 @@ public class SofascoreController : ControllerBase
         }
     }
 
-    /// <summary>
-    /// Get next (upcoming) matches for a team
-    /// </summary>
     [HttpGet("team/next-matches")]
     public async Task<IActionResult> GetTeamNextMatches([FromQuery] int teamId, [FromQuery] int page = 0)
     {
-        if (teamId <= 0)
-        {
-            return BadRequest(new { error = "Invalid teamId" });
-        }
-
+        if (teamId <= 0) return BadRequest(new { error = "Invalid teamId" });
         try
         {
+            using var client = new HttpClient();
+            client.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
+            client.DefaultRequestHeaders.Add("Referer", "https://www.sofascore.com/");
+            client.DefaultRequestHeaders.Add("Accept", "application/json");
+            var response = await client.GetAsync($"https://www.sofascore.com/api/v1/team/{teamId}/events/next/{page}");
+            if (response.IsSuccessStatusCode)
+                return Content(await response.Content.ReadAsStringAsync(), "application/json");
             string jsonResponse = await _sofascoreScraperService.GetTeamNextMatchesAsync(teamId, page);
             return Content(jsonResponse, "application/json");
         }
