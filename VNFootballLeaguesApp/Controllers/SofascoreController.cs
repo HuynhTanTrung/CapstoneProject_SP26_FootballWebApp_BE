@@ -266,12 +266,25 @@ public class SofascoreController : ControllerBase
     public async Task<IActionResult> GetLineups([FromQuery] int eventId)
     {
         if (eventId <= 0)
-        {
             return BadRequest(new { error = "Invalid eventId" });
-        }
 
         try
         {
+            // Try direct HTTP first (faster, no Puppeteer needed)
+            using var client = new HttpClient();
+            client.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
+            client.DefaultRequestHeaders.Add("Referer", "https://www.sofascore.com/");
+            client.DefaultRequestHeaders.Add("Accept", "application/json");
+            client.DefaultRequestHeaders.Add("Origin", "https://www.sofascore.com");
+
+            var response = await client.GetAsync($"https://www.sofascore.com/api/v1/event/{eventId}/lineups");
+            if (response.IsSuccessStatusCode)
+            {
+                var json = await response.Content.ReadAsStringAsync();
+                return Content(json, "application/json");
+            }
+
+            // Fallback to scraper
             string jsonResponse = await _sofascoreScraperService.GetMatchLineupsAsync(eventId);
             return Content(jsonResponse, "application/json");
         }
@@ -303,12 +316,23 @@ public class SofascoreController : ControllerBase
     public async Task<IActionResult> GetIncidents([FromQuery] int eventId)
     {
         if (eventId <= 0)
-        {
             return BadRequest(new { error = "Invalid eventId" });
-        }
 
         try
         {
+            using var client = new HttpClient();
+            client.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
+            client.DefaultRequestHeaders.Add("Referer", "https://www.sofascore.com/");
+            client.DefaultRequestHeaders.Add("Accept", "application/json");
+            client.DefaultRequestHeaders.Add("Origin", "https://www.sofascore.com");
+
+            var response = await client.GetAsync($"https://www.sofascore.com/api/v1/event/{eventId}/incidents");
+            if (response.IsSuccessStatusCode)
+            {
+                var json = await response.Content.ReadAsStringAsync();
+                return Content(json, "application/json");
+            }
+
             string jsonResponse = await _sofascoreScraperService.GetMatchIncidentsAsync(eventId);
             return Content(jsonResponse, "application/json");
         }
