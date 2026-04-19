@@ -683,20 +683,17 @@ namespace VNFootballLeagues.API.Controllers
 
                 var resultType = result.GetType();
                 var statusProp = resultType.GetProperty("status");
-                var isSuccess = statusProp != null && (bool)statusProp.GetValue(result);
+                var isSuccess = statusProp != null && (bool)statusProp.GetValue(result)!;
 
                 if (isSuccess)
-                {
                     return Ok(result);
-                }
 
-                // Trả về empty thay vì 404 để FE không bị lỗi
-                return Ok(new { status = true, data = new { transfersByPlayer = Array.Empty<object>() } });
+                return Ok(new { status = true, transfersInByTeam = Array.Empty<object>(), transfersOutByTeam = Array.Empty<object>() });
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error getting all transfers");
-                return Ok(new { status = true, data = new { transfersByPlayer = Array.Empty<object>() } });
+                return Ok(new { status = true, transfersInByTeam = Array.Empty<object>(), transfersOutByTeam = Array.Empty<object>() });
             }
         }
 
