@@ -95,6 +95,8 @@ builder.Services.AddControllers()
 builder.Services.Configure<DatabaseAutoUpdateSettings>(builder.Configuration.GetSection("DatabaseAutoUpdate"));
 builder.Services.AddHostedService<DatabaseAutoUpdateHostedService>();
 builder.Services.AddHttpClient<IFootballApiService, FootballApiService>();
+builder.Services.AddHttpClient(); // For IHttpClientFactory (ImageProxy)
+builder.Services.AddResponseCaching();
 builder.Services.AddSingleton<IGeminiService, GeminiService>();
 builder.Services.AddScoped<IAIAnalysisService, AIAnalysisService>();
 builder.Services.AddScoped<IChatConversationService, ChatConversationService>();
@@ -158,8 +160,9 @@ if (enableSwagger)
 }
 
 app.UseHttpsRedirection();
-app.UseStaticFiles(); // Enable serving static files from wwwroot
+app.UseStaticFiles();
 app.UseCors("FrontendPolicy");
+app.UseResponseCaching();
 app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();

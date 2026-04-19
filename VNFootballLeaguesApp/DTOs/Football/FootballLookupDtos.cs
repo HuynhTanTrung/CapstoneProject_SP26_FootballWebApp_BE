@@ -12,7 +12,9 @@ public record MatchListItemDto(
     int? HomeGoals,
     int? AwayGoals,
     string Status,
-    string Round);
+    string Round,
+    int? HomeApiTeamId = null,
+    int? AwayApiTeamId = null);
 
 public record PlayerInMatchDto(
     int PlayerId,
@@ -22,7 +24,8 @@ public record PlayerInMatchDto(
     string Position,
     decimal? Rating,
     int? Minutes,
-    string? PhotoUrl = null);
+    string? PhotoUrl = null,
+    int? ApiPlayerId = null);
 
 public record MatchEventDto(
     int EventId,

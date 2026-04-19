@@ -680,7 +680,9 @@ namespace VNFootballLeaguesApp.Controllers
                     m.HomeGoals,
                     m.AwayGoals,
                     m.Status ?? string.Empty,
-                    m.Round ?? string.Empty))
+                    m.Round ?? string.Empty,
+                    m.HomeTeam != null ? m.HomeTeam.ApiTeamId : null,
+                    m.AwayTeam != null ? m.AwayTeam.ApiTeamId : null))
                 .ToListAsync(HttpContext.RequestAborted);
 
             return Ok(matches);
@@ -715,7 +717,8 @@ namespace VNFootballLeaguesApp.Controllers
                     s.Player != null ? s.Player.Position ?? string.Empty : string.Empty,
                     s.Rating ?? s.SofascoreRating,
                     s.Minutes,
-                    s.Player != null ? s.Player.PhotoUrl : null))
+                    s.Player != null ? s.Player.PhotoUrl : null,
+                    s.Player != null ? s.Player.ApiPlayerId : null))
                 .ToListAsync(HttpContext.RequestAborted);
 
             return Ok(players);
