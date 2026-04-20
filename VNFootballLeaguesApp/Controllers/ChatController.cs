@@ -293,6 +293,11 @@ Thống kê tổng quan (SeasonId={latestStat.SeasonId}):
             // Deduct credit only after successful Gemini response
             var response = await _geminiService.AnalyzeVideoAsync(request.VideoUrl, request.Prompt ?? "");
 
+            // Chỉ trừ credit nếu AI trả về kết quả thành công (không phải lỗi)
+            bool isSuccess = !response.StartsWith("⚠️") && !response.StartsWith("Lỗi");
+            if (!isSuccess)
+                return StatusCode(502, new { message = response, creditsRemaining = subscription.AiVideoCreditsRemaining });
+
             subscription.AiVideoCreditsRemaining--;
             subscription.UpdatedAt = DateTime.UtcNow;
 
