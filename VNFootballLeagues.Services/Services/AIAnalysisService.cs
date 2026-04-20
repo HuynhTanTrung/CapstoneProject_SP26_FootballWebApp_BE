@@ -107,9 +107,10 @@ public class AIAnalysisService : IAIAnalysisService
           ### Điểm thủ môn (GKScore) — chỉ nếu vị trí G
           ### Bonus kết quả đội (TeamResultBonus)
           ## Kết luận  (1-2 câu tổng kết)
-        - Mỗi mục nêu số liệu cụ thể + điểm đóng góp ước tính theo công thức.
+        - Mỗi mục: 1 câu tóm tắt đóng góp tổng, sau đó bullet points ngắn cho từng yếu tố có số liệu thực.
+          Ví dụ bullet: `- 2 bàn thắng → +1.0đ | 1 kiến tạo → +0.4đ`
         - Bỏ qua mục nào không có dữ liệu hoặc đóng góp = 0.
-        - Độ dài: 200-400 từ. Không lặp lại JSON thô.
+        - Độ dài: 200-350 từ. Không lặp lại JSON thô. Không giải thích lại công thức.
         """;
 
     private const string SYSTEM_PROMPT_MATCH = """
