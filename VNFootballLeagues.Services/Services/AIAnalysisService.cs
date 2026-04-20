@@ -92,9 +92,61 @@ public class AIAnalysisService : IAIAnalysisService
 
         === KẾT THÚC CÔNG THỨC ===
 
+        === VÍ DỤ TÍNH MẪU (few-shot) ===
+        Dữ liệu mẫu: F, 90 phút, Thắng, Goals=2, Assists=0, ExpectedGoals=0.96, ExpectedAssists=0.02,
+          ShotsOnTarget=3 (2 là bàn thắng → extra=1), PassesKey=1, Passes=20, PassesAccuracy=19,
+          BallRecoveries=3, GroundDuelsWon=3, GroundDuels=16, AerialDuelsWon=1, AerialDuels=2,
+          DribblesSuccess=2, DribblesAttempted=4, FoulsCommitted=3, Offsides=1,
+          PossessionLost=7, Dispossessed=1
+
+        Tính AttackScore:
+          Goals: 2 × 0.5 = +1.0
+          ShotsOnTarget ngoài bàn thắng: 3-2=1 shot, Goals>0 nên không ×0.7 → 1×0.10 = +0.10
+          PassesKey: 1 × 0.08 = +0.08
+          xGScore: Clamp((2-0.96)×0.2, -0.3, +0.3) = Clamp(0.208, -0.3, +0.3) = +0.208
+          xAScore: Clamp((0-0.02)×0.15, -0.15, +0.15) = Clamp(-0.003, ...) = -0.003 ≈ 0
+          AttackScore = 1.0+0.10+0.08+0.208 = 1.388 → cap+2.5 → 1.388
+
+        Tính PassingScore:
+          PassAccuracyRate = 19/20 = 95% → F ≥80% → BaseScore = +0.2
+          VolumeMultiplier = min(1.0, 20/30) = 0.667
+          KeyPassMultiplier = (PassesKey=1≠0) → 1.0
+          DiminishingMultiplier = (20≤60) → 1.0
+          PassingScore = 0.2 × 0.667 × 1.0 × 1.0 = +0.133
+
+        Tính DefenseScore:
+          BallRecoveries: 3 × 0.03 = +0.09
+          DefenseScore = 0.09
+
+        Tính DuelScore:
+          GroundDuels: 3/16 = 18.75% → <45% → -0.1
+          AerialDuels: 1/2 = 50% → không ≥60% và không <40% → 0
+          DuelScore = -0.1
+
+        Tính DribblingScore:
+          Rate = 2/4 = 50% → 50-69% → +0.1
+          VolumeMultiplier = (4≥3) → 1.0
+          DribblesSuccess=2 < 3 → không bonus
+          DribblingScore = 0.1
+
+        Tính NegativeScore:
+          FoulsCommitted: 3 × 0.08 = 0.24 (điểm trừ)
+          Offsides: 1 × 0.06 = 0.06 (điểm trừ)
+          PossessionLost: 7 × 0.05 = 0.35 (điểm trừ)
+          Dispossessed: 1 × 0.05 = 0.05 (điểm trừ)
+          NegativeScore = 0.70 → cap-2.5 → 0.70 → trừ vào RawRating: -0.70
+
+        TeamResultBonus: Thắng → +0.3
+
+        RawRating = 6.0 + 1.388 + 0.133 + 0.09 - 0.1 + 0.1 + 0.3 - 0.70 = 7.211
+        ≥60ph → FinalRating = 7.211 → làm tròn = 7.21
+
+        Khi viết phân tích, trình bày từng bước như ví dụ trên: tính rõ từng thành phần,
+        áp dụng đúng VolumeMultiplier/cap, và tổng hợp ra FinalRating khớp với rating trong JSON.
+        === KẾT THÚC VÍ DỤ ===
+
         Yêu cầu:
-        - Phân tích dựa trên công thức trên. Nêu rõ từng thành phần điểm (AttackScore, PassingScore, DefenseScore, v.v.)
-          đã đóng góp bao nhiêu vào rating dựa trên số liệu thực trong JSON.
+        - Phân tích dựa trên công thức trên. Tính chính xác từng thành phần theo đúng các bước như ví dụ mẫu.
         - Chỉ dùng số liệu trong JSON, không bịa. Nếu thiếu dữ liệu cho 1 thành phần thì ghi "không có dữ liệu".
         - Bố cục markdown:
           ## Tổng quan  (1-2 câu nêu rating + vị trí + đội)
@@ -106,11 +158,32 @@ public class AIAnalysisService : IAIAnalysisService
           ### Điểm tiêu cực & thẻ phạt (NegativeScore + CardPenalty)
           ### Điểm thủ môn (GKScore) — chỉ nếu vị trí G
           ### Bonus kết quả đội (TeamResultBonus)
-          ## Kết luận  (1-2 câu tổng kết)
-        - Mỗi mục: 1 câu tóm tắt đóng góp tổng, sau đó bullet points ngắn cho từng yếu tố có số liệu thực.
-          Ví dụ bullet: `- 2 bàn thắng → +1.0đ | 1 kiến tạo → +0.4đ`
+          ## Kết luận  (1-2 câu tổng kết kèm tổng RawRating = ... → FinalRating = ...)
+        - Mỗi mục: tính từng yếu tố rõ ràng như ví dụ mẫu, bullet point mỗi yếu tố 1 dòng.
+        - Trong mục NegativeScore: liệt kê từng yếu tố là giá trị dương (vd: 0.24), nhưng ghi rõ "tổng điểm trừ = -0.70" để nhất quán với RawRating.
         - Bỏ qua mục nào không có dữ liệu hoặc đóng góp = 0.
-        - Độ dài: 200-350 từ. Không lặp lại JSON thô. Không giải thích lại công thức.
+        - LUÔN dùng tên tiếng Việt thay cho tên kỹ thuật tiếng Anh theo bảng sau:
+          Goals → Bàn thắng | Assists → Kiến tạo | ShotsOnTarget → Sút trúng đích
+          PassesKey → Chuyền then chốt | PassAccuracyRate → Tỷ lệ chuyền chính xác
+          VolumeMultiplier → Hệ số khối lượng chuyền | KeyPassMultiplier → Hệ số chuyền then chốt
+          DiminishingMultiplier → Hệ số giảm dần | AccurateLongBalls → Chuyền dài chính xác
+          AccurateCrosses → Tạt bóng chính xác | TacklesWon → Tắc bóng thành công
+          Interceptions → Cắt bóng | Clearances → Phá bóng | Blocks → Chặn bóng
+          BallRecoveries → Thu hồi bóng | DribbledPast → Bị qua người
+          GroundDuels → Tranh chấp mặt đất | AerialDuels → Tranh chấp trên không
+          DribblesSuccess → Rê bóng thành công | DribblesAttempted → Số lần rê bóng
+          FoulsCommitted → Phạm lỗi | PossessionLost → Mất bóng
+          Offsides → Việt vị | Dispossessed → Bị cướp bóng | UnsuccessfulTouch → Chạm bóng hỏng
+          PenaltiesCommitted → Phạm lỗi trong vòng cấm | PenaltiesWon → Được hưởng penalty
+          PenaltiesMissed → Đá penalty hỏng | CardPenalty → Thẻ phạt
+          xG → Bàn thắng kỳ vọng (xG) | xA → Kiến tạo kỳ vọng (xA)
+          xGScore → Điểm xG | xAScore → Điểm xA
+          AttackScore → Điểm tấn công | PassingScore → Điểm chuyền bóng
+          DefenseScore → Điểm phòng thủ | DuelScore → Điểm tranh chấp
+          DribblingScore → Điểm rê bóng | NegativeScore → Điểm tiêu cực
+          TeamResultBonus → Thưởng kết quả đội | GKScore → Điểm thủ môn
+          RawRating → Điểm thô | FinalRating → Điểm cuối
+        - Độ dài: 250-400 từ. Không lặp lại JSON thô.
         """;
 
     private const string SYSTEM_PROMPT_MATCH = """
@@ -119,10 +192,11 @@ public class AIAnalysisService : IAIAnalysisService
         Bố cục markdown:
           ## Tổng quan trận đấu  (đội, tỉ số, sân, trọng tài)
           ## Diễn biến chính  (theo phút, mỗi sự kiện 1 dòng)
-          ## Thống kê nổi bật  (so sánh 2 đội)
+          ## Thống kê nổi bật  (so sánh 2 đội dạng bảng markdown)
           ## Nhận định  (2-3 câu kết)
         - Chỉ dùng dữ liệu JSON, không bịa.
         - Nếu mảng events trống: bỏ "Diễn biến chính", ghi "Không có dữ liệu sự kiện".
+        - Trong bảng Thống kê nổi bật: KHÔNG đưa vào các chỉ số xG (Expected Goals), xA (Expected Assists) hoặc bất kỳ chỉ số "kỳ vọng" nào vì dễ gây hiểu nhầm với cá độ.
         - Độ dài: 250-450 từ.
         """;
 
@@ -160,7 +234,9 @@ public class AIAnalysisService : IAIAnalysisService
         var cached = await _db.AIAnalysisHistories
             .Where(h => h.UserId == userId && h.MatchId == matchId && h.PlayerId == playerId
                      && h.AnalysisType == "player-rating"
-                     && h.CreatedAt >= DateTime.UtcNow.AddHours(-24))
+                     && h.CreatedAt >= DateTime.UtcNow.AddHours(-24)
+                     && !h.AnalysisVi.StartsWith("⚠️")
+                     && !h.AnalysisVi.StartsWith("Lỗi"))
             .OrderByDescending(h => h.CreatedAt)
             .FirstOrDefaultAsync(ct);
 
@@ -207,7 +283,8 @@ public class AIAnalysisService : IAIAnalysisService
             SYSTEM_PROMPT_PLAYER,
             [("user", $"Dữ liệu cầu thủ:\n```json\n{json}\n```")]);
 
-        var success = !result.StartsWith("Lỗi", StringComparison.OrdinalIgnoreCase);
+        var success = !result.StartsWith("Lỗi", StringComparison.OrdinalIgnoreCase)
+                   && !result.StartsWith("⚠️", StringComparison.Ordinal);
 
         // Lưu lịch sử nếu thành công
         if (success)
@@ -246,7 +323,9 @@ public class AIAnalysisService : IAIAnalysisService
         var cached = await _db.AIAnalysisHistories
             .Where(h => h.UserId == userId && h.MatchId == matchId && h.PlayerId == null
                      && h.AnalysisType == "match"
-                     && h.CreatedAt >= DateTime.UtcNow.AddHours(-24))
+                     && h.CreatedAt >= DateTime.UtcNow.AddHours(-24)
+                     && !h.AnalysisVi.StartsWith("⚠️")
+                     && !h.AnalysisVi.StartsWith("Lỗi"))
             .OrderByDescending(h => h.CreatedAt)
             .FirstOrDefaultAsync(ct);
 
@@ -317,7 +396,8 @@ public class AIAnalysisService : IAIAnalysisService
             SYSTEM_PROMPT_MATCH,
             [("user", $"Dữ liệu trận đấu:\n```json\n{json}\n```")]);
 
-        var success = !result.StartsWith("Lỗi", StringComparison.OrdinalIgnoreCase);
+        var success = !result.StartsWith("Lỗi", StringComparison.OrdinalIgnoreCase)
+                   && !result.StartsWith("⚠️", StringComparison.Ordinal);
 
         if (success)
         {
