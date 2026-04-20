@@ -207,7 +207,8 @@ public class AIAnalysisService : IAIAnalysisService
             SYSTEM_PROMPT_PLAYER,
             [("user", $"Dữ liệu cầu thủ:\n```json\n{json}\n```")]);
 
-        var success = !result.StartsWith("Lỗi", StringComparison.OrdinalIgnoreCase);
+        var success = !result.StartsWith("Lỗi", StringComparison.OrdinalIgnoreCase)
+                   && !result.StartsWith("⚠️", StringComparison.Ordinal);
 
         // Lưu lịch sử nếu thành công
         if (success)
@@ -317,7 +318,8 @@ public class AIAnalysisService : IAIAnalysisService
             SYSTEM_PROMPT_MATCH,
             [("user", $"Dữ liệu trận đấu:\n```json\n{json}\n```")]);
 
-        var success = !result.StartsWith("Lỗi", StringComparison.OrdinalIgnoreCase);
+        var success = !result.StartsWith("Lỗi", StringComparison.OrdinalIgnoreCase)
+                   && !result.StartsWith("⚠️", StringComparison.Ordinal);
 
         if (success)
         {
