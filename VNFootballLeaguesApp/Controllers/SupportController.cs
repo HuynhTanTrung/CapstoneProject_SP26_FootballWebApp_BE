@@ -302,9 +302,9 @@ public class SupportController : ControllerBase
 
         var planMap = new Dictionary<string, (string name, int days, int aiVideo, int forumPost, int aiMatch)>
         {
-            ["TRIAL"]            = ("Gói Dùng thử (3 ngày)",          3,  1,  2,  5),
-            ["MONTHLY"]          = ("Gói Hàng tháng (30 ngày)",       30, 15, 15, 30),
-            ["QUARTERLY"]        = ("Gói Hàng quý (90 ngày)",         90, 45, 50, 100),
+            ["TRIAL"]            = ("Dùng thử (3 ngày)",          3,  1,  2,  5),
+            ["MONTHLY"]          = ("Hàng tháng (30 ngày)",       30, 15, 15, 30),
+            ["QUARTERLY"]        = ("Hàng quý (90 ngày)",         90, 45, 50, 100),
             ["TOPUP_AI_VIDEO"]   = ("Nạp thêm AI Video Analysis (5 lượt)", 0, 5, 0, 0),
             ["TOPUP_FORUM_POST"] = ("Nạp thêm bài đăng diễn đàn (10 bài)", 0, 0, 10, 0),
             ["TOPUP_AI_MATCH"]   = ("Nạp thêm AI Phân tích (10 lượt)",      0, 0, 0, 10),
