@@ -1172,6 +1172,26 @@ namespace VNFootballLeagues.API.Controllers
         }
 
         /// <summary>Lấy tất cả favorites (admin)</summary>
+        [HttpGet("getAllFavorite")]   /// <summary>Sync match events (incidents) từ SofaScore cho 1 trận. Dùng để debug hoặc force sync khi AI phân tích thiếu diễn biến.</summary>
+        [HttpPost("sync-match-events")]
+        public async Task<IActionResult> SyncMatchEvents([FromQuery] int apiFixtureId)
+        {
+            if (apiFixtureId <= 0)
+                return BadRequest(new { status = false, message = "Invalid apiFixtureId" });
+            try
+            {
+                var result = await _service.SyncMatchEventsAsync(apiFixtureId);
+                var isSuccess = result.GetType().GetProperty("status")?.GetValue(result) is bool s && s;
+                return isSuccess ? Ok(result) : BadRequest(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error syncing match events for fixture {ApiFixtureId}", apiFixtureId);
+                return StatusCode(500, new { status = false, message = ex.Message });
+            }
+        }
+
+        /// <summary>Lấy tất cả favorites (admin)</summary>
         [HttpGet("getAllFavorite")]
         [Authorize]
         public async Task<IActionResult> GetAllFavorites()

@@ -641,17 +641,22 @@ public class AIAnalysisService : IAIAnalysisService
 
         if (!match.ApiFixtureId.HasValue)
         {
+            _logger.LogWarning("Match {MatchId} has no ApiFixtureId - cannot sync events", match.MatchId);
             return "Không có ApiFixtureId - không thể đồng bộ sự kiện";
         }
 
         try
         {
             ct.ThrowIfCancellationRequested();
+            _logger.LogInformation("Syncing events for MatchId={MatchId}, ApiFixtureId={ApiFixtureId}", match.MatchId, match.ApiFixtureId.Value);
             var syncResult = await _sofascore.SyncMatchEventsAsync(match.ApiFixtureId.Value);
+
+            var syncMessage = TryGetStringProperty(syncResult, "message");
+            _logger.LogInformation("SyncMatchEvents result for MatchId={MatchId}: success={Success}, message={Message}",
+                match.MatchId, IsSuccessfulSync(syncResult), syncMessage);
 
             if (!IsSuccessfulSync(syncResult))
             {
-                var syncMessage = TryGetStringProperty(syncResult, "message");
                 _logger.LogWarning(
                     "Sync match events returned unsuccessful status for MatchId={MatchId}. Message={Message}",
                     match.MatchId,
@@ -664,7 +669,8 @@ public class AIAnalysisService : IAIAnalysisService
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Sync match events failed for MatchId={MatchId}", match.MatchId);
+            _logger.LogWarning(ex, "Sync match events failed for MatchId={MatchId}, ApiFixtureId={ApiFixtureId}. Error: {Error}",
+                match.MatchId, match.ApiFixtureId, ex.Message);
             return "Không thể đồng bộ sự kiện từ SofaScore - phân tích dựa trên thống kê có sẵn";
         }
     }
