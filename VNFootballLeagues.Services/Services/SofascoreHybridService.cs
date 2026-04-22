@@ -100,7 +100,68 @@ namespace VNFootballLeagues.Services.Services
             }
         }
 
+        private static readonly HttpClient _httpClient = new HttpClient(new HttpClientHandler
+        {
+            AllowAutoRedirect = true,
+            UseCookies = true,
+        })
+        {
+            Timeout = TimeSpan.FromSeconds(30)
+        };
+
         private async Task<string> FetchJson(string url, int retryCount = 2)
+        {
+            // Primary: lightweight HttpClient with browser-like headers (works on all environments)
+            try
+            {
+                return await FetchJsonWithHttpClient(url);
+            }
+            catch (HttpRequestException ex) when (ex.Message.Contains("NotFound") || ex.Message.Contains("404"))
+            {
+                // 404 is definitive - no point retrying with Puppeteer
+                throw;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "HttpClient fetch failed for {Url}, falling back to Puppeteer", url);
+            }
+
+            // Fallback: Puppeteer (for environments where it's available)
+            return await FetchJsonWithPuppeteer(url, retryCount);
+        }
+
+        private async Task<string> FetchJsonWithHttpClient(string url)
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Get, url);
+            request.Headers.TryAddWithoutValidation("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36");
+            request.Headers.TryAddWithoutValidation("Accept", "application/json, text/plain, */*");
+            request.Headers.TryAddWithoutValidation("Accept-Language", "en-US,en;q=0.9,vi;q=0.8");
+            request.Headers.TryAddWithoutValidation("Accept-Encoding", "gzip, deflate, br");
+            request.Headers.TryAddWithoutValidation("Referer", "https://www.sofascore.com/");
+            request.Headers.TryAddWithoutValidation("Origin", "https://www.sofascore.com");
+            request.Headers.TryAddWithoutValidation("Cache-Control", "no-cache");
+            request.Headers.TryAddWithoutValidation("Sec-Fetch-Dest", "empty");
+            request.Headers.TryAddWithoutValidation("Sec-Fetch-Mode", "cors");
+            request.Headers.TryAddWithoutValidation("Sec-Fetch-Site", "same-origin");
+
+            var response = await _httpClient.SendAsync(request);
+
+            if (response.StatusCode == HttpStatusCode.NotFound)
+                throw new HttpRequestException($"HTTP Error: NotFound");
+
+            if (!response.IsSuccessStatusCode)
+                throw new HttpRequestException($"HTTP Error: {response.StatusCode}");
+
+            var content = await response.Content.ReadAsStringAsync();
+
+            if (string.IsNullOrWhiteSpace(content))
+                throw new InvalidOperationException("Empty response");
+
+            JsonDocument.Parse(content); // validate JSON
+            return content;
+        }
+
+        private async Task<string> FetchJsonWithPuppeteer(string url, int retryCount = 2)
         {
             await InitBrowser();
 
@@ -110,29 +171,17 @@ namespace VNFootballLeagues.Services.Services
                 lock (_pageCountLock)
                 {
                     if (_activePages >= 5)
-                    {
                         throw new InvalidOperationException("Too many concurrent requests");
-                    }
                     _activePages++;
                 }
 
                 page = await _browser.NewPageAsync();
-
                 page.DefaultTimeout = 30000;
-
                 page.DefaultNavigationTimeout = 30000;
 
-                await page.SetUserAgentAsync(
-                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-                );
-
+                await page.SetUserAgentAsync("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
                 await page.SetCacheEnabledAsync(false);
-
-                await page.EvaluateExpressionOnNewDocumentAsync(@"
-            Object.defineProperty(navigator, 'webdriver', {
-                get: () => undefined
-            });
-        ");
+                await page.EvaluateExpressionOnNewDocumentAsync("Object.defineProperty(navigator, 'webdriver', { get: () => undefined });");
 
                 var response = await page.GoToAsync(url, new NavigationOptions
                 {
@@ -141,58 +190,36 @@ namespace VNFootballLeagues.Services.Services
                 });
 
                 if (response.Status == HttpStatusCode.NotFound)
-                {
-                    // 404 is definitive - no point retrying
                     throw new HttpRequestException($"HTTP Error: {response.Status}");
-                }
 
-                if (response.Status != HttpStatusCode.OK &&
-                    response.Status != HttpStatusCode.NotModified)
-                {
+                if (response.Status != HttpStatusCode.OK && response.Status != HttpStatusCode.NotModified)
                     throw new HttpRequestException($"HTTP Error: {response.Status}");
-                }
 
                 await Task.Delay(500);
 
                 var content = await page.EvaluateExpressionAsync<string>("document.body.innerText");
 
                 if (string.IsNullOrWhiteSpace(content))
-                {
                     throw new InvalidOperationException("Empty response");
-                }
 
-                try
-                {
-                    JsonDocument.Parse(content);
-                    return content;
-                }
-                catch (JsonException)
-                {
-                    _logger.LogWarning("Invalid JSON received from {Url}", url);
-                    throw;
-                }
+                JsonDocument.Parse(content);
+                return content;
             }
-            catch (Exception ex) when (retryCount > 0 && ex is not HttpRequestException hre || (retryCount > 0 && ex is HttpRequestException httpEx && !httpEx.Message.Contains("NotFound")))
+            catch (Exception ex) when (retryCount > 0 && !(ex is HttpRequestException h && h.Message.Contains("NotFound")))
             {
-                _logger.LogWarning(ex, "Failed to fetch {Url}, retrying...", url);
+                _logger.LogWarning(ex, "Puppeteer failed for {Url}, retrying...", url);
                 await Task.Delay(1000);
-                return await FetchJson(url, retryCount - 1);
+                return await FetchJsonWithPuppeteer(url, retryCount - 1);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to fetch {Url}", url);
+                _logger.LogError(ex, "Puppeteer failed for {Url}", url);
                 throw;
             }
             finally
             {
-                if (page != null)
-                {
-                    await page.CloseAsync();
-                }
-                lock (_pageCountLock)
-                {
-                    _activePages--;
-                }
+                if (page != null) await page.CloseAsync();
+                lock (_pageCountLock) { _activePages--; }
             }
         }
 
