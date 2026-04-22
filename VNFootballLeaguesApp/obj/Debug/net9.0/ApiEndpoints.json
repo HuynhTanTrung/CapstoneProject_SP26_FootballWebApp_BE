@@ -2240,6 +2240,22 @@
   },
   {
     "ContainingType": "VNFootballLeagues.API.Controllers.SofascoreHybridController",
+    "Method": "SyncMatchEvents",
+    "RelativePath": "api/SofascoreHybrid/getAllFavorite",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "apiFixtureId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "VNFootballLeagues.API.Controllers.SofascoreHybridController",
     "Method": "GetAllFavorites",
     "RelativePath": "api/SofascoreHybrid/getAllFavorite",
     "HttpMethod": "GET",
@@ -2607,6 +2623,22 @@
     "ContainingType": "VNFootballLeagues.API.Controllers.SofascoreHybridController",
     "Method": "SyncMatchLineups",
     "RelativePath": "api/SofascoreHybrid/sync-lineups",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "apiFixtureId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "VNFootballLeagues.API.Controllers.SofascoreHybridController",
+    "Method": "SyncMatchEvents",
+    "RelativePath": "api/SofascoreHybrid/sync-match-events",
     "HttpMethod": "POST",
     "IsController": true,
     "Order": 0,

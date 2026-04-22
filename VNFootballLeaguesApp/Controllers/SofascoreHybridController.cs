@@ -1171,8 +1171,6 @@ namespace VNFootballLeagues.API.Controllers
             return status == true ? Ok(result) : BadRequest(result);
         }
 
-        /// <summary>Lấy tất cả favorites (admin)</summary>
-        [HttpGet("getAllFavorite")]   /// <summary>Sync match events (incidents) từ SofaScore cho 1 trận. Dùng để debug hoặc force sync khi AI phân tích thiếu diễn biến.</summary>
         [HttpPost("sync-match-events")]
         public async Task<IActionResult> SyncMatchEvents([FromQuery] int apiFixtureId)
         {
