@@ -203,7 +203,8 @@ public class AIAnalysisService : IAIAnalysisService
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+        Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
     };
 
     private readonly VNFootballLeaguesDBContext _db;
@@ -325,7 +326,8 @@ public class AIAnalysisService : IAIAnalysisService
                      && h.AnalysisType == "match"
                      && h.CreatedAt >= DateTime.UtcNow.AddHours(-24)
                      && !h.AnalysisVi.StartsWith("⚠️")
-                     && !h.AnalysisVi.StartsWith("Lỗi"))
+                     && !h.AnalysisVi.StartsWith("Lỗi")
+                     && !h.AnalysisVi.Contains("Không có dữ liệu sự kiện"))
             .OrderByDescending(h => h.CreatedAt)
             .FirstOrDefaultAsync(ct);
 
