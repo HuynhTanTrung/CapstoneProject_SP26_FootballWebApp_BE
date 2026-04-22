@@ -104,6 +104,7 @@ namespace VNFootballLeagues.Services.Services
         {
             AllowAutoRedirect = true,
             UseCookies = true,
+            AutomaticDecompression = System.Net.DecompressionMethods.GZip | System.Net.DecompressionMethods.Deflate | System.Net.DecompressionMethods.Brotli,
         })
         {
             Timeout = TimeSpan.FromSeconds(30)
@@ -111,23 +112,8 @@ namespace VNFootballLeagues.Services.Services
 
         private async Task<string> FetchJson(string url, int retryCount = 2)
         {
-            // Primary: lightweight HttpClient with browser-like headers (works on all environments)
-            try
-            {
-                return await FetchJsonWithHttpClient(url);
-            }
-            catch (HttpRequestException ex) when (ex.Message.Contains("NotFound") || ex.Message.Contains("404"))
-            {
-                // 404 is definitive - no point retrying with Puppeteer
-                throw;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "HttpClient fetch failed for {Url}, falling back to Puppeteer", url);
-            }
-
-            // Fallback: Puppeteer (for environments where it's available)
-            return await FetchJsonWithPuppeteer(url, retryCount);
+            // Always use HttpClient - works on all environments including Azure App Service
+            return await FetchJsonWithHttpClient(url);
         }
 
         private async Task<string> FetchJsonWithHttpClient(string url)
@@ -2062,9 +2048,11 @@ namespace VNFootballLeagues.Services.Services
                                 ExtraTime = incident.TryGetProperty("addedTime", out var addedTimeEl)
                                     ? addedTimeEl.GetInt32()
                                     : null,
-                                Period = incident.TryGetProperty("reversedPeriodTime", out var periodEl)
-                                    ? (periodEl.GetInt32() == 1 ? "1st Half" : "2nd Half")
-                                    : "REGULAR",
+                                Period = incident.TryGetProperty("period", out var periodEl2) && periodEl2.TryGetProperty("code", out var periodCodeEl)
+                                    ? (periodCodeEl.GetString() == "1ST" ? "1st Half" : periodCodeEl.GetString() == "2ND" ? "2nd Half" : "REGULAR")
+                                    : incident.TryGetProperty("time", out var periodTimeEl)
+                                        ? (periodTimeEl.GetInt32() <= 45 ? "1st Half" : "2nd Half")
+                                        : "REGULAR",
                                 Comments = incident.TryGetProperty("text", out var textEl)
                                     ? textEl.GetString()
                                     : null
