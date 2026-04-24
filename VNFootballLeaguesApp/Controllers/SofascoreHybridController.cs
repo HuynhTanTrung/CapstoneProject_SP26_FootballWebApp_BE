@@ -101,6 +101,24 @@ namespace VNFootballLeagues.API.Controllers
             }));
         }
 
+        [HttpGet("team-next-matches-db")]
+        public async Task<IActionResult> GetTeamNextMatchesFromDb([FromQuery] int apiTeamId, [FromQuery] int count = 5)
+        {
+            if (apiTeamId <= 0) return BadRequest(new { status = false, message = "Invalid apiTeamId" });
+            var data = await _service.GetTeamNextMatchesFromDbAsync(apiTeamId, count);
+            return Ok(data.Select(x => new
+            {
+                x.MatchId,
+                x.ApiFixtureId,
+                x.MatchDate,
+                x.Status,
+                x.HomeGoals,
+                x.AwayGoals,
+                HomeTeam = x.HomeTeam != null ? new { x.HomeTeam.TeamId, x.HomeTeam.ApiTeamId, x.HomeTeam.TeamName } : null,
+                AwayTeam = x.AwayTeam != null ? new { x.AwayTeam.TeamId, x.AwayTeam.ApiTeamId, x.AwayTeam.TeamName } : null,
+            }));
+        }
+
         [HttpGet("matches-with-teams")]
         public async Task<IActionResult> GetMatchesWithTeams([FromQuery] int? tournamentId = null, [FromQuery] int? seasonId = null)
         {

@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VN Football Analytics</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <div class="header">
+      <img src="icon48.png" alt="VN Football" class="logo" />
+      <div class="header-text">
+        <span class="title">VN Football</span>
+        <span class="subtitle">Analytics Extension</span>
+      </div>
+    </div>
+
+    <!-- Auth section (shown when not logged in) -->
+    <div id="section-auth" class="section hidden">
+      <div class="info-box warning">
+        <span class="icon">🔒</span>
+        <p>Vui lòng đăng nhập vào <strong>VN Football Analytics</strong> để sử dụng tính năng này.</p>
+      </div>
+      <a href="http://localhost:5173/login" target="_blank" class="btn btn-primary">
+        Đăng nhập
+      </a>
+      <button id="btn-retry" class="btn" style="background:#eee;color:#333;margin-top:4px;font-size:11px;">
+        🔄 Thử lại (đã đăng nhập rồi)
+      </button>
+    </div>
+
+    <!-- Premium required section -->
+    <div id="section-premium" class="section hidden">
+      <div class="info-box warning">
+        <span class="icon">⭐</span>
+        <p>Tính năng <strong>Phân tích AI</strong> yêu cầu gói <strong>Premium</strong>.</p>
+      </div>
+      <a href="https://vnfootballanalytics.vercel.app/pricing" target="_blank" class="btn btn-premium">
+        Nâng cấp Premium
+      </a>
+    </div>
+
+    <!-- No credits section -->
+    <div id="section-no-credits" class="section hidden">
+      <div class="info-box warning">
+        <span class="icon">💳</span>
+        <p>Bạn đã hết lượt phân tích AI. Vui lòng nạp thêm lượt.</p>
+      </div>
+      <a href="https://vnfootballanalytics.vercel.app/pricing" target="_blank" class="btn btn-premium">
+        Nạp thêm lượt
+      </a>
+    </div>
+
+    <!-- Not a football article section -->
+    <div id="section-not-football" class="section hidden">
+      <div class="info-box info">
+        <span class="icon">⚽</span>
+        <p>Trang này không phải bài viết bóng đá Việt Nam.</p>
+        <p class="small">Hỗ trợ: V-League 1, V-League 2, Vietnam Cup</p>
+      </div>
+    </div>
+
+    <!-- Main section (logged in + premium) -->
+    <div id="section-main" class="section hidden">
+      <!-- Tabs -->
+      <div class="tabs">
+        <button class="tab-btn active" data-tab="tab-analyze">🤖 Phân tích</button>
+        <button class="tab-btn" data-tab="tab-history">🕒 Lịch sử</button>
+      </div>
+
+      <!-- Tab: Analyze -->
+      <div id="tab-analyze" class="tab-content">
+        <!-- Page detection badge -->
+        <div id="page-badge" class="badge hidden"></div>
+
+        <!-- User info -->
+        <div class="user-bar">
+          <span id="user-name" class="user-name"></span>
+          <span id="credits-badge" class="credits"></span>
+        </div>
+
+        <!-- Analyze button -->
+        <button id="btn-analyze" class="btn btn-primary" disabled>
+          <span class="btn-icon">🤖</span>
+          Phân tích bài viết bằng AI
+        </button>
+
+        <!-- Loading state -->
+        <div id="loading" class="loading hidden">
+          <div class="spinner"></div>
+          <span>Đang phân tích...</span>
+        </div>
+
+        <!-- Result -->
+        <div id="result-container" class="result-container hidden">
+          <div class="result-header">
+            <span id="result-league" class="result-league"></span>
+            <button id="btn-copy" class="btn-icon-only" title="Sao chép">📋</button>
+          </div>
+          <div id="result-content" class="result-content"></div>
+        </div>
+
+        <!-- Error -->
+        <div id="error-box" class="info-box error hidden">
+          <span class="icon">❌</span>
+          <p id="error-message"></p>
+        </div>
+      </div>
+
+      <!-- Tab: History -->
+      <div id="tab-history" class="tab-content hidden">
+        <div id="history-loading" class="loading">
+          <div class="spinner"></div>
+          <span>Đang tải lịch sử...</span>
+        </div>
+        <div id="history-empty" class="info-box info hidden">
+          <span class="icon">📭</span>
+          <p>Chưa có lịch sử phân tích nào.</p>
+        </div>
+        <div id="history-list" class="history-list hidden"></div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+      <a href="https://vnfootballanalytics.vercel.app" target="_blank">vnfootballanalytics.vercel.app</a>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

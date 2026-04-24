@@ -52,6 +52,7 @@ namespace VNFootballLeagues.Services.IServices
         Task<object> GetAllTransfersAsync();
         Task<List<Player>> GetAllPlayersAsync();
         Task<List<Match>> GetTeamLastMatchesFromDbAsync(int apiTeamId, int count);
+        Task<List<Match>> GetTeamNextMatchesFromDbAsync(int apiTeamId, int count);
         Task<List<Team>> GetTeamsByIdsAsync(List<int> teamIds);
         Task<object> AddFavoritePlayerAsync(Guid userId, int apiPlayerId);
         Task<object> RemoveFavoritePlayerAsync(Guid userId, int apiPlayerId);

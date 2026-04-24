@@ -1,3 +1,4 @@
+﻿using System.Text.Json;
 using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -8,6 +9,7 @@ using VNFootballLeaguesApp.DTOs.Football;
 
 namespace VNFootballLeaguesApp.Controllers
 {
+    public record IdentifyPlayersRequest(string Text);
     [ApiController]
     [Route("api/[controller]")]
     public class FootballController : ControllerBase
@@ -15,11 +17,13 @@ namespace VNFootballLeaguesApp.Controllers
         private static readonly Regex RoundNumberRegex = new(@"\d+", RegexOptions.Compiled);
         private readonly IFootballApiService _service;
         private readonly VNFootballLeaguesDBContext _db;
+        private readonly IGeminiService _gemini;
 
-        public FootballController(IFootballApiService service, VNFootballLeaguesDBContext db)
+        public FootballController(IFootballApiService service, VNFootballLeaguesDBContext db, IGeminiService gemini)
         {
             _service = service;
             _db = db;
+            _gemini = gemini;
         }
 
         [HttpPost("sync-leagues")]
@@ -863,6 +867,184 @@ namespace VNFootballLeaguesApp.Controllers
             }));
         }
 
+        /// <summary>Identify football players from selected text using AI</summary>
+        [HttpPost("identify-players")]
+        [AllowAnonymous]
+        public async Task<IActionResult> IdentifyPlayers([FromBody] IdentifyPlayersRequest request)
+        {
+            if (string.IsNullOrWhiteSpace(request.Text))
+                return BadRequest(new { success = false, message = "Text is required" });
+
+            var text = request.Text.Trim();
+
+            // Search directly in DB first (fast path)
+            var directMatches = await _db.Players
+                .AsNoTracking()
+                .Include(p => p.Team)
+                .Where(p => p.FullName != null && EF.Functions.Like(p.FullName, $"%{text}%"))
+                .Take(5)
+                .ToListAsync();
+
+            if (directMatches.Any())
+            {
+                var results = directMatches.Select(p => new
+                {
+                    extractedName = text,
+                    found = true,
+                    player = new
+                    {
+                        p.PlayerId,
+                        p.ApiPlayerId,
+                        p.FullName,
+                        p.Position,
+                        p.Nationality,
+                        p.PhotoUrl,
+                        p.Age,
+                        p.Number,
+                        teamName = p.Team?.TeamName,
+                        photoProxyUrl = $"/api/Football/players/{p.PlayerId}/photo",
+                        profileUrl = $"/players/{p.ApiPlayerId}"
+                    }
+                });
+                return Ok(new { success = true, count = directMatches.Count, players = results });
+            }
+
+            // Fallback: use Gemini if no direct match (text might contain multiple names)
+            if (text.Length > 30)
+            {
+                var prompt = $@"Extract all football player names from this text. Return ONLY a JSON array of strings. Example: [""Nguyen Van A""]
+Text: {text}";
+                try
+                {
+                    var geminiResponse = await _gemini.ChatAsync(prompt);
+                    var names = new List<string>();
+                    var json = geminiResponse.Trim();
+                    var start = json.IndexOf('['); var end = json.LastIndexOf(']');
+                    if (start >= 0 && end > start)
+                        names = JsonSerializer.Deserialize<List<string>>(json.Substring(start, end - start + 1)) ?? new();
+
+                    var allPlayers = await _db.Players.AsNoTracking().Include(p => p.Team).ToListAsync();
+                    var aiResults = names.Distinct().Select(name =>
+                    {
+                        var nameLower = name.ToLower();
+                        var match = allPlayers.FirstOrDefault(p =>
+                            (p.FullName != null && p.FullName.ToLower().Contains(nameLower)));
+                        return new
+                        {
+                            extractedName = name,
+                            found = match != null,
+                            player = match == null ? null : new
+                            {
+                                match.PlayerId, match.ApiPlayerId, match.FullName,
+                                match.Position, match.Nationality, match.PhotoUrl, match.Age, match.Number,
+                                teamName = match.Team?.TeamName,
+                                photoProxyUrl = $"/api/Football/players/{match.PlayerId}/photo",
+                                profileUrl = $"/players/{match.ApiPlayerId}"
+                            }
+                        };
+                    }).ToList();
+                    return Ok(new { success = true, count = aiResults.Count, players = aiResults });
+                }
+                catch { }
+            }
+
+            return Ok(new { success = true, count = 0, players = Array.Empty<object>() });
+        }
+        /// <summary>Identify a match from selected text using AI + fuzzy matching</summary>
+        [HttpPost("identify-match")]
+        [AllowAnonymous]
+        public async Task<IActionResult> IdentifyMatch([FromBody] IdentifyPlayersRequest request)
+        {
+            if (string.IsNullOrWhiteSpace(request.Text))
+                return BadRequest(new { success = false });
+
+            var text = request.Text.Trim();
+            var textLower = text.ToLower();
+            var textNorm = RemoveDiacritics(textLower);
+            var teams = await _db.Teams.AsNoTracking().ToListAsync();
+
+            // Score each team by match quality
+            var scored = teams.Select(t => {
+                int score = 0;
+                var name = t.TeamName?.ToLower() ?? "";
+                var nameNorm = RemoveDiacritics(name);
+                var shortNorm = RemoveDiacritics(t.ShortName?.ToLower() ?? "");
+                if (!string.IsNullOrEmpty(name) && textLower.Contains(name)) score += name.Length * 3;
+                if (!string.IsNullOrEmpty(nameNorm) && textNorm.Contains(nameNorm)) score += nameNorm.Length * 2;
+                if (!string.IsNullOrEmpty(shortNorm) && textNorm.Contains(shortNorm)) score += shortNorm.Length * 2;
+                return new { Team = t, Score = score };
+            }).Where(x => x.Score > 0).OrderByDescending(x => x.Score).ToList();
+
+            var matchedTeams = scored.Take(2).Select(x => x.Team).ToList();
+
+            if (!matchedTeams.Any())
+                return Ok(new { success = false, match = (object?)null });
+
+            VNFootballLeagues.Repositories.Models.Match? match;
+            if (matchedTeams.Count >= 2)
+            {
+                var t1 = matchedTeams[0].TeamId;
+                var t2 = matchedTeams[1].TeamId;
+                match = await _db.Matches.AsNoTracking()
+                    .Include(m => m.HomeTeam).Include(m => m.AwayTeam)
+                    .Where(m => (m.HomeTeamId == t1 && m.AwayTeamId == t2) ||
+                                (m.HomeTeamId == t2 && m.AwayTeamId == t1))
+                    .OrderByDescending(m => m.MatchDate).FirstOrDefaultAsync();
+            }
+            else
+            {
+                var singleId = matchedTeams[0].TeamId;
+                match = await _db.Matches.AsNoTracking()
+                    .Include(m => m.HomeTeam).Include(m => m.AwayTeam)
+                    .Where(m => m.HomeTeamId == singleId || m.AwayTeamId == singleId)
+                    .OrderByDescending(m => m.MatchDate).FirstOrDefaultAsync();
+            }
+
+            if (match == null)
+                return Ok(new { success = false, match = (object?)null });
+
+            return Ok(new {
+                success = true,
+                match = new {
+                    match.MatchId, match.ApiFixtureId, match.MatchDate, match.Status,
+                    match.HomeGoals, match.AwayGoals, match.Round, match.Venue,
+                    homeTeam = new { match.HomeTeam?.TeamId, match.HomeTeam?.TeamName, match.HomeTeam?.LogoUrl },
+                    awayTeam = new { match.AwayTeam?.TeamId, match.AwayTeam?.TeamName, match.AwayTeam?.LogoUrl },
+                    profileUrl = $"/matches/{match.ApiFixtureId}"
+                }
+            });
+        }
+
+        [HttpGet("players/{id}/photo")]
+        [AllowAnonymous]
+        [ResponseCache(Duration = 86400)]
+        public async Task<IActionResult> GetPlayerPhoto(int id)
+        {
+            var player = await _db.Players.AsNoTracking()
+                .FirstOrDefaultAsync(p => p.PlayerId == id || p.ApiPlayerId == id);
+            if (player?.PhotoUrl == null) return NotFound();
+
+            try
+            {
+                var http = HttpContext.RequestServices.GetRequiredService<IHttpClientFactory>().CreateClient();
+                http.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0");
+                var bytes = await http.GetByteArrayAsync(player.PhotoUrl);
+                return File(bytes, "image/jpeg");
+            }
+            catch { return NotFound(); }
+        }
+
+        private static string RemoveDiacritics(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return text;
+            var normalized = text.Normalize(System.Text.NormalizationForm.FormD);
+            var sb = new System.Text.StringBuilder();
+            foreach (var c in normalized)
+                if (System.Globalization.CharUnicodeInfo.GetUnicodeCategory(c) != System.Globalization.UnicodeCategory.NonSpacingMark)
+                    sb.Append(c);
+            return sb.ToString().Normalize(System.Text.NormalizationForm.FormC);
+        }
+
         private static int? ExtractRoundNumber(string round)
         {
             var match = RoundNumberRegex.Match(round);
@@ -891,3 +1073,8 @@ namespace VNFootballLeaguesApp.Controllers
         }
     }
 }
+
+
+
+
+

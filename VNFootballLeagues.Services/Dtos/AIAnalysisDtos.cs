@@ -17,4 +17,5 @@ public record AIAnalysisHistoryDto(
     int MatchId,
     int? PlayerId,
     string AnalysisVi,
+    string? ContextJson,
     DateTime CreatedAt);

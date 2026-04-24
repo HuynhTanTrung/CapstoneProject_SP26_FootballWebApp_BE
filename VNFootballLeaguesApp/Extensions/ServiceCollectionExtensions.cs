@@ -6,8 +6,7 @@ using Microsoft.IdentityModel.Tokens;
 using VNFootballLeagues.Repositories.Models;
 using VNFootballLeagues.Repositories.Repositories;
 using VNFootballLeagues.Services.IServices;
-using VNFootballLeagues.Services.Services;
-using VNFootballLeagues.Services.Settings;
+using VNFootballLeagues.Services.Services;using VNFootballLeagues.Services.Settings;
 
 namespace VNFootballLeaguesApp.Extensions;
 
@@ -117,6 +116,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<CosmeticService>();
         services.AddSingleton<CloudinaryService>();
         services.AddScoped<IGeminiForumModerator, GeminiForumModerator>();
+        services.AddScoped<IArticleAnalysisService, ArticleAnalysisService>();
         services.AddScoped<ForumService>();
         services.AddScoped<NotificationService>();
 
