@@ -67,13 +67,12 @@ public class CloudinaryService
         if (!_enabled || _cloudinary == null) return null;
 
         using var stream = new MemoryStream(imageBytes);
-        var ext = contentType.Contains("png") ? "png" : contentType.Contains("svg") ? "svg" : "png";
-        var uploadParams = new RawUploadParams
+        var uploadParams = new ImageUploadParams
         {
-            File = new FileDescription($"img.{ext}", stream),
-            PublicId = publicId,
+            File = new FileDescription("img", stream),
+            PublicId = $"vnfootball/sofascore/{publicId}",
             Overwrite = false,
-            Folder = "vnfootball/sofascore"
+            Invalidate = true,
         };
 
         var result = await _cloudinary.UploadAsync(uploadParams);
