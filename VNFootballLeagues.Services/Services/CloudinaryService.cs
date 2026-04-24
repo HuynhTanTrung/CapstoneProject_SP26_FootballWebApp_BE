@@ -71,7 +71,7 @@ public class CloudinaryService
         {
             File = new FileDescription("img", stream),
             PublicId = $"vnfootball/sofascore/{publicId}",
-            Overwrite = false,
+            Overwrite = true,
             Invalidate = true,
         };
 
