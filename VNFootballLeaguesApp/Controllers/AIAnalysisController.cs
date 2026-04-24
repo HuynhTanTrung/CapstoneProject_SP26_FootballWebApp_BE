@@ -84,11 +84,13 @@ public class AIAnalysisController : ControllerBase
 
     /// <summary>Lấy lịch sử phân tích AI của user hiện tại.</summary>
     [HttpGet("history")]
-    public async Task<IActionResult> GetHistory([FromQuery] int page = 1, [FromQuery] int pageSize = 20)
+    public async Task<IActionResult> GetHistory([FromQuery] int page = 1, [FromQuery] int pageSize = 20, [FromQuery] string? type = null)
     {
         var userId = _userService.GetUserId(User);
         if (userId is null) return Unauthorized();
-        var history = await _aiAnalysisService.GetUserHistoryAsync(userId.Value, page, pageSize);
+        // type can be comma-separated: "player-rating,match"
+        var types = type?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var history = await _aiAnalysisService.GetUserHistoryAsync(userId.Value, page, pageSize, types);
         return Ok(new { data = history, page, pageSize });
     }
 

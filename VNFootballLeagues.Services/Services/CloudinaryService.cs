@@ -61,5 +61,32 @@ public class CloudinaryService
         return result.SecureUrl?.ToString();
     }
 
+    /// <summary>Upload ảnh Sofascore lên Cloudinary với public_id cố định để cache.</summary>
+    public async Task<string?> UploadSofascoreImageAsync(byte[] imageBytes, string contentType, string publicId)
+    {
+        if (!_enabled || _cloudinary == null) return null;
+
+        using var stream = new MemoryStream(imageBytes);
+        var ext = contentType.Contains("png") ? "png" : contentType.Contains("svg") ? "svg" : "png";
+        var uploadParams = new RawUploadParams
+        {
+            File = new FileDescription($"img.{ext}", stream),
+            PublicId = publicId,
+            Overwrite = false,
+            Folder = "vnfootball/sofascore"
+        };
+
+        var result = await _cloudinary.UploadAsync(uploadParams);
+        return result.SecureUrl?.ToString();
+    }
+
+    /// <summary>Lấy URL Cloudinary nếu ảnh đã được cache (không cần gọi API).</summary>
+    public string? GetCachedUrl(string publicId)
+    {
+        if (!_enabled || _cloudinary == null) return null;
+        // Build URL trực tiếp từ public_id — không cần round-trip API
+        return _cloudinary.Api.UrlImgUp.BuildUrl($"vnfootball/sofascore/{publicId}");
+    }
+
     public bool IsEnabled => _enabled;
 }

@@ -427,14 +427,19 @@ public class AIAnalysisService : IAIAnalysisService
         return new AIAnalysisResponse(success, "match", result, payload, warning);
     }
 
-    public async Task<IReadOnlyList<AIAnalysisHistoryDto>> GetUserHistoryAsync(Guid userId, int page = 1, int pageSize = 20)
+    public async Task<IReadOnlyList<AIAnalysisHistoryDto>> GetUserHistoryAsync(Guid userId, int page = 1, int pageSize = 20, string[]? types = null)
     {
-        var items = await _db.AIAnalysisHistories
-            .Where(h => h.UserId == userId)
+        var query = _db.AIAnalysisHistories
+            .Where(h => h.UserId == userId);
+
+        if (types != null && types.Length > 0)
+            query = query.Where(h => types.Contains(h.AnalysisType));
+
+        var items = await query
             .OrderByDescending(h => h.CreatedAt)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
-            .Select(h => new AIAnalysisHistoryDto(h.Id, h.AnalysisType, h.MatchId, h.PlayerId, h.AnalysisVi, h.CreatedAt))
+            .Select(h => new AIAnalysisHistoryDto(h.Id, h.AnalysisType, h.MatchId, h.PlayerId, h.AnalysisVi, h.ContextJson, h.CreatedAt))
             .ToListAsync();
         return items;
     }

@@ -1,6 +1,54 @@
 const API_BASE = 'http://localhost:5272';
 const WEB_BASE = 'http://localhost:5173';
 
+// ── Auto sync token to extension storage ─────────────────────────────────────
+(function syncTokenToExtension() {
+  const currentHost = location.host;
+
+  const isLocalhost = currentHost.includes('localhost:5173') || currentHost.includes('localhost:3000');
+  const isVercel = currentHost.includes('vnfootballanalytics.vercel.app');
+
+  if (!isLocalhost && !isVercel) return;
+
+  function isExtensionValid() {
+    try { return !!(chrome?.runtime?.id); } catch { return false; }
+  }
+
+  function pushToken() {
+    if (!isExtensionValid()) return;
+    try {
+      const token = localStorage.getItem('accessToken');
+      if (token) {
+        if (isLocalhost) {
+          chrome.storage.local.set({ vnfootball_token: token, vnfootball_token_source: 'localhost' });
+        } else if (isVercel) {
+          chrome.storage.local.get(['vnfootball_token_source'], (result) => {
+            if (!isExtensionValid()) return;
+            if (result.vnfootball_token_source !== 'localhost') {
+              chrome.storage.local.set({ vnfootball_token: token, vnfootball_token_source: 'vercel' });
+            }
+          });
+        }
+      } else if (isLocalhost) {
+        chrome.storage.local.remove(['vnfootball_token', 'vnfootball_token_source']);
+      }
+    } catch { /* extension context invalidated */ }
+  }
+
+  pushToken();
+  window.addEventListener('auth:login', pushToken);
+  window.addEventListener('auth:logout', () => {
+    if (!isExtensionValid()) return;
+    try {
+      if (isLocalhost) chrome.storage.local.remove(['vnfootball_token', 'vnfootball_token_source']);
+    } catch { /* ignore */ }
+  });
+  window.addEventListener('storage', (e) => {
+    if (e.key === 'accessToken') pushToken();
+  });
+})();
+// ─────────────────────────────────────────────────────────────────────────────
+
 let host = null;
 let hideTimer = null;
 let lastText = '';
@@ -176,9 +224,11 @@ async function identifyPlayer(text, x, y) {
     host.shadowRoot.querySelectorAll('img[data-photo]').forEach(img => {
       const url = img.dataset.photo;
       if (!url) return;
-      chrome.runtime.sendMessage({ type: 'fetch-image', url }, (res) => {
-        if (res?.success) img.src = res.dataUrl;
-      });
+      try {
+        chrome.runtime.sendMessage({ type: 'fetch-image', url }, (res) => {
+          if (res?.success) img.src = res.dataUrl;
+        });
+      } catch { /* extension context invalidated */ }
     });
   } catch (err) {
     console.error('[VN Football]', err);
@@ -292,9 +342,11 @@ function showResults(x, y, foundPlayers, foundMatch) {
   host.shadowRoot.querySelectorAll('img[data-photo]').forEach(img => {
     const url = img.dataset.photo;
     if (!url) return;
-    chrome.runtime.sendMessage({ type: 'fetch-image', url }, (res) => {
-      if (res?.success) img.src = res.dataUrl;
-    });
+    try {
+      chrome.runtime.sendMessage({ type: 'fetch-image', url }, (res) => {
+        if (res?.success) img.src = res.dataUrl;
+      });
+    } catch { /* extension context invalidated */ }
   });
 }
 

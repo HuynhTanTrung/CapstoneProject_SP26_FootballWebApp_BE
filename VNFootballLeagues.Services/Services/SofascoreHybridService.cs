@@ -3020,6 +3020,20 @@ namespace VNFootballLeagues.Services.Services
                 .ToListAsync();
         }
 
+        public async Task<List<Match>> GetTeamNextMatchesFromDbAsync(int apiTeamId, int count = 5)
+        {
+            var team = await _context.Teams.FirstOrDefaultAsync(t => t.ApiTeamId == apiTeamId);
+            if (team == null) return new List<Match>();
+            return await _context.Matches
+                .Include(m => m.HomeTeam)
+                .Include(m => m.AwayTeam)
+                .Where(m => (m.HomeTeamId == team.TeamId || m.AwayTeamId == team.TeamId)
+                    && m.Status != "finished" && m.MatchDate >= DateTime.UtcNow)
+                .OrderBy(m => m.MatchDate)
+                .Take(count)
+                .ToListAsync();
+        }
+
         public async Task<List<Match>> GetAllMatchesAsync(int? tournamentId = null, int? seasonId = null)
         {
             var query = _context.Matches.AsQueryable();
