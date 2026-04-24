@@ -73,7 +73,58 @@ public class ImageProxyController : ControllerBase
         }
     }
 
-    public record CacheImageRequest(string Type, string Id, string? Theme, string DataUrl);
+    /// <summary>
+    /// Nhận type+id, tự fetch từ Sofascore và cache lên Cloudinary.
+    /// Body: { "type": "team|player|tournament", "id": "123", "theme": "dark" }
+    /// </summary>
+    [HttpPost("sofascore/cache-by-id")]
+    public async Task<IActionResult> CacheImageById([FromBody] CacheByIdRequest req)
+    {
+        if (string.IsNullOrEmpty(req.Type) || string.IsNullOrEmpty(req.Id))
+            return BadRequest("Missing required fields");
+
+        var cacheKey = req.Theme != null ? $"{req.Type}/{req.Id}/{req.Theme}" : $"{req.Type}/{req.Id}";
+
+        // Nếu đã cache rồi thì bỏ qua
+        var existing = _cloudinary.GetCachedUrl(cacheKey);
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                var url = req.Type.ToLower() switch
+                {
+                    "team" => $"https://api.sofascore.app/api/v1/team/{req.Id}/image",
+                    "player" => $"https://api.sofascore.app/api/v1/player/{req.Id}/image",
+                    "tournament" => $"https://api.sofascore.app/api/v1/unique-tournament/{req.Id}/image/{req.Theme ?? "dark"}",
+                    _ => null
+                };
+                if (url == null) return;
+
+                var client = _httpClientFactory.CreateClient();
+                client.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36");
+                client.DefaultRequestHeaders.Add("Referer", "https://www.sofascore.com/");
+                client.DefaultRequestHeaders.Add("Origin", "https://www.sofascore.com");
+
+                var response = await client.GetAsync(url);
+                if (!response.IsSuccessStatusCode) return;
+
+                var imageBytes = await response.Content.ReadAsByteArrayAsync();
+                var contentType = response.Content.Headers.ContentType?.ToString() ?? "image/png";
+                await _cloudinary.UploadSofascoreImageAsync(imageBytes, contentType, cacheKey);
+                _logger.LogInformation("Cached by-id: {Key}", cacheKey);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed cache-by-id: {Key}", cacheKey);
+            }
+        });
+
+        return Ok(new { queued = true });
+    }
+
+    public record CacheByIdRequest(string Type, string Id, string? Theme);
+
 
     private async Task<IActionResult> ProxyImage(string type, string id, string? theme)
     {
