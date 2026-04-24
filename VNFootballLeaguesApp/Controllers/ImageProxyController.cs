@@ -123,6 +123,7 @@ public class ImageProxyController : ControllerBase
         return Ok(new { queued = true });
     }
 
+    public record CacheImageRequest(string Type, string Id, string? Theme, string DataUrl);
     public record CacheByIdRequest(string Type, string Id, string? Theme);
 
 
