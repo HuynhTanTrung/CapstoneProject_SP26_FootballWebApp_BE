@@ -1,0 +1,35 @@
+{
+  "manifest_version": 3,
+  "name": "VN Football ",
+  "version": "1.1",
+  "description": "Phân tích bài viết bóng đá Việt Nam bằng AI (V-League 1, V-League 2, Vietnam Cup)",
+  "icons": {
+    "16": "icon16.png",
+    "48": "icon48.png",
+    "128": "icon128.png"
+  },
+  "action": {
+    "default_icon": {
+      "16": "icon16.png",
+      "48": "icon48.png",
+      "128": "icon128.png"
+    },
+    "default_popup": "popup.html",
+    "default_title": "VN Football Analytics"
+  },
+  "permissions": ["activeTab", "storage", "scripting"],
+  "host_permissions": [
+    "http://localhost:5272/*",
+    "http://localhost:5173/*",
+    "https://vnfootballanalytics.vercel.app/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"]
+    }
+  ]
+}
