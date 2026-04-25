@@ -172,36 +172,36 @@ app.MapControllers();
 // Hangfire dashboard (chỉ dev) + recurring jobs
 app.UseHangfireDashboard("/hangfire");
 
-// Cron: thứ 2 lúc 3:00 sáng (UTC+7 = 20:00 UTC Chủ nhật)
+// Cron: mỗi ngày lúc 2:00 sáng UTC+7 = 19:00 UTC
 // Matches + standings
 RecurringJob.AddOrUpdate<WeeklySyncJob>(
     "weekly-sync-matches-standings",
     job => job.SyncMatchesAndStandingsAsync(),
-    "0 20 * * 0"); // Chủ nhật 20:00 UTC = Thứ 2 03:00 UTC+7
+    "0 19 * * *"); // 2:00 sáng UTC+7
 
 // Lineups + match statistics (chạy sau 30 phút)
 RecurringJob.AddOrUpdate<WeeklySyncJob>(
     "weekly-sync-lineups-matchstats",
     job => job.SyncLineupsAndMatchStatsAsync(),
-    "30 20 * * 0");
+    "30 19 * * *");
 
 // Player match stats cho các trận FT trong 7 ngày qua (chạy sau 1 tiếng)
 RecurringJob.AddOrUpdate<WeeklySyncJob>(
     "weekly-sync-player-match-stats",
     job => job.SyncPlayerMatchStatsForRecentMatchesAsync(),
-    "0 21 * * 0");
+    "0 20 * * *");
 
 // Player season stats (chạy sau 2 tiếng)
 RecurringJob.AddOrUpdate<WeeklySyncJob>(
     "weekly-sync-player-season-stats",
     job => job.SyncPlayerSeasonStatsAsync(),
-    "0 22 * * 0");
+    "0 21 * * *");
 
 // Cup tree
 RecurringJob.AddOrUpdate<WeeklySyncJob>(
     "weekly-sync-cuptree",
     job => job.SyncCupTreeAsync(),
-    "0 20 * * 0");
+    "0 19 * * *");
 
 // Chấm điểm dự đoán tỉ số (mỗi 15 phút)
 RecurringJob.AddOrUpdate<PredictionSettlementJob>(
