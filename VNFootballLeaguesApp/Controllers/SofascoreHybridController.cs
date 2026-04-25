@@ -119,6 +119,112 @@ namespace VNFootballLeagues.API.Controllers
             }));
         }
 
+        // ── Match Cache (Lineups + Incidents) ────────────────────────────────────
+
+        /// <summary>Đọc lineups từ DB cache (không gọi Sofascore).</summary>
+        [HttpGet("match-lineups")]
+        public async Task<IActionResult> GetMatchLineups([FromQuery] int apiFixtureId)
+        {
+            if (apiFixtureId <= 0) return BadRequest();
+            var cache = await _context.MatchCacheData.FindAsync(apiFixtureId);
+            if (cache?.LineupsJson == null) return NotFound(new { message = "Lineups not cached. Run sync first." });
+            return Content(cache.LineupsJson, "application/json");
+        }
+
+        /// <summary>Đọc incidents từ DB cache (không gọi Sofascore).</summary>
+        [HttpGet("match-incidents")]
+        public async Task<IActionResult> GetMatchIncidents([FromQuery] int apiFixtureId)
+        {
+            if (apiFixtureId <= 0) return BadRequest();
+            var cache = await _context.MatchCacheData.FindAsync(apiFixtureId);
+            if (cache?.IncidentsJson == null) return NotFound(new { message = "Incidents not cached. Run sync first." });
+            return Content(cache.IncidentsJson, "application/json");
+        }
+
+        /// <summary>Upload lineups + incidents JSON trực tiếp (dùng khi scraper bị block).</summary>
+        [HttpPost("upload-match-cache")]
+        public async Task<IActionResult> UploadMatchCache([FromQuery] int apiFixtureId, [FromBody] UploadMatchCacheRequest req)
+        {
+            if (apiFixtureId <= 0) return BadRequest();
+            var cache = await _context.MatchCacheData.FindAsync(apiFixtureId);
+            if (cache == null) { cache = new MatchCacheData { ApiFixtureId = apiFixtureId }; _context.MatchCacheData.Add(cache); }
+            if (!string.IsNullOrEmpty(req.LineupsJson)) cache.LineupsJson = req.LineupsJson;
+            if (!string.IsNullOrEmpty(req.IncidentsJson)) cache.IncidentsJson = req.IncidentsJson;
+            cache.SyncedAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
+            return Ok(new { status = true, message = $"Uploaded cache for fixture {apiFixtureId}" });
+        }
+
+        public record UploadMatchCacheRequest(string? LineupsJson, string? IncidentsJson);
+        [HttpPost("sync-match-cache")]
+        public async Task<IActionResult> SyncMatchCache([FromQuery] int apiFixtureId)
+        {
+            if (apiFixtureId <= 0) return BadRequest();
+            try
+            {
+                var lineupsTask = _sofascoreScraperService.GetMatchLineupsAsync(apiFixtureId);
+                var incidentsTask = _sofascoreScraperService.GetMatchIncidentsAsync(apiFixtureId);
+                await Task.WhenAll(lineupsTask, incidentsTask);
+
+                var cache = await _context.MatchCacheData.FindAsync(apiFixtureId);
+                if (cache == null)
+                {
+                    cache = new MatchCacheData { ApiFixtureId = apiFixtureId };
+                    _context.MatchCacheData.Add(cache);
+                }
+                cache.LineupsJson = lineupsTask.Result;
+                cache.IncidentsJson = incidentsTask.Result;
+                cache.SyncedAt = DateTime.UtcNow;
+                await _context.SaveChangesAsync();
+
+                return Ok(new { status = true, message = $"Synced match cache for fixture {apiFixtureId}", syncedAt = cache.SyncedAt });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error syncing match cache for fixture {Id}", apiFixtureId);
+                return StatusCode(500, new { status = false, message = ex.Message });
+            }
+        }
+
+        /// <summary>Sync tất cả matches đã finished trong 1 league/season.</summary>
+        [HttpPost("sync-match-cache-by-league")]
+        public async Task<IActionResult> SyncMatchCacheByLeague([FromQuery] int tournamentId, [FromQuery] int seasonId)
+        {
+            var league = await _context.Leagues.FirstOrDefaultAsync(l => l.ApiLeagueId == tournamentId);
+            var season = await _context.Seasons.FirstOrDefaultAsync(s => s.ApiSeasonId == seasonId);
+            if (league == null || season == null) return NotFound(new { message = "League or season not found" });
+
+            var matches = await _context.Matches
+                .Where(m => m.LeagueId == league.LeagueId && m.SeasonId == season.SeasonId && m.Status == "finished" && m.ApiFixtureId != null)
+                .Select(m => m.ApiFixtureId!.Value)
+                .ToListAsync();
+
+            int success = 0, failed = 0, skipped = 0;
+
+            foreach (var fixtureId in matches)
+            {
+                try
+                {
+                    var existing = await _context.MatchCacheData.FindAsync(fixtureId);
+                    if (existing?.LineupsJson != null && existing?.IncidentsJson != null) { skipped++; continue; }
+
+                    var lineupsJson = await _sofascoreScraperService.GetMatchLineupsAsync(fixtureId);
+                    var incidentsJson = await _sofascoreScraperService.GetMatchIncidentsAsync(fixtureId);
+
+                    if (existing == null) { existing = new MatchCacheData { ApiFixtureId = fixtureId }; _context.MatchCacheData.Add(existing); }
+                    existing.LineupsJson = lineupsJson;
+                    existing.IncidentsJson = incidentsJson;
+                    existing.SyncedAt = DateTime.UtcNow;
+                    await _context.SaveChangesAsync();
+                    success++;
+                    await Task.Delay(500);
+                }
+                catch { failed++; }
+            }
+
+            return Ok(new { status = true, total = matches.Count, success, failed, skipped });
+        }
+
         [HttpGet("matches-with-teams")]
         public async Task<IActionResult> GetMatchesWithTeams([FromQuery] int? tournamentId = null, [FromQuery] int? seasonId = null)
         {

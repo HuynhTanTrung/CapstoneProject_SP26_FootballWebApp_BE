@@ -105,6 +105,7 @@ namespace VNFootballLeagues.Services.Services
             AllowAutoRedirect = true,
             UseCookies = true,
             AutomaticDecompression = System.Net.DecompressionMethods.GZip | System.Net.DecompressionMethods.Deflate | System.Net.DecompressionMethods.Brotli,
+            ServerCertificateCustomValidationCallback = (_, _, _, _) => true,
         })
         {
             Timeout = TimeSpan.FromSeconds(30)
@@ -112,8 +113,8 @@ namespace VNFootballLeagues.Services.Services
 
         private async Task<string> FetchJson(string url, int retryCount = 2)
         {
-            // Always use HttpClient - works on all environments including Azure App Service
-            return await FetchJsonWithHttpClient(url);
+            // Use Puppeteer browser to bypass Sofascore bot detection
+            return await FetchJsonWithPuppeteer(url, retryCount);
         }
 
         private async Task<string> FetchJsonWithHttpClient(string url)

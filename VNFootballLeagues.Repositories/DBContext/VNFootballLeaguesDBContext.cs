@@ -36,6 +36,8 @@ public partial class VNFootballLeaguesDBContext : DbContext
 
     public virtual DbSet<Lineup> Lineups { get; set; }
 
+    public virtual DbSet<MatchCacheData> MatchCacheData { get; set; }
+
     public virtual DbSet<Match> Matches { get; set; }
 
     public virtual DbSet<MatchEvent> MatchEvents { get; set; }
@@ -169,6 +171,13 @@ public partial class VNFootballLeaguesDBContext : DbContext
             entity.Property(e => e.LogoUrl)
                 .HasMaxLength(255)
                 .IsUnicode(false);
+        });
+
+        modelBuilder.Entity<MatchCacheData>(entity =>
+        {
+            entity.HasKey(e => e.ApiFixtureId);
+            entity.ToTable("MatchCacheData");
+            entity.Property(e => e.SyncedAt).HasDefaultValueSql("GETUTCDATE()");
         });
 
         modelBuilder.Entity<Lineup>(entity =>

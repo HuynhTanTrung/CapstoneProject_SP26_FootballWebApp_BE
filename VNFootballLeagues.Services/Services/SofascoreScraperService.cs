@@ -286,10 +286,8 @@ public class SofascoreScraperService : ISofascoreScraperService
 
         try
         {
-            // Ensure Chromium is downloaded (only happens once)
             await EnsureBrowserDownloadedAsync();
 
-            // Launch headless Chromium browser with stealth options
             _logger.LogInformation("Launching headless browser for {Description}", description);
             browser = await Puppeteer.LaunchAsync(new LaunchOptions
             {
@@ -306,82 +304,40 @@ public class SofascoreScraperService : ISofascoreScraperService
                 }
             });
 
-            // Create a new page
             page = await browser.NewPageAsync();
 
-            // Set realistic viewport
-            await page.SetViewportAsync(new ViewPortOptions
-            {
-                Width = 1920,
-                Height = 1080
-            });
-
-            // Set user agent to mimic a real browser
+            await page.SetViewportAsync(new ViewPortOptions { Width = 1920, Height = 1080 });
             await page.SetUserAgentAsync(
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
             );
-
             await page.SetExtraHttpHeadersAsync(new Dictionary<string, string>
             {
-                { "Accept", "application/json, text/plain, */*" },
                 { "Accept-Language", "en-US,en;q=0.9" },
-                { "Accept-Encoding", "gzip, deflate, br" }
             });
 
-            // First visit main site to establish session and cookies
+            // Visit trang chủ để lấy cookies/session
             _logger.LogInformation("Establishing session by visiting main site");
             await page.GoToAsync("https://www.sofascore.com/", new NavigationOptions
             {
                 WaitUntil = new[] { WaitUntilNavigation.DOMContentLoaded },
-                Timeout = 30000
+                Timeout = 60000
             });
+            await Task.Delay(1500);
 
-            // Wait for page to settle and cookies to be set
-            await Task.Delay(2000);
-
-            // Fetch API data using JavaScript fetch within browser context
+            // Fetch API bằng JS fetch trong browser context (có cookies)
             _logger.LogInformation("Fetching data from: {Url}", apiUrl);
             string jsonResponse = await page.EvaluateFunctionAsync<string>($@"
                 async () => {{
-                    try {{
-                        const response = await fetch('{apiUrl}', {{
-                            method: 'GET',
-                            headers: {{
-                                'Accept': 'application/json',
-                                'Accept-Language': 'en-US,en;q=0.9'
-                            }},
-                            credentials: 'include'
-                        }});
-                        
-                        if (!response.ok) {{
-                            throw new Error(`HTTP ${{response.status}}: ${{response.statusText}}`);
-                        }}
-                        
-                        const data = await response.text();
-                        return data;
-                    }} catch (error) {{
-                        throw new Error(`Fetch failed: ${{error.message}}`);
-                    }}
+                    const r = await fetch('{apiUrl}', {{
+                        headers: {{ 'Accept': 'application/json' }},
+                        credentials: 'include'
+                    }});
+                    if (!r.ok) throw new Error('HTTP ' + r.status);
+                    return await r.text();
                 }}
             ");
 
-            // Validate we got JSON
-            if (string.IsNullOrWhiteSpace(jsonResponse))
-            {
-                throw new Exception("No content retrieved from the API");
-            }
-
-            // Basic JSON validation
-            if (!jsonResponse.TrimStart().StartsWith("{") && !jsonResponse.TrimStart().StartsWith("["))
-            {
-                _logger.LogWarning("Response doesn't appear to be JSON: {Response}", 
-                    jsonResponse.Substring(0, Math.Min(200, jsonResponse.Length)));
-                throw new Exception("Response is not valid JSON");
-            }
-
-            _logger.LogInformation("Successfully retrieved data for {Description} ({Length} characters)", 
-                description, jsonResponse.Length);
-
+            _logger.LogInformation("Successfully retrieved data for {Description} ({Length} characters)", description, jsonResponse.Length);
             return jsonResponse;
         }
         catch (Exception ex)
@@ -391,16 +347,8 @@ public class SofascoreScraperService : ISofascoreScraperService
         }
         finally
         {
-            // Clean up resources
-            if (page != null)
-            {
-                try { await page.CloseAsync(); } catch { /* Ignore cleanup errors */ }
-            }
-
-            if (browser != null)
-            {
-                try { await browser.CloseAsync(); } catch { /* Ignore cleanup errors */ }
-            }
+            if (page != null) try { await page.CloseAsync(); } catch { }
+            if (browser != null) try { await browser.CloseAsync(); } catch { }
         }
     }
 
