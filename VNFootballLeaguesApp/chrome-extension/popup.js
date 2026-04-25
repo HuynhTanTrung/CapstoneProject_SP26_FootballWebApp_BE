@@ -26,6 +26,8 @@ const FOREIGN_LEAGUE_KEYWORDS = [
   'psg', 'juventus', 'chelsea', 'arsenal', 'inter milan', 'ac milan',
 ];
 
+
+
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 function show(id) {
@@ -123,6 +125,12 @@ async function initWithToken(token) {
   // Get current tab info
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
 
+  // Clean up old tab-ID-based cache keys (migration from old format)
+  chrome.storage.local.get(null, items => {
+    const oldKeys = Object.keys(items).filter(k => /^result_\d+$/.test(k));
+    if (oldKeys.length > 0) chrome.storage.local.remove(oldKeys);
+  });
+
   // Inject content script to extract article content
   let articleData = null;
   try {
@@ -138,7 +146,11 @@ async function initWithToken(token) {
   const title = articleData?.title || tab.title || '';
   const url = tab.url || '';
   const content = articleData?.content || '';
-  const tabKey = `result_${tab.id}`;
+  // Cache by URL (not tab ID) so navigating to a new article always shows fresh state
+  const tabKey = `result_url_${btoa(url).replace(/[^a-zA-Z0-9]/g, '').slice(0, 80)}`;
+
+  console.log('[VNFootball] Extracted content preview:', content.slice(0, 300));
+  console.log('[VNFootball] URL:', url);
 
   // Client-side pre-check
   const detection = detectLeagueFromPage(title, url, content);
@@ -449,32 +461,53 @@ function showError(message) {
 function extractArticleContent() {
   const title = document.title || '';
 
-  // Try common article selectors
+  // Clone body to strip noise (sidebar, nav, related articles) without mutating the page
+  const bodyClone = document.body.cloneNode(true);
+  const noiseSelectors = [
+    'nav', 'header', 'footer', 'aside',
+    '[class*="sidebar"]', '[class*="related"]', '[class*="recommend"]',
+    '[class*="most-read"]', '[class*="tin-doc-nhieu"]', '[class*="box-"]',
+    '[class*="widget"]', '[class*="advertisement"]', '[class*="ads"]',
+    '[class*="social"]', '[class*="share"]', '[class*="comment"]',
+    '[class*="tag"]', '[class*="breadcrumb"]',
+  ];
+  noiseSelectors.forEach(sel => {
+    bodyClone.querySelectorAll(sel).forEach(el => el.remove());
+  });
+
+  // Try specific article selectors (ordered by specificity)
   const selectors = [
-    'article', '[class*="article-content"]', '[class*="article-body"]',
+    '.article-body', '.article-content', '.article__body', '.article__content',
+    '.post-content', '.post-body',
+    '.entry-content', '.entry-body',
+    '.content-detail', '.detail-content', '.detail__content',
+    '.news-content', '.news-body',
+    '.story-body', '.story-content',
+    'article',
+    '[itemprop="articleBody"]',
+    '[class*="article-body"]', '[class*="article-content"]',
     '[class*="post-content"]', '[class*="entry-content"]',
     '[class*="content-detail"]', '[class*="detail-content"]',
-    '.content', '#content', 'main',
   ];
 
   let content = '';
   for (const sel of selectors) {
-    const el = document.querySelector(sel);
+    const el = bodyClone.querySelector(sel);
     if (el && el.innerText.length > 200) {
       content = el.innerText.trim();
       break;
     }
   }
 
-  // Fallback: grab all paragraphs
+  // Fallback: grab all paragraphs from cloned body
   if (!content) {
-    const paragraphs = Array.from(document.querySelectorAll('p'))
+    const paragraphs = Array.from(bodyClone.querySelectorAll('p'))
       .map(p => p.innerText.trim())
       .filter(t => t.length > 50);
     content = paragraphs.join('\n\n');
   }
 
-  return { title, content: content.slice(0, 4000) };
+  return { title, content: content.slice(0, 5000) };
 }
 
 // ── History ───────────────────────────────────────────────────────────────────

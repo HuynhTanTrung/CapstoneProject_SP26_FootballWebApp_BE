@@ -44,7 +44,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 
   if (request.type === 'identify') {
-    // Call both APIs in parallel
+    // Call both APIs in parallel — use fuzzy match for speed (AI endpoint reserved for popup analysis)
     Promise.all([
       fetch(`${API_BASE}/api/Football/identify-players`, {
         method: 'POST',
@@ -60,6 +60,18 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     ]).then(([playerData, matchData]) => {
       sendResponse({ success: true, playerData, matchData });
     }).catch(err => sendResponse({ success: false, error: err.message }));
+    return true;
+  }
+
+  if (request.type === 'identify-match-only') {
+    fetch(`${API_BASE}/api/Football/identify-match`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: request.text })
+    })
+      .then(r => r.json())
+      .then(data => sendResponse({ success: data.success, match: data.match }))
+      .catch(() => sendResponse({ success: false }));
     return true;
   }
 

@@ -237,6 +237,8 @@ async function identifyPlayer(text, x, y) {
 }
 
 document.addEventListener('mouseup', (e) => {
+  // Skip on Google domains
+  if (location.hostname.includes('google.com') || location.hostname.includes('gemini.google')) return;
   clearTimeout(debounceTimer);
   debounceTimer = setTimeout(() => {
     const text = window.getSelection()?.toString().trim();
@@ -262,46 +264,134 @@ function removeFloatBtn() {
 }
 
 async function autoDetectPage() {
-  // Get title or first h1
-  const title = document.querySelector('h1')?.innerText || document.title || '';
-  if (!title || title.length < 5) return;
+  // Guard: extension context may be invalidated after reload
+  try { if (!chrome?.runtime?.id) return; } catch { return; }
+
+  console.log('[VN Football] autoDetectPage called');
+
+  const title = document.querySelector('h1')?.innerText?.trim() || document.title || '';
+
+  // Helper to safely get text from an element
+  function safeText(el) {
+    try { return el?.innerText?.trim() || el?.textContent?.trim() || ''; } catch { return ''; }
+  }
+
+  // Clone body and strip all noise elements to get clean article text
+  let articleBody = '';
+  try {
+    const clone = document.body.cloneNode(true);
+    const noiseSelectors = [
+      'script', 'style', 'nav', 'header', 'footer', 'aside',
+      '[class*="sidebar"]', '[class*="related"]', '[class*="recommend"]',
+      '[class*="most-read"]', '[class*="tin-doc"]', '[class*="box-"]',
+      '[class*="widget"]', '[class*="ads"]', '[class*="advertisement"]',
+      '[class*="social"]', '[class*="share"]', '[class*="comment"]',
+      '[class*="tag"]', '[class*="breadcrumb"]', '[class*="menu"]',
+      '[class*="navigation"]', '[class*="footer"]', '[class*="header"]',
+      '[class*="banner"]', '[class*="popup"]',
+    ];
+    noiseSelectors.forEach(sel => {
+      try { clone.querySelectorAll(sel).forEach(el => el.remove()); } catch {}
+    });
+
+    // Try specific article selectors first on the cleaned clone
+    const articleSelectors = [
+      '.article-body', '.article-content', '.article__body', '.article__content',
+      '.post-content', '.entry-content', '.content-detail', '.detail-content',
+      '.detail__content', '.news-content', '.story-body',
+      'article', '[itemprop="articleBody"]',
+      '[class*="article-body"]', '[class*="article-content"]',
+      '[class*="content-detail"]', '[class*="detail-content"]',
+    ];
+
+    for (const sel of articleSelectors) {
+      try {
+        const el = clone.querySelector(sel);
+        const t = safeText(el);
+        if (t.length > 200) { articleBody = t; break; }
+      } catch {}
+    }
+
+    // Fallback: use all remaining text from cleaned clone
+    if (articleBody.length < 200) {
+      articleBody = safeText(clone).replace(/\s+/g, ' ').trim();
+    }
+  } catch (e) {
+    // If clone approach fails, fall back to direct paragraph extraction
+    articleBody = Array.from(document.querySelectorAll('p'))
+      .map(p => safeText(p))
+      .filter(t => t.length > 30)
+      .slice(0, 30)
+      .join(' ');
+  }
+
+  const fullText = [title, articleBody].filter(Boolean).join('\n').substring(0, 2000);
+  if (!fullText || fullText.length < 50) return;
 
   try {
+    console.log('[VN Football] Auto-detecting, text length:', fullText.length, '| preview:', fullText.substring(0, 200));
+    console.log('[VN Football] Full text sent:', fullText.substring(0, 500));
     const response = await new Promise((resolve, reject) => {
       try {
-        chrome.runtime.sendMessage({ type: 'identify', text: title.substring(0, 200) }, (res) => {
+        chrome.runtime.sendMessage({ type: 'identify', text: fullText }, (res) => {
           if (chrome.runtime.lastError) reject(chrome.runtime.lastError);
           else resolve(res);
         });
       } catch (e) { reject(e); }
     });
 
+    console.log('[VN Football] Auto-detect response:', response?.success, 
+      'players:', response?.playerData?.players?.filter(p=>p.found)?.length,
+      'match:', response?.matchData?.success,
+      'matchData:', JSON.stringify(response?.matchData)?.substring(0, 200));
     if (!response?.success) return;
     const foundPlayers = response.playerData?.players?.filter(p => p.found) || [];
     const foundMatch = response.matchData?.success ? response.matchData.match : null;
-    if (!foundPlayers.length && !foundMatch) return;
+    if (!foundPlayers.length && !foundMatch) {
+      // Fallback: try identify-match with just the title
+      const titleOnly = document.querySelector('h1')?.innerText?.substring(0, 150) || '';
+      if (titleOnly) {
+        try {
+          if (!chrome?.runtime?.id) return;
+          const fallback = await new Promise((resolve) => {
+            chrome.runtime.sendMessage({ type: 'identify-match-only', text: titleOnly }, (res) => resolve(res));
+          });
+          if (fallback?.success && fallback?.match) {
+            pageResult = { foundPlayers: [], foundMatch: fallback.match };
+            showFloatBtn(1);
+            return;
+          }
+        } catch { /* ignore */ }
+      }
+      return;
+    }
 
     pageResult = { foundPlayers, foundMatch };
 
     // Show floating button
     removeFloatBtn();
-    floatBtn = document.createElement('div');
-    floatBtn.id = 'vn-football-float';
     const count = foundPlayers.length + (foundMatch ? 1 : 0);
-    floatBtn.style.cssText = `
-      all:initial;position:fixed;bottom:80px;right:16px;z-index:2147483647;
-      background:#e94560;color:#fff;border-radius:50px;padding:8px 14px;
-      font-family:-apple-system,sans-serif;font-size:12px;font-weight:600;
-      cursor:pointer;box-shadow:0 4px 16px rgba(233,69,96,0.4);
-      display:flex;align-items:center;gap:6px;
-    `;
-    floatBtn.innerHTML = `⚽ ${count} kết quả`;
-    floatBtn.addEventListener('click', () => {
-      const rect = floatBtn.getBoundingClientRect();
-      showResults(rect.left - 10, rect.top - 10, pageResult.foundPlayers, pageResult.foundMatch);
-    });
-    document.body.appendChild(floatBtn);
-  } catch (e) { /* silent */ }
+    showFloatBtn(count);
+  } catch (e) { console.error('[VN Football] autoDetect error:', e); }
+}
+
+function showFloatBtn(count) {
+  removeFloatBtn();
+  floatBtn = document.createElement('div');
+  floatBtn.id = 'vn-football-float';
+  floatBtn.style.cssText = `
+    all:initial;position:fixed;bottom:80px;right:16px;z-index:2147483647;
+    background:#e94560;color:#fff;border-radius:50px;padding:8px 14px;
+    font-family:-apple-system,sans-serif;font-size:12px;font-weight:600;
+    cursor:pointer;box-shadow:0 4px 16px rgba(233,69,96,0.4);
+    display:flex;align-items:center;gap:6px;
+  `;
+  floatBtn.innerHTML = `⚽ ${count} kết quả`;
+  floatBtn.addEventListener('click', () => {
+    const rect = floatBtn.getBoundingClientRect();
+    showResults(rect.left - 10, rect.top - 10, pageResult.foundPlayers, pageResult.foundMatch);
+  });
+  document.body.appendChild(floatBtn);
 }
 
 function showResults(x, y, foundPlayers, foundMatch) {
@@ -350,9 +440,36 @@ function showResults(x, y, foundPlayers, foundMatch) {
   });
 }
 
-// Run auto-detect after page loads
-if (document.readyState === 'complete') {
-  setTimeout(autoDetectPage, 1500);
-} else {
-  window.addEventListener('load', () => setTimeout(autoDetectPage, 1500));
+// Run auto-detect after page loads — skip on the web app itself
+const isWebApp = location.host.includes('localhost:5173') ||
+                 location.host.includes('localhost:3000') ||
+                 location.host.includes('vnfootballanalytics.vercel.app');
+
+if (!isWebApp) {
+  async function scheduleDetect(attempt = 1) {
+    const delays = [1500, 3000, 5000];
+    if (attempt > delays.length) return;
+
+    setTimeout(async () => {
+      const textLen = document.body?.innerText?.length ?? 0;
+      console.log('[VN Football] Page text length at attempt', attempt, ':', textLen);
+
+      await autoDetectPage();
+
+      // Always retry attempt 2 (page may still be JS-rendering at 1.5s)
+      // For attempt 3+, only retry if floatBtn still not shown
+      if (attempt === 1) {
+        removeFloatBtn(); // discard attempt-1 result, wait for more content
+        scheduleDetect(attempt + 1);
+      } else if (!floatBtn) {
+        scheduleDetect(attempt + 1);
+      }
+    }, delays[attempt - 1]);
+  }
+
+  if (document.readyState === 'complete') {
+    scheduleDetect();
+  } else {
+    window.addEventListener('load', () => scheduleDetect());
+  }
 }
