@@ -145,6 +145,15 @@ public class NotificationService
         CreateAsync(userId, "points_milestone", $"Đạt mốc {points} điểm! ⭐",
             $"Chúc mừng! Bạn đã tích lũy được {points} điểm. Vào shop để đổi quà.", "/shop", ct);
 
+    public Task MonthlyLeaderboardRewardAsync(Guid userId, int year, int month, int rank, int rewardPoints, CancellationToken ct = default) =>
+        CreateAsync(
+            userId,
+            "monthly_leaderboard_reward",
+            $"Chúc mừng Top {rank} BXH tháng {month:D2}/{year}! 🏆",
+            $"Bạn nhận được +{rewardPoints} điểm thưởng từ bảng xếp hạng dự đoán tháng {month:D2}/{year}.",
+            "/predictions",
+            ct);
+
     public Task AdminWarningAsync(Guid userId, string message, CancellationToken ct = default) =>
         CreateAsync(userId, "admin_warning", "Thông báo từ Admin 📢", message, null, ct);
 

@@ -15,10 +15,14 @@ public class MonthlyPredictionLeaderboardService : IMonthlyPredictionLeaderboard
     private static readonly TimeZoneInfo VietnamTimeZone = TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time");
 
     private readonly VNFootballLeaguesDBContext _db;
+    private readonly NotificationService _notificationService;
 
-    public MonthlyPredictionLeaderboardService(VNFootballLeaguesDBContext db)
+    public MonthlyPredictionLeaderboardService(
+        VNFootballLeaguesDBContext db,
+        NotificationService notificationService)
     {
         _db = db;
+        _notificationService = notificationService;
     }
 
     public async Task<MonthlyPredictionLeaderboardDto> GetMonthlyLeaderboardAsync(int? year = null, int? month = null, CancellationToken ct = default)
@@ -241,6 +245,15 @@ public class MonthlyPredictionLeaderboardService : IMonthlyPredictionLeaderboard
                 RewardId = reward.RewardId,
                 AwardedAt = DateTime.UtcNow
             });
+
+            await _notificationService.MonthlyLeaderboardRewardAsync(
+                user.UserId,
+                rewardYear,
+                rewardMonth,
+                user.Rank,
+                rewardPointsByRank[user.Rank],
+                ct);
+
             rewardedUsers++;
         }
 
