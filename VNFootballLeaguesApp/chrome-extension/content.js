@@ -1,5 +1,6 @@
-const API_BASE = 'http://localhost:5272';
-const WEB_BASE = 'http://localhost:5173';
+// const API_BASE = 'http://localhost:5272/api';
+const API_BASE = 'https://footballwebappservice-cggdfkhcbsdzfnga.southeastasia-01.azurewebsites.net';
+const WEB_BASE = 'https://vnfootballanalytics.vercel.app';
 
 // ── Auto sync token to extension storage ─────────────────────────────────────
 (function syncTokenToExtension() {

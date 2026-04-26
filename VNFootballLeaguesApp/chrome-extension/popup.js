@@ -1,5 +1,5 @@
-const API_BASE = 'http://localhost:5272/api';
-// Production: const API_BASE = 'https://vnfootballanalytics.vercel.app/api';
+// const API_BASE = 'http://localhost:5272/api';
+const API_BASE = 'https://footballwebappservice-cggdfkhcbsdzfnga.southeastasia-01.azurewebsites.net/api';
 
 // Web app origins to look for token
 const WEB_APP_ORIGINS = [

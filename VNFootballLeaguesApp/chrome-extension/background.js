@@ -1,4 +1,5 @@
-const API_BASE = 'http://localhost:5272';
+// const API_BASE = 'http://localhost:5272/api';
+const API_BASE = 'https://footballwebappservice-cggdfkhcbsdzfnga.southeastasia-01.azurewebsites.net';
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   // Save JWT token from web app
