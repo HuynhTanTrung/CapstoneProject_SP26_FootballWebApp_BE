@@ -1,20 +1,24 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using VNFootballLeagues.Repositories.Models;
 using VNFootballLeagues.Services.Dtos;
 using VNFootballLeagues.Services.IServices;
 
 namespace VNFootballLeaguesApp.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
+[Route("api/article-analysis")]
 public class ArticleAnalysisController : ControllerBase
 {
     private readonly IArticleAnalysisService _service;
+    private readonly VNFootballLeaguesDBContext _db;
 
-    public ArticleAnalysisController(IArticleAnalysisService service)
+    public ArticleAnalysisController(IArticleAnalysisService service, VNFootballLeaguesDBContext db)
     {
         _service = service;
+        _db = db;
     }
 
     /// <summary>
@@ -51,7 +55,7 @@ public class ArticleAnalysisController : ControllerBase
     }
 
     /// <summary>
-    /// Check if current user has premium access for article analysis.
+    /// Check subscription status and credits for article analysis.
     /// Called by extension on popup open to show correct UI state.
     /// </summary>
     [HttpGet("check-access")]
@@ -64,13 +68,16 @@ public class ArticleAnalysisController : ControllerBase
         if (!Guid.TryParse(userIdClaim, out var userId))
             return Unauthorized();
 
-        // Delegate to service — reuse same subscription check
-        var dummyRequest = new ArticleAnalysisRequest("", "", new string('x', 100));
-        var result = await _service.AnalyzeArticleAsync(dummyRequest, userId);
+        var sub = await _db.UserSubscriptions.AsNoTracking()
+            .FirstOrDefaultAsync(s => s.UserId == userId);
 
-        var isPremium = result.Analysis != "PREMIUM_REQUIRED";
-        var hasCredits = result.Analysis != "NO_CREDITS" && isPremium;
+        var isPremium = sub != null
+            && sub.Status.Equals("Active", StringComparison.OrdinalIgnoreCase)
+            && sub.ExpiresAt > DateTime.UtcNow;
 
-        return Ok(new { isPremium, hasCredits });
+        var creditsRemaining = isPremium ? sub!.AiArticleCreditsRemaining : 0;
+        var hasCredits = isPremium && creditsRemaining > 0;
+
+        return Ok(new { isPremium, hasCredits, creditsRemaining });
     }
 }

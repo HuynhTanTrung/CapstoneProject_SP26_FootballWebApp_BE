@@ -242,7 +242,8 @@ public class SubscriptionService : ISubscriptionService
                         LastPaymentAt = now,
                         AiVideoCreditsRemaining = credits.AiVideo,
                         ForumPostCreditsRemaining = credits.ForumPost,
-                        AiMatchAnalysisRemaining = credits.AiMatch,
+                        AiArticleCreditsRemaining = credits.AiArticle,
+                        AiMatchAnalysisRemaining = 0,
                         CreatedAt = now,
                         UpdatedAt = now
                     };
@@ -264,7 +265,7 @@ public class SubscriptionService : ISubscriptionService
                     // Stack credits — don't reset
                     subscription.AiVideoCreditsRemaining = subscription.AiVideoCreditsRemaining + credits.AiVideo;
                     subscription.ForumPostCreditsRemaining = subscription.ForumPostCreditsRemaining + credits.ForumPost;
-                    subscription.AiMatchAnalysisRemaining = subscription.AiMatchAnalysisRemaining + credits.AiMatch;
+                    subscription.AiArticleCreditsRemaining = subscription.AiArticleCreditsRemaining + credits.AiArticle;
                     subscription.UpdatedAt = now;
                     await _userSubscriptionRepository.UpdateAsync(subscription);
                 }

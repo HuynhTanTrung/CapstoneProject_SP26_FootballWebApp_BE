@@ -300,14 +300,14 @@ public class SupportController : ControllerBase
         var user = await _db.Users.FirstOrDefaultAsync(u => u.UserId == req.UserId);
         if (user == null) return NotFound(new { message = "Không tìm thấy người dùng." });
 
-        var planMap = new Dictionary<string, (string name, int days, int aiVideo, int forumPost, int aiMatch)>
+        var planMap = new Dictionary<string, (string name, int days, int aiVideo, int forumPost, int aiArticle)>
         {
-            ["TRIAL"]            = ("Gói Dùng thử (3 ngày)",          3,  1,  2,  5),
-            ["MONTHLY"]          = ("Gói tháng (30 ngày)",       30, 15, 15, 30),
-            ["QUARTERLY"]        = ("Gói quý (90 ngày)",         90, 45, 50, 100),
-            ["TOPUP_AI_VIDEO"]   = ("Nạp thêm AI Video Analysis (5 lượt)", 0, 5, 0, 0),
-            ["TOPUP_FORUM_POST"] = ("Nạp thêm bài đăng diễn đàn (10 bài)", 0, 0, 10, 0),
-            ["TOPUP_AI_MATCH"]   = ("Nạp thêm AI Phân tích (10 lượt)",      0, 0, 0, 10),
+            ["TRIAL"]              = ("Gói Dùng thử (3 ngày)",                  3,  1,  2,  10),
+            ["MONTHLY"]            = ("Gói tháng (30 ngày)",                    30, 15, 15, 30),
+            ["QUARTERLY"]          = ("Gói quý (90 ngày)",                      90, 45, 50, 100),
+            ["TOPUP_AI_VIDEO"]     = ("Nạp thêm AI Video Analysis (5 lượt)",    0,  5,  0,  0),
+            ["TOPUP_FORUM_POST"]   = ("Nạp thêm bài đăng diễn đàn (10 bài)",   0,  0,  10, 0),
+            ["TOPUP_AI_ARTICLE"]   = ("Nạp thêm AI Phân tích bài viết (10 lượt)", 0, 0, 0, 10),
         };
 
         if (!planMap.TryGetValue(req.PlanCode, out var plan))
@@ -323,7 +323,7 @@ public class SupportController : ControllerBase
                 return BadRequest(new { message = "User chưa có gói nào để nạp credit." });
             sub.AiVideoCreditsRemaining += plan.aiVideo;
             sub.ForumPostCreditsRemaining += plan.forumPost;
-            sub.AiMatchAnalysisRemaining += plan.aiMatch;
+            sub.AiArticleCreditsRemaining += plan.aiArticle;
             sub.UpdatedAt = now;
         }
         else
@@ -344,7 +344,7 @@ public class SupportController : ControllerBase
                     LastPaymentAt = now,
                     AiVideoCreditsRemaining = plan.aiVideo,
                     ForumPostCreditsRemaining = plan.forumPost,
-                    AiMatchAnalysisRemaining = plan.aiMatch,
+                    AiArticleCreditsRemaining = plan.aiArticle,
                     CreatedAt = now,
                     UpdatedAt = now
                 };
@@ -353,14 +353,26 @@ public class SupportController : ControllerBase
             else
             {
                 if (sub.ExpiresAt <= now) sub.StartedAt = now;
-                sub.PlanCode = req.PlanCode;
-                sub.PlanName = plan.name;
+
+                // Chỉ ghi đè PlanCode/PlanName nếu gói mới cao hơn hoặc bằng gói hiện tại
+                var planOrder = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["TRIAL"] = 1, ["MONTHLY"] = 2, ["QUARTERLY"] = 3
+                };
+                var currentOrder = planOrder.TryGetValue(sub.PlanCode ?? "", out var co) ? co : 0;
+                var newOrder = planOrder.TryGetValue(req.PlanCode, out var no) ? no : 0;
+                if (newOrder >= currentOrder)
+                {
+                    sub.PlanCode = req.PlanCode;
+                    sub.PlanName = plan.name;
+                }
+
                 sub.Status = "Active";
                 sub.ExpiresAt = baseDate.AddDays(plan.days);
                 sub.LastPaymentAt = now;
                 sub.AiVideoCreditsRemaining += plan.aiVideo;
                 sub.ForumPostCreditsRemaining += plan.forumPost;
-                sub.AiMatchAnalysisRemaining += plan.aiMatch;
+                sub.AiArticleCreditsRemaining += plan.aiArticle;
                 sub.UpdatedAt = now;
             }
         }

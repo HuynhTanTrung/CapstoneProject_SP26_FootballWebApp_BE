@@ -125,26 +125,30 @@ public class ArticleAnalysisService : IArticleAnalysisService
         _logger = logger;
     }
 
+    private static readonly TimeZoneInfo VnTz = TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time");
+    private static DateTime TodayVN() => TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, VnTz).Date;
+
     public async Task<ArticleAnalysisResponse> AnalyzeArticleAsync(
         ArticleAnalysisRequest request,
         Guid userId,
         CancellationToken ct = default)
     {
-        // 1. Check premium subscription
-        var sub = await _db.UserSubscriptions
-            .FirstOrDefaultAsync(s => s.UserId == userId, ct);
+        // 1. Check active subscription (extension feature requires a paid plan)
+        var sub = await _db.UserSubscriptions.FirstOrDefaultAsync(s => s.UserId == userId, ct);
+        var isActive = sub != null && sub.Status.Equals("Active", StringComparison.OrdinalIgnoreCase) && sub.ExpiresAt > DateTime.UtcNow;
 
-        if (sub == null || !sub.Status.Equals("active", StringComparison.OrdinalIgnoreCase) || sub.ExpiresAt < DateTime.UtcNow)
+        if (!isActive)
         {
             return new ArticleAnalysisResponse(false, "PREMIUM_REQUIRED", null,
                 "Tính năng này yêu cầu gói Premium. Vui lòng nâng cấp tài khoản tại VN Football Analytics.");
         }
 
-        // 2. Check AI credits
-        if (sub.AiMatchAnalysisRemaining <= 0)
+        // 2. Check article credits (fixed pool, not daily-reset)
+        if (sub!.AiArticleCreditsRemaining <= 0)
         {
             return new ArticleAnalysisResponse(false, "NO_CREDITS", null,
-                "Bạn đã hết lượt phân tích AI. Vui lòng nạp thêm lượt tại VN Football Analytics.");
+                "Bạn đã hết lượt phân tích bài viết AI. Vui lòng nạp thêm lượt tại VN Football Analytics.",
+                CreditsRemaining: 0);
         }
 
         // 3. Validate input
@@ -154,7 +158,7 @@ public class ArticleAnalysisService : IArticleAnalysisService
                 "Nội dung bài viết quá ngắn hoặc không hợp lệ.");
         }
 
-        // 4. Truncate content to avoid token overflow (max ~4000 chars for speed)
+        // 3. Truncate content to avoid token overflow (max ~4000 chars for speed)
         var content = request.ArticleContent.Length > 4000
             ? request.ArticleContent[..4000] + "\n[... nội dung bị cắt bớt ...]"
             : request.ArticleContent;
@@ -188,14 +192,14 @@ public class ArticleAnalysisService : IArticleAnalysisService
             return new ArticleAnalysisResponse(false, result, null, null);
         }
 
-        // 5. Extract detected league from response
+        // 4. Extract detected league from response
         string? detectedLeague = null;
         if (result.Contains("[GIẢI ĐẤU: V-League 1]")) detectedLeague = "V-League 1";
         else if (result.Contains("[GIẢI ĐẤU: V-League 2]")) detectedLeague = "V-League 2";
         else if (result.Contains("[GIẢI ĐẤU: Vietnam Cup]")) detectedLeague = "Vietnam Cup";
         else if (result.Contains("[GIẢI ĐẤU:")) detectedLeague = "Bóng đá Việt Nam";
 
-        // 6. Deduct credit and save history only on successful analysis
+        // 5. Deduct credit and save history only on successful analysis
         if (!isRefused)
         {
             _db.AIAnalysisHistories.Add(new AIAnalysisHistory
@@ -214,7 +218,7 @@ public class ArticleAnalysisService : IArticleAnalysisService
                 }),
                 CreatedAt = DateTime.UtcNow
             });
-            sub.AiMatchAnalysisRemaining = Math.Max(0, sub.AiMatchAnalysisRemaining - 1);
+            sub!.AiArticleCreditsRemaining = Math.Max(0, sub.AiArticleCreditsRemaining - 1);
             sub.UpdatedAt = DateTime.UtcNow;
             await _db.SaveChangesAsync(ct);
         }
@@ -270,6 +274,7 @@ public class ArticleAnalysisService : IArticleAnalysisService
         var cleanAnalysis = System.Text.RegularExpressions.Regex.Replace(
             result, @"\s*<!--ENTITIES:.*?-->", "", System.Text.RegularExpressions.RegexOptions.Singleline);
 
-        return new ArticleAnalysisResponse(!isRefused, cleanAnalysis, detectedLeague, null, entities);
+        return new ArticleAnalysisResponse(!isRefused, cleanAnalysis, detectedLeague, null, entities,
+            CreditsRemaining: isRefused ? sub!.AiArticleCreditsRemaining : Math.Max(0, sub!.AiArticleCreditsRemaining - 1));
     }
 }

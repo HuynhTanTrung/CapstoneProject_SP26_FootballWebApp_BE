@@ -12,4 +12,5 @@ public class UserSubscriptionDto
     public int AiVideoCreditsRemaining { get; set; }
     public int ForumPostCreditsRemaining { get; set; }
     public int AiMatchAnalysisRemaining { get; set; }
+    public int AiArticleCreditsRemaining { get; set; }
 }

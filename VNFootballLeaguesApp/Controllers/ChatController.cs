@@ -28,15 +28,8 @@ namespace VNFootballLeaguesApp.Controllers
 
         private static int GetDailyLimit(UserSubscription? sub)
         {
-            if (sub == null || sub.Status != "Active" || sub.ExpiresAt <= DateTime.UtcNow)
-                return 3; // Free
-            return sub.PlanCode?.ToUpper() switch
-            {
-                "TRIAL"     => 10,
-                "MONTHLY"   => 25,
-                "QUARTERLY" => 50,
-                _           => 3
-            };
+            // Chat AI is free and unlimited for all users
+            return int.MaxValue;
         }
 
         [HttpGet("chat-limit")]

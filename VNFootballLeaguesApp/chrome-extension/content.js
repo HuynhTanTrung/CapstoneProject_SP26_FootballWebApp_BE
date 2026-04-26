@@ -29,7 +29,8 @@ const WEB_BASE = 'http://localhost:5173';
             }
           });
         }
-      } else if (isLocalhost) {
+      } else {
+        // Remove token on logout regardless of source (localhost or Vercel)
         chrome.storage.local.remove(['vnfootball_token', 'vnfootball_token_source']);
       }
     } catch { /* extension context invalidated */ }
@@ -40,7 +41,8 @@ const WEB_BASE = 'http://localhost:5173';
   window.addEventListener('auth:logout', () => {
     if (!isExtensionValid()) return;
     try {
-      if (isLocalhost) chrome.storage.local.remove(['vnfootball_token', 'vnfootball_token_source']);
+      // Always clear token on logout, regardless of source
+      chrome.storage.local.remove(['vnfootball_token', 'vnfootball_token_source']);
     } catch { /* ignore */ }
   });
   window.addEventListener('storage', (e) => {

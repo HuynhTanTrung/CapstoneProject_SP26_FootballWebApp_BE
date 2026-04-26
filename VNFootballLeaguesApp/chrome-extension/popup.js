@@ -84,6 +84,15 @@ function getBadgeClass(league) {
   return 'unknown';
 }
 
+function updateCreditsBadge(remaining) {
+  const el = document.getElementById('credits-badge');
+  if (!el) return;
+  el.textContent = `${remaining} lượt còn lại`;
+  el.style.display = 'inline-block';
+  el.style.background = remaining === 0 ? '#ffebee' : '#e3f2fd';
+  el.style.color = remaining === 0 ? '#c62828' : '#1565c0';
+}
+
 // ── Main ─────────────────────────────────────────────────────────────────────
 
 async function init() {
@@ -183,6 +192,26 @@ async function initWithToken(token) {
     const name = payload.unique_name || payload.name || payload.email || 'Người dùng';
     document.getElementById('user-name').textContent = name;
   } catch { /* ignore */ }
+
+  // Fetch and show credits from server
+  try {
+    const res = await fetch(`${API_BASE}/article-analysis/check-access`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    console.log('[VNFootball] check-access status:', res.status);
+    if (res.ok) {
+      const access = await res.json();
+      console.log('[VNFootball] check-access response:', access);
+      updateCreditsBadge(access.creditsRemaining ?? 0);
+    } else {
+      const body = await res.text();
+      console.warn('[VNFootball] check-access failed:', res.status, body);
+      updateCreditsBadge(0);
+    }
+  } catch (e) {
+    console.error('[VNFootball] check-access error:', e);
+    updateCreditsBadge(0);
+  }
 
   // Show page badge
   if (detection === 'vn' || content.length > 200) {
@@ -429,6 +458,11 @@ async function analyzeArticle(token, { title, url, content }, tabKey) {
 
     await chrome.storage.local.set({ [tabKey]: data });
     displayResult(data);
+
+    // Update credits badge
+    if (data.creditsRemaining !== undefined) {
+      updateCreditsBadge(data.creditsRemaining);
+    }
 
     const btn = document.getElementById('btn-analyze');
     btn.innerHTML = '<span class="btn-icon">🔄</span> Phân tích lại';

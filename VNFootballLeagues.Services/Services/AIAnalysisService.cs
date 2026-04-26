@@ -391,7 +391,33 @@ public class AIAnalysisService : IAIAnalysisService
         }
 
         var payload = BuildMatchPayload(match, statistics, orderedEvents, assistPlayers);
-        var json = JsonSerializer.Serialize(payload, JsonOptions);
+
+        // Build player link map: playerId → fullName (from events + player stats)
+        var playerLinkMap = new Dictionary<int, string>();
+        foreach (var e in orderedEvents.Where(e => e.PlayerId.HasValue && e.Player?.FullName != null))
+            playerLinkMap.TryAdd(e.PlayerId!.Value, e.Player!.FullName!);
+        foreach (var kv in assistPlayers)
+            playerLinkMap.TryAdd(kv.Key, kv.Value);
+
+        // Also include players from PlayerMatchStatistics
+        var playerStats = await _db.PlayerMatchStatistics
+            .AsNoTracking()
+            .Include(s => s.Player)
+            .Where(s => s.MatchId == matchId && s.Player != null)
+            .Select(s => new { PlayerId = (int)s.PlayerId, s.Player!.FullName })
+            .ToListAsync(ct);
+        foreach (var ps in playerStats.Where(ps => ps.FullName != null))
+            playerLinkMap.TryAdd(ps.PlayerId, ps.FullName!);
+
+        var payloadWithPlayers = new
+        {
+            match = ((dynamic)payload).match,
+            homeTeam = ((dynamic)payload).homeTeam,
+            awayTeam = ((dynamic)payload).awayTeam,
+            events = ((dynamic)payload).events,
+            players = playerLinkMap.Select(kv => new { playerId = kv.Key, fullName = kv.Value }).ToList()
+        };
+        var json = JsonSerializer.Serialize(payloadWithPlayers, JsonOptions);
 
         ct.ThrowIfCancellationRequested();
         var result = await _gemini.ChatWithSystemContextAsync(
@@ -424,7 +450,7 @@ public class AIAnalysisService : IAIAnalysisService
             await _db.SaveChangesAsync(ct);
         }
 
-        return new AIAnalysisResponse(success, "match", result, payload, warning);
+        return new AIAnalysisResponse(success, "match", result, payloadWithPlayers, warning);
     }
 
     public async Task<IReadOnlyList<AIAnalysisHistoryDto>> GetUserHistoryAsync(Guid userId, int page = 1, int pageSize = 20, string[]? types = null)
@@ -449,6 +475,7 @@ public class AIAnalysisService : IAIAnalysisService
         var matchPayload = CompactObject(new
         {
             match.MatchId,
+            ApiFixtureId = match.ApiFixtureId,
             match.MatchDate,
             match.Round,
             match.Status,
@@ -554,6 +581,7 @@ public class AIAnalysisService : IAIAnalysisService
         var matchPayload = CompactObject(new
         {
             match.MatchId,
+            ApiFixtureId = match.ApiFixtureId,
             match.MatchDate,
             match.Round,
             match.Status,
@@ -570,12 +598,14 @@ public class AIAnalysisService : IAIAnalysisService
 
         var homeTeamPayload = new
         {
+            teamId = match.HomeTeamId,
             name = match.HomeTeam?.TeamName ?? string.Empty,
             stats = homeStats == null ? new Dictionary<string, object?>() : BuildMatchStatisticsPayload(homeStats)
         };
 
         var awayTeamPayload = new
         {
+            teamId = match.AwayTeamId,
             name = match.AwayTeam?.TeamName ?? string.Empty,
             stats = awayStats == null ? new Dictionary<string, object?>() : BuildMatchStatisticsPayload(awayStats)
         };

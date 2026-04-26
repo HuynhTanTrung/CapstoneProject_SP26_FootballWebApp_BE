@@ -207,6 +207,16 @@ public partial class VNFootballLeaguesDBContext
             entity.HasOne(d => d.User).WithMany().HasForeignKey(d => d.UserId).OnDelete(DeleteBehavior.Cascade);
         });
 
+        modelBuilder.Entity<DailyAiAnalysisUsage>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.ToTable("DailyAiAnalysisUsage");
+            entity.Property(e => e.Id).ValueGeneratedOnAdd();
+            entity.Property(e => e.UsageDate).HasColumnType("date");
+            entity.HasIndex(e => new { e.UserId, e.UsageDate }).IsUnique();
+            entity.HasOne(d => d.User).WithMany().HasForeignKey(d => d.UserId).OnDelete(DeleteBehavior.Cascade);
+        });
+
         modelBuilder.Entity<Notification>(entity =>
         {
             entity.HasKey(e => e.NotificationId);
