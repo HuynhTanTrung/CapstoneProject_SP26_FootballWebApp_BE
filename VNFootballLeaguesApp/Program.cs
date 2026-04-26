@@ -125,6 +125,7 @@ builder.Services.AddHangfireServer(options =>
 });
 builder.Services.AddScoped<WeeklySyncJob>();
 builder.Services.AddScoped<PredictionSettlementJob>();
+builder.Services.AddScoped<MonthlyLeaderboardRewardJob>();
 builder.Services.AddScoped<SupportAutoCloseJob>();
 builder.Services.AddScoped<NotificationService>();
 
@@ -208,6 +209,12 @@ RecurringJob.AddOrUpdate<PredictionSettlementJob>(
     "prediction-settlement",
     job => job.SettlePendingPredictionsAsync(),
     "*/15 * * * *");
+
+// Thưởng top tháng trước (chạy mỗi ngày lúc 00:10 UTC+7; service sẽ tự bỏ qua nếu đã thưởng).
+RecurringJob.AddOrUpdate<MonthlyLeaderboardRewardJob>(
+    "monthly-leaderboard-reward",
+    job => job.RewardPreviousMonthTopUsersAsync(),
+    "10 17 * * *");
 
 // Auto-close support tickets (mỗi 1 phút)
 RecurringJob.AddOrUpdate<SupportAutoCloseJob>(
