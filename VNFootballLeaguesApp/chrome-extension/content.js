@@ -1,7 +1,7 @@
-const API_BASE = 'http://localhost:5272';
-// const API_BASE = 'https://footballwebappservice-cggdfkhcbsdzfnga.southeastasia-01.azurewebsites.net';
-const WEB_BASE = 'http://localhost:5173';
-// const WEB_BASE = 'https://vnfootballanalytics.vercel.app';
+// const API_BASE = 'http://localhost:5272';
+const API_BASE = 'https://footballwebappservice-cggdfkhcbsdzfnga.southeastasia-01.azurewebsites.net';
+// const WEB_BASE = 'http://localhost:5173';
+const WEB_BASE = 'https://vnfootballanalytics.vercel.app';
 
 // ── Auto sync token to extension storage ─────────────────────────────────────
 (function syncTokenToExtension() {
@@ -299,15 +299,22 @@ async function identifyPlayer(text, x, y) {
 }
 
 document.addEventListener('mouseup', (e) => {
+  // Skip if extension context is invalidated
+  try { if (!chrome?.runtime?.id) return; } catch { return; }
   // Skip on Google domains
   if (location.hostname.includes('google.com') || location.hostname.includes('gemini.google')) return;
   clearTimeout(debounceTimer);
   debounceTimer = setTimeout(() => {
-    const text = window.getSelection()?.toString().trim();
-    if (!text || text.length < 3 || text.length > 100 || text === lastText) return;
-    if (host && host.contains(e.target)) return;
-    lastText = text;
-    identifyPlayer(text, e.clientX, e.clientY);
+    // Check if text selection feature is enabled
+    chrome.storage.local.get(['vnfootball_selection_enabled', 'autodetect_enabled'], (result) => {
+      const enabled = result.autodetect_enabled !== false && result.vnfootball_selection_enabled !== false;
+      if (!enabled) return;
+      const text = window.getSelection()?.toString().trim();
+      if (!text || text.length < 3 || text.length > 100 || text === lastText) return;
+      if (host && host.contains(e.target)) return;
+      lastText = text;
+      identifyPlayer(text, e.clientX, e.clientY);
+    });
   }, 300);
 });
 

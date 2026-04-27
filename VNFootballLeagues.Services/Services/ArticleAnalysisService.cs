@@ -199,34 +199,7 @@ public class ArticleAnalysisService : IArticleAnalysisService
         else if (result.Contains("[GIẢI ĐẤU: Vietnam Cup]")) detectedLeague = "Vietnam Cup";
         else if (result.Contains("[GIẢI ĐẤU:")) detectedLeague = "Bóng đá Việt Nam";
 
-        // 5. Deduct credit and save history only on successful analysis
-        if (!isRefused)
-        {
-            _db.AIAnalysisHistories.Add(new AIAnalysisHistory
-            {
-                Id = Guid.NewGuid(),
-                UserId = userId,
-                AnalysisType = "article",
-                MatchId = 0,
-                PlayerId = null,
-                AnalysisVi = result,
-                ContextJson = System.Text.Json.JsonSerializer.Serialize(new
-                {
-                    articleUrl = request.ArticleUrl,
-                    articleTitle = request.ArticleTitle,
-                    detectedLeague
-                }),
-                CreatedAt = DateTime.UtcNow
-            });
-            sub!.AiArticleCreditsRemaining = Math.Max(0, sub.AiArticleCreditsRemaining - 1);
-            sub.UpdatedAt = DateTime.UtcNow;
-            await _db.SaveChangesAsync(ct);
-        }
-
-        _logger.LogInformation("Article analysis for user {UserId}: league={League}, refused={Refused}",
-            userId, detectedLeague, isRefused);
-
-        // Parse entities from AI response and resolve to IDs
+        // 5. Parse entities first, then save history with entities included
         ArticleEntities? entities = null;
         var entityMatch = System.Text.RegularExpressions.Regex.Match(
             result, @"<!--ENTITIES:(\{.*?\})-->", System.Text.RegularExpressions.RegexOptions.Singleline);
@@ -241,7 +214,6 @@ public class ArticleAnalysisService : IArticleAnalysisService
                 var teamNames = doc.RootElement.GetProperty("teams")
                     .EnumerateArray().Select(e => e.GetString() ?? "").Where(s => s.Length > 0).ToList();
 
-                // Resolve player names to IDs
                 var playerLinks = new List<string>();
                 foreach (var name in playerNames.Take(5))
                 {
@@ -253,7 +225,6 @@ public class ArticleAnalysisService : IArticleAnalysisService
                         playerLinks.Add($"{player.FullName}|{player.PlayerId}");
                 }
 
-                // Resolve team names to IDs
                 var teamLinks = new List<string>();
                 foreach (var name in teamNames.Take(4))
                 {
@@ -269,6 +240,37 @@ public class ArticleAnalysisService : IArticleAnalysisService
             }
             catch { /* ignore parse errors */ }
         }
+
+        if (!isRefused)
+        {
+            _db.AIAnalysisHistories.Add(new AIAnalysisHistory
+            {
+                Id = Guid.NewGuid(),
+                UserId = userId,
+                AnalysisType = "article",
+                MatchId = 0,
+                PlayerId = null,
+                AnalysisVi = result,
+                ContextJson = System.Text.Json.JsonSerializer.Serialize(new
+                {
+                    articleUrl = request.ArticleUrl,
+                    articleTitle = request.ArticleTitle,
+                    detectedLeague,
+                    entities = entities == null ? null : new
+                    {
+                        players = entities.Players,
+                        teams = entities.Teams
+                    }
+                }),
+                CreatedAt = DateTime.UtcNow
+            });
+            sub!.AiArticleCreditsRemaining = Math.Max(0, sub.AiArticleCreditsRemaining - 1);
+            sub.UpdatedAt = DateTime.UtcNow;
+            await _db.SaveChangesAsync(ct);
+        }
+
+        _logger.LogInformation("Article analysis for user {UserId}: league={League}, refused={Refused}",
+            userId, detectedLeague, isRefused);
 
         // Remove the entities comment from displayed analysis
         var cleanAnalysis = System.Text.RegularExpressions.Regex.Replace(

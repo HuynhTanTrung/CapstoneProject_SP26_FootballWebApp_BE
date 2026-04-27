@@ -1,5 +1,7 @@
-// const API_BASE = 'http://localhost:5272/api';
 const API_BASE = 'https://footballwebappservice-cggdfkhcbsdzfnga.southeastasia-01.azurewebsites.net/api';
+// const API_BASE = 'http://localhost:5272/api';
+
+const WEB = 'https://vnfootballanalytics.vercel.app';
 
 // Web app origins to look for token
 const WEB_APP_ORIGINS = [
@@ -321,46 +323,9 @@ function displayResult(data) {
   const cleaned = (data.analysis || '').replace(/\[GIẢI ĐẤU:[^\]]+\]\s*/g, '');
   contentEl.innerHTML = renderMarkdown(cleaned);
 
-  // Render entity links — format: "Name|ID"
-  const entities = data.entities;
-  if (entities && (entities.players?.length || entities.teams?.length)) {
-    const linksDiv = document.createElement('div');
-    linksDiv.style.cssText = 'margin-top:10px;padding-top:8px;border-top:1px solid #eee;';
-    linksDiv.innerHTML = '<div style="font-size:11px;font-weight:600;color:#555;margin-bottom:6px;">🔗 Khám phá thêm trên VN Football</div>';
-
-    const WEB = 'http://localhost:5173';
-    const chips = document.createElement('div');
-    chips.style.cssText = 'display:flex;flex-wrap:wrap;gap:5px;';
-
-    (entities.players || []).forEach(entry => {
-      const [name, id] = entry.split('|');
-      if (!id) return;
-      const a = document.createElement('a');
-      a.href = `${WEB}/players/${id}`;
-      a.target = '_blank';
-      a.textContent = `👤 ${name}`;
-      a.style.cssText = 'font-size:11px;padding:3px 8px;background:#e3f2fd;color:#1565c0;border-radius:12px;text-decoration:none;white-space:nowrap;';
-      a.onmouseover = () => a.style.background = '#bbdefb';
-      a.onmouseout = () => a.style.background = '#e3f2fd';
-      chips.appendChild(a);
-    });
-
-    (entities.teams || []).forEach(entry => {
-      const [name, id] = entry.split('|');
-      if (!id) return;
-      const a = document.createElement('a');
-      a.href = `${WEB}/teams/${id}`;
-      a.target = '_blank';
-      a.textContent = `🏟️ ${name}`;
-      a.style.cssText = 'font-size:11px;padding:3px 8px;background:#e8f5e9;color:#2e7d32;border-radius:12px;text-decoration:none;white-space:nowrap;';
-      a.onmouseover = () => a.style.background = '#c8e6c9';
-      a.onmouseout = () => a.style.background = '#e8f5e9';
-      chips.appendChild(a);
-    });
-
-    linksDiv.appendChild(chips);
-    contentEl.appendChild(linksDiv);
-  }
+  // Render entity chips
+  const chipsEl = renderEntityChips(data.entities);
+  if (chipsEl) contentEl.appendChild(chipsEl);
 
   show('result-container');
 }
@@ -517,11 +482,20 @@ function extractArticleContent() {
     '.content-detail', '.detail-content', '.detail__content',
     '.news-content', '.news-body',
     '.story-body', '.story-content',
+    // VnExpress
+    '.fck_detail', '.article-content-detail',
+    // Tuoi Tre
+    '.detail-content-body', '.detail__content',
+    // Thanh Nien
+    '.detail-content', '.cms-body',
+    // Bongdaplus
+    '.nd-main-detail', '.article__body',
     'article',
     '[itemprop="articleBody"]',
     '[class*="article-body"]', '[class*="article-content"]',
     '[class*="post-content"]', '[class*="entry-content"]',
     '[class*="content-detail"]', '[class*="detail-content"]',
+    '[class*="fck_detail"]',
   ];
 
   let content = '';
@@ -538,6 +512,15 @@ function extractArticleContent() {
     const paragraphs = Array.from(bodyClone.querySelectorAll('p'))
       .map(p => p.innerText.trim())
       .filter(t => t.length > 50);
+    content = paragraphs.join('\n\n');
+  }
+
+  // Last resort: try original body (not clone) with just paragraphs
+  if (!content || content.length < 100) {
+    const paragraphs = Array.from(document.querySelectorAll('p'))
+      .map(p => p.innerText.trim())
+      .filter(t => t.length > 50)
+      .slice(0, 40);
     content = paragraphs.join('\n\n');
   }
 
@@ -614,6 +597,8 @@ async function loadHistory() {
 
 function showHistoryDetail(item, title, league) {
   const historyTab = document.getElementById('tab-history');
+  const ctx = tryParseJson(item.contextJson);
+
   historyTab.innerHTML = `
     <button class="history-back" id="btn-back-history">← Quay lại lịch sử</button>
     <div class="result-container" style="display:flex;max-height:360px;">
@@ -626,6 +611,13 @@ function showHistoryDetail(item, title, league) {
       </div>
     </div>
   `;
+
+  // Add entity chips from contextJson if available
+  const contentEl = document.getElementById('history-detail-content');
+  if (ctx?.entities) {
+    const chipsEl = renderEntityChips(ctx.entities);
+    if (chipsEl) contentEl.appendChild(chipsEl);
+  }
 
   document.getElementById('btn-back-history').addEventListener('click', () => {
     historyLoaded = false;
@@ -651,6 +643,46 @@ function showHistoryDetail(item, title, league) {
       setTimeout(() => { document.getElementById('btn-copy-history').textContent = '📋'; }, 1500);
     });
   });
+}
+
+function renderEntityChips(entities) {
+  if (!entities || (!entities.players?.length && !entities.teams?.length)) return null;
+
+  const linksDiv = document.createElement('div');
+  linksDiv.style.cssText = 'margin-top:10px;padding-top:8px;border-top:1px solid #eee;';
+  linksDiv.innerHTML = '<div style="font-size:11px;font-weight:600;color:#555;margin-bottom:6px;">🔗 Khám phá thêm trên VN Football</div>';
+
+  const chips = document.createElement('div');
+  chips.style.cssText = 'display:flex;flex-wrap:wrap;gap:5px;';
+
+  (entities.players || []).forEach(entry => {
+    const [name, id] = entry.split('|');
+    if (!id) return;
+    const a = document.createElement('a');
+    a.href = `${WEB}/players/${id}`;
+    a.target = '_blank';
+    a.textContent = `👤 ${name}`;
+    a.style.cssText = 'font-size:11px;padding:3px 8px;background:#e3f2fd;color:#1565c0;border-radius:12px;text-decoration:none;white-space:nowrap;';
+    a.onmouseover = () => a.style.background = '#bbdefb';
+    a.onmouseout = () => a.style.background = '#e3f2fd';
+    chips.appendChild(a);
+  });
+
+  (entities.teams || []).forEach(entry => {
+    const [name, id] = entry.split('|');
+    if (!id) return;
+    const a = document.createElement('a');
+    a.href = `${WEB}/teams/${id}`;
+    a.target = '_blank';
+    a.textContent = `🏟️ ${name}`;
+    a.style.cssText = 'font-size:11px;padding:3px 8px;background:#e8f5e9;color:#2e7d32;border-radius:12px;text-decoration:none;white-space:nowrap;';
+    a.onmouseover = () => a.style.background = '#c8e6c9';
+    a.onmouseout = () => a.style.background = '#e8f5e9';
+    chips.appendChild(a);
+  });
+
+  linksDiv.appendChild(chips);
+  return linksDiv;
 }
 
 function tryParseJson(str) {
