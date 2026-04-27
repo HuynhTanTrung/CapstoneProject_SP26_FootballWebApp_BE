@@ -674,5 +674,45 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
+  // ── Auto-detect toggle ────────────────────────────────────────────────────
+  const toggle = document.getElementById('toggle-autodetect');
+  if (toggle) {
+    // Load saved state
+    chrome.storage.local.get(['autodetect_enabled'], result => {
+      const enabled = result.autodetect_enabled !== false; // default ON
+      toggle.checked = enabled;
+      updateToggleHint(enabled);
+    });
+
+    toggle.addEventListener('change', () => {
+      const enabled = toggle.checked;
+      chrome.storage.local.set({ autodetect_enabled: enabled });
+      updateToggleHint(enabled);
+
+      // Notify all tabs to update their state
+      chrome.tabs.query({}, tabs => {
+        tabs.forEach(tab => {
+          chrome.tabs.sendMessage(tab.id, { type: 'set-autodetect', enabled }).catch(() => {});
+        });
+      });
+    });
+  }
+
+  function updateToggleHint(enabled) {
+    let hint = document.getElementById('autodetect-hint');
+    if (!enabled) {
+      if (!hint) {
+        hint = document.createElement('div');
+        hint.id = 'autodetect-hint';
+        hint.className = 'autodetect-off-hint';
+        hint.textContent = '⏸ Nhận diện tự động đang tắt';
+        document.querySelector('.container')?.insertBefore(hint, document.querySelector('.container')?.children[1]);
+      }
+    } else {
+      hint?.remove();
+    }
+  }
+  // ─────────────────────────────────────────────────────────────────────────
+
   init();
 });

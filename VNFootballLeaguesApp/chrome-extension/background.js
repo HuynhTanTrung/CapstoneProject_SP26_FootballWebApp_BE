@@ -1,4 +1,4 @@
-// const API_BASE = 'http://localhost:5272/api';
+// const API_BASE = 'http://localhost:5272';
 const API_BASE = 'https://footballwebappservice-cggdfkhcbsdzfnga.southeastasia-01.azurewebsites.net';
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
@@ -45,7 +45,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 
   if (request.type === 'identify') {
-    // Call both APIs in parallel — use fuzzy match for speed (AI endpoint reserved for popup analysis)
+    // Call all 3 APIs in parallel — players, match, team
     Promise.all([
       fetch(`${API_BASE}/api/Football/identify-players`, {
         method: 'POST',
@@ -57,10 +57,58 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text: request.text })
-      }).then(r => r.json()).catch(() => null)
-    ]).then(([playerData, matchData]) => {
-      sendResponse({ success: true, playerData, matchData });
+      }).then(r => r.json()).catch(() => null),
+
+      fetch(`${API_BASE}/api/Football/identify-team`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: request.text })
+      }).then(r => r.json()).catch(() => null),
+    ]).then(([playerData, matchData, teamData]) => {
+      sendResponse({ success: true, playerData, matchData, teamData });
     }).catch(err => sendResponse({ success: false, error: err.message }));
+    return true;
+  }
+
+  // identify-article: smart detection for full article pages
+  // Step 1: try match from lead text; Step 2: if no match, get teams+players from full text
+  if (request.type === 'identify-article') {
+    const leadText = request.leadText || request.fullText || '';
+    const fullText = request.fullText || '';
+
+    // Try match from first 600 chars of article (enough to find both teams, avoids sidebar)
+    const matchText = fullText.substring(0, 600);
+    fetch(`${API_BASE}/api/Football/identify-match`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: matchText })
+    })
+    .then(r => r.json())
+    .then(async matchData => {
+      const hasMatch = matchData?.success && matchData?.match;
+
+      if (hasMatch) {
+        // Clear match found — return it, skip players/teams
+        sendResponse({ success: true, mode: 'match', matchData, playerData: null, teamData: null });
+      } else {
+        // No clear match — get teams and players from full text
+        const [playerData, teamData] = await Promise.all([
+          fetch(`${API_BASE}/api/Football/identify-players`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text: fullText })
+          }).then(r => r.json()).catch(() => null),
+
+          fetch(`${API_BASE}/api/Football/identify-team`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text: fullText })
+          }).then(r => r.json()).catch(() => null),
+        ]);
+        sendResponse({ success: true, mode: 'entities', matchData: null, playerData, teamData });
+      }
+    })
+    .catch(err => sendResponse({ success: false, error: err.message }));
     return true;
   }
 

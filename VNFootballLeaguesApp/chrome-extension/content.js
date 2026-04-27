@@ -1,6 +1,7 @@
-// const API_BASE = 'http://localhost:5272/api';
-const API_BASE = 'https://footballwebappservice-cggdfkhcbsdzfnga.southeastasia-01.azurewebsites.net';
-const WEB_BASE = 'https://vnfootballanalytics.vercel.app';
+const API_BASE = 'http://localhost:5272';
+// const API_BASE = 'https://footballwebappservice-cggdfkhcbsdzfnga.southeastasia-01.azurewebsites.net';
+const WEB_BASE = 'http://localhost:5173';
+// const WEB_BASE = 'https://vnfootballanalytics.vercel.app';
 
 // ── Auto sync token to extension storage ─────────────────────────────────────
 (function syncTokenToExtension() {
@@ -57,6 +58,39 @@ let hideTimer = null;
 let lastText = '';
 let debounceTimer = null;
 
+// ── Helper: build team card HTML ─────────────────────────────────────────────
+function buildTeamCard(team) {
+  const standingInfo = team.standing
+    ? `Hạng ${team.standing.rank} · ${team.standing.points} điểm · ${team.standing.played} trận`
+    : '';
+  const formDots = (team.standing?.form || '').split('').slice(-5).map(r => {
+    const color = r === 'W' ? '#4caf50' : r === 'L' ? '#e94560' : '#aaa';
+    return `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${color};margin:0 1px"></span>`;
+  }).join('');
+
+  // Use backend proxy URL (has Cloudinary cache + proper headers)
+  const logoSrc = team.logoProxyUrl ? `${API_BASE}${team.logoProxyUrl}` : '';
+  const initials = (team.teamName || '?').charAt(0).toUpperCase();
+  const logoHtml = logoSrc
+    ? `<img src="${logoSrc}"
+           style="width:32px;height:32px;object-fit:contain;flex-shrink:0;border-radius:4px;background:#0f3460"
+           onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" />
+       <div style="display:none;width:32px;height:32px;border-radius:4px;background:#e94560;color:#fff;font-weight:700;font-size:14px;align-items:center;justify-content:center;flex-shrink:0">${initials}</div>`
+    : `<div style="display:flex;width:32px;height:32px;border-radius:4px;background:#e94560;color:#fff;font-weight:700;font-size:14px;align-items:center;justify-content:center;flex-shrink:0">${initials}</div>`;
+
+  return `
+    <div class="card team-card" data-url="${team.profileUrl}">
+      ${logoHtml}
+      <div class="info">
+        <div class="name">${team.teamName}</div>
+        <div class="meta">${team.stadiumCity || ''}${standingInfo ? ' · ' + standingInfo : ''}</div>
+        ${formDots ? `<div style="margin-top:3px">${formDots}</div>` : ''}
+      </div>
+    </div>
+  `;
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 function removePopup() {
   if (host) { host.remove(); host = null; }
 }
@@ -67,9 +101,13 @@ function showPopup(x, y, html) {
   // Use Shadow DOM to isolate from page CSS
   host = document.createElement('div');
   host.id = 'vn-football-host';
+
+  // Smart positioning: start at click point, adjust after render
+  const topPos = Math.max(4, y);
+
   host.style.cssText = 'all:initial;position:fixed;z-index:2147483647;left:' +
-    Math.max(4, Math.min(x, window.innerWidth - 250)) + 'px;top:' +
-    Math.max(4, y) + 'px';
+    Math.max(4, Math.min(x, window.innerWidth - 270)) + 'px;top:' +
+    topPos + 'px';
 
   const shadow = host.attachShadow({ mode: 'open' });
   shadow.innerHTML = `
@@ -80,16 +118,24 @@ function showPopup(x, y, html) {
         border: 1px solid #2a2a4a;
         border-radius: 10px;
         padding: 6px 8px;
-        display: inline-flex;
+        display: flex;
         flex-direction: column;
         gap: 4px;
         box-shadow: 0 4px 20px rgba(0,0,0,0.5);
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
         font-size: 12px;
         color: #fff;
-        max-width: 230px;
+        width: 260px;
+        max-height: 360px;
+        overflow-y: auto;
+        overflow-x: hidden;
         position: relative;
+        scrollbar-width: thin;
+        scrollbar-color: #3a3a5a transparent;
+        box-sizing: border-box;
       }
+      .popup::-webkit-scrollbar { width: 4px; }
+      .popup::-webkit-scrollbar-thumb { background: #3a3a5a; border-radius: 4px; }
       .header {
         display: flex;
         align-items: center;
@@ -99,12 +145,18 @@ function showPopup(x, y, html) {
         font-size: 11px;
         padding-right: 14px;
         line-height: 1.4;
+        position: sticky;
+        top: 0;
+        background: #1a1a2e;
+        z-index: 1;
+        padding-bottom: 4px;
       }
       .card {
         display: flex;
         align-items: center;
         gap: 8px;
         padding: 5px 6px;
+        flex-shrink: 0;
         background: #16213e;
         border-radius: 7px;
         cursor: pointer;
@@ -136,6 +188,8 @@ function showPopup(x, y, html) {
       .match-teams .team { color: #fff; font-weight: 600; flex: 1; }
       .match-teams .team:last-child { text-align: right; }
       .match-teams .score { color: #e94560; font-weight: 700; font-size: 13px; white-space: nowrap; }
+      .team-card { display: flex; align-items: center; gap: 8px; }
+      .team-standing { font-size: 10px; color: #aaa; margin-top: 2px; }
     </style>
     <div class="popup">${html}</div>
   `;
@@ -178,8 +232,9 @@ async function identifyPlayer(text, x, y) {
 
     const foundPlayers = response.playerData?.players?.filter(p => p.found) || [];
     const foundMatch = response.matchData?.success ? response.matchData.match : null;
+    const foundTeam = response.teamData?.success ? response.teamData.team : null;
 
-    if (!foundPlayers.length && !foundMatch) {
+    if (!foundPlayers.length && !foundMatch && !foundTeam) {
       showPopup(x, yPos, `
         <span class="close">×</span>
         <div class="header">⚽ VN Football</div>
@@ -211,15 +266,19 @@ async function identifyPlayer(text, x, y) {
             <span class="score">${score}</span>
             <span class="team">${foundMatch.awayTeam?.teamName || ''}</span>
           </div>
-          <div class="meta">${foundMatch.round || ''} · ${foundMatch.matchDate ? new Date(foundMatch.matchDate).toLocaleDateString('vi-VN') : ''}</div>
+          <div class="meta">${foundMatch.round ? 'Vòng ' + foundMatch.round : ''} · ${foundMatch.matchDate ? new Date(foundMatch.matchDate).toLocaleDateString('vi-VN') : ''}</div>
         </div>
       </div>
     ` : '';
+
+    // Team card — only show if no match found (avoid duplicate info)
+    const teamCard = (foundTeam && !foundMatch) ? buildTeamCard(foundTeam) : '';
 
     showPopup(x, yPos, `
       <span class="close">×</span>
       <div class="header">⚽ VN Football</div>
       ${matchCard}
+      ${teamCard}
       ${playerCards}
     `);
 
@@ -270,6 +329,12 @@ async function autoDetectPage() {
   // Guard: extension context may be invalidated after reload
   try { if (!chrome?.runtime?.id) return; } catch { return; }
 
+  // Check if auto-detect is enabled
+  const { autodetect_enabled } = await new Promise(resolve =>
+    chrome.storage.local.get(['autodetect_enabled'], resolve)
+  );
+  if (autodetect_enabled === false) return;
+
   console.log('[VN Football] autoDetectPage called');
 
   const title = document.querySelector('h1')?.innerText?.trim() || document.title || '';
@@ -292,6 +357,10 @@ async function autoDetectPage() {
       '[class*="tag"]', '[class*="breadcrumb"]', '[class*="menu"]',
       '[class*="navigation"]', '[class*="footer"]', '[class*="header"]',
       '[class*="banner"]', '[class*="popup"]',
+      // Vietnamese news site specific
+      '[class*="doc-tiep"]', '[class*="read-more"]', '[class*="tin-lien-quan"]',
+      '[class*="related-news"]', '[class*="news-related"]', '[class*="other-news"]',
+      '[class*="right-col"]', '[class*="right-sidebar"]', '[class*="col-right"]',
     ];
     noiseSelectors.forEach(sel => {
       try { clone.querySelectorAll(sel).forEach(el => el.remove()); } catch {}
@@ -299,9 +368,11 @@ async function autoDetectPage() {
 
     // Try specific article selectors first on the cleaned clone
     const articleSelectors = [
+      // baodanang.vn specific
+      '.detail-content', '.article-detail', '.content-detail',
+      // Common
       '.article-body', '.article-content', '.article__body', '.article__content',
-      '.post-content', '.entry-content', '.content-detail', '.detail-content',
-      '.detail__content', '.news-content', '.story-body',
+      '.post-content', '.entry-content', '.detail__content', '.news-content', '.story-body',
       'article', '[itemprop="articleBody"]',
       '[class*="article-body"]', '[class*="article-content"]',
       '[class*="content-detail"]', '[class*="detail-content"]',
@@ -315,9 +386,31 @@ async function autoDetectPage() {
       } catch {}
     }
 
-    // Fallback: use all remaining text from cleaned clone
+    // Fallback: find the container with the most <p> tags (likely the article body)
     if (articleBody.length < 200) {
-      articleBody = safeText(clone).replace(/\s+/g, ' ').trim();
+      // Find all block-level containers, pick the one with most paragraph text
+      const candidates = Array.from(clone.querySelectorAll('div, section, main'))
+        .map(el => {
+          const paras = Array.from(el.querySelectorAll('p'))
+            .map(p => safeText(p))
+            .filter(t => t.length > 40);
+          return { el, text: paras.join(' '), count: paras.length };
+        })
+        .filter(c => c.count >= 3 && c.text.length > 200)
+        .sort((a, b) => b.text.length - a.text.length);
+
+      if (candidates.length > 0) {
+        articleBody = candidates[0].text;
+      }
+    }
+
+    // Last resort: first 15 paragraphs from cleaned clone
+    if (articleBody.length < 100) {
+      articleBody = Array.from(clone.querySelectorAll('p'))
+        .map(p => safeText(p))
+        .filter(t => t.length > 40)
+        .slice(0, 15)
+        .join(' ');
     }
   } catch (e) {
     // If clone approach fails, fall back to direct paragraph extraction
@@ -331,50 +424,50 @@ async function autoDetectPage() {
   const fullText = [title, articleBody].filter(Boolean).join('\n').substring(0, 2000);
   if (!fullText || fullText.length < 50) return;
 
+  // Lead text = title + first 2 sentences (most reliable for match detection)
+  const sentences = articleBody.split(/[.!?]/).filter(s => s.trim().length > 10);
+  const leadText = [title, sentences.slice(0, 2).join('. ')].filter(Boolean).join('\n').substring(0, 400);
+
   try {
-    console.log('[VN Football] Auto-detecting, text length:', fullText.length, '| preview:', fullText.substring(0, 200));
-    console.log('[VN Football] Full text sent:', fullText.substring(0, 500));
+    console.log('[VN Football] Auto-detecting, text length:', fullText.length, '| lead:', leadText.substring(0, 100));
+
     const response = await new Promise((resolve, reject) => {
       try {
-        chrome.runtime.sendMessage({ type: 'identify', text: fullText }, (res) => {
-          if (chrome.runtime.lastError) reject(chrome.runtime.lastError);
-          else resolve(res);
+        chrome.runtime.sendMessage({
+          type: 'identify-article',
+          leadText,
+          fullText,
+        }, (res) => {
+          if (chrome.runtime.lastError) {
+            // Log message string, not the object itself
+            console.warn('[VN Football] sendMessage error:', chrome.runtime.lastError.message);
+            resolve(null); // treat as no result, don't reject
+          } else {
+            resolve(res);
+          }
         });
       } catch (e) { reject(e); }
     });
 
-    console.log('[VN Football] Auto-detect response:', response?.success, 
-      'players:', response?.playerData?.players?.filter(p=>p.found)?.length,
-      'match:', response?.matchData?.success,
-      'matchData:', JSON.stringify(response?.matchData)?.substring(0, 200));
     if (!response?.success) return;
-    const foundPlayers = response.playerData?.players?.filter(p => p.found) || [];
+
+    const mode = response.mode; // 'match' or 'entities'
     const foundMatch = response.matchData?.success ? response.matchData.match : null;
-    if (!foundPlayers.length && !foundMatch) {
-      // Fallback: try identify-match with just the title
-      const titleOnly = document.querySelector('h1')?.innerText?.substring(0, 150) || '';
-      if (titleOnly) {
-        try {
-          if (!chrome?.runtime?.id) return;
-          const fallback = await new Promise((resolve) => {
-            chrome.runtime.sendMessage({ type: 'identify-match-only', text: titleOnly }, (res) => resolve(res));
-          });
-          if (fallback?.success && fallback?.match) {
-            pageResult = { foundPlayers: [], foundMatch: fallback.match };
-            showFloatBtn(1);
-            return;
-          }
-        } catch { /* ignore */ }
-      }
-      return;
+    const foundPlayers = response.playerData?.players?.filter(p => p.found) || [];
+    const foundTeam = response.teamData?.success ? response.teamData.team : null;
+
+    console.log('[VN Football] mode:', mode, '| match:', foundMatch?.matchId, '| players:', foundPlayers.length, '| team:', foundTeam?.teamName);
+
+    if (mode === 'match' && foundMatch) {
+      pageResult = { mode: 'match', foundPlayers: [], foundMatch, foundTeam: null };
+      removeFloatBtn();
+      showFloatBtn(1);
+    } else if (mode === 'entities' && (foundPlayers.length || foundTeam)) {
+      pageResult = { mode: 'entities', foundPlayers, foundMatch: null, foundTeam };
+      removeFloatBtn();
+      const count = foundPlayers.length + (foundTeam ? 1 : 0);
+      showFloatBtn(count);
     }
-
-    pageResult = { foundPlayers, foundMatch };
-
-    // Show floating button
-    removeFloatBtn();
-    const count = foundPlayers.length + (foundMatch ? 1 : 0);
-    showFloatBtn(count);
   } catch (e) { console.error('[VN Football] autoDetect error:', e); }
 }
 
@@ -389,55 +482,77 @@ function showFloatBtn(count) {
     cursor:pointer;box-shadow:0 4px 16px rgba(233,69,96,0.4);
     display:flex;align-items:center;gap:6px;
   `;
-  floatBtn.innerHTML = `⚽ ${count} kết quả`;
+  const label = pageResult?.mode === 'match' ? '⚽ Xem trận đấu' : `⚽ ${count} kết quả`;
+  floatBtn.innerHTML = label;
   floatBtn.addEventListener('click', () => {
     const rect = floatBtn.getBoundingClientRect();
-    showResults(rect.left - 10, rect.top - 10, pageResult.foundPlayers, pageResult.foundMatch);
+    showResults(rect.left - 10, rect.top - 10, pageResult.foundPlayers, pageResult.foundMatch, pageResult.foundTeam, pageResult.mode);
   });
   document.body.appendChild(floatBtn);
 }
 
-function showResults(x, y, foundPlayers, foundMatch) {
+function showResults(x, y, foundPlayers, foundMatch, foundTeam, mode) {
   const yPos = y - 20 > 200 ? y - 20 : y + 40;
 
-  const playerCards = foundPlayers.map(p => `
-    <div class="card" data-url="${p.player.profileUrl}">
-      <img src="" data-photo="${p.player.photoUrl || ''}"
-           style="width:30px;height:30px;border-radius:50%;object-fit:cover;flex-shrink:0;background:#333" />
-      <div class="info">
-        <div class="name">${p.player.fullName}</div>
-        <div class="meta">${[p.player.teamName, p.player.position].filter(Boolean).join(' · ')}</div>
-      </div>
-    </div>
-  `).join('');
+  let html = '';
 
-  const score = foundMatch ? (foundMatch.homeGoals != null ? `${foundMatch.homeGoals} - ${foundMatch.awayGoals}` : 'vs') : '';
-  const matchCard = foundMatch ? `
-    <div class="card match-card" data-url="${foundMatch.profileUrl}">
-      <div class="match-info">
-        <div class="match-teams">
-          <span class="team">${foundMatch.homeTeam?.teamName || ''}</span>
-          <span class="score">${score}</span>
-          <span class="team">${foundMatch.awayTeam?.teamName || ''}</span>
+  if (mode === 'match' && foundMatch) {
+    // Match mode: show match card prominently
+    const score = foundMatch.homeGoals != null ? `${foundMatch.homeGoals} - ${foundMatch.awayGoals}` : 'vs';
+    html = `
+      <div class="card match-card" data-url="${foundMatch.profileUrl}">
+        <div class="match-info">
+          <div class="match-teams">
+            <span class="team">${foundMatch.homeTeam?.teamName || ''}</span>
+            <span class="score">${score}</span>
+            <span class="team">${foundMatch.awayTeam?.teamName || ''}</span>
+          </div>
+          <div class="meta">${foundMatch.round ? 'Vòng ' + foundMatch.round : ''} · ${foundMatch.matchDate ? new Date(foundMatch.matchDate).toLocaleDateString('vi-VN') : ''}</div>
         </div>
-        <div class="meta">${foundMatch.round ? 'Vòng ' + foundMatch.round : ''} · ${foundMatch.matchDate ? new Date(foundMatch.matchDate).toLocaleDateString('vi-VN') : ''}</div>
       </div>
-    </div>
-  ` : '';
+    `;
+  } else {
+    // Entities mode: show team + players
+    if (foundTeam) html += buildTeamCard(foundTeam);
+    html += foundPlayers.map(p => `
+      <div class="card" data-url="${p.player.profileUrl}">
+        <img src="" data-photo="${p.player.photoUrl || ''}"
+             style="width:30px;height:30px;border-radius:50%;object-fit:cover;flex-shrink:0;background:#333" />
+        <div class="info">
+          <div class="name">${p.player.fullName}</div>
+          <div class="meta">${[p.player.teamName, p.player.position].filter(Boolean).join(' · ')}</div>
+        </div>
+      </div>
+    `).join('');
+  }
 
   showPopup(x, yPos, `
     <span class="close">×</span>
     <div class="header">⚽ VN Football</div>
-    ${matchCard}
-    ${playerCards}
+    ${html}
   `);
+
+  // Adjust position after render based on actual popup height
+  requestAnimationFrame(() => {
+    if (!host) return;
+    const popupEl = host.shadowRoot?.querySelector('.popup');
+    if (!popupEl) return;
+    const actualH = popupEl.offsetHeight;
+    const currentTop = parseInt(host.style.top);
+    // If popup goes below viewport, move it up
+    if (currentTop + actualH > window.innerHeight - 10) {
+      host.style.top = Math.max(4, window.innerHeight - actualH - 10) + 'px';
+    }
+  });
 
   host.shadowRoot.querySelectorAll('img[data-photo]').forEach(img => {
     const url = img.dataset.photo;
     if (!url) return;
+    console.log('[VN Football] Loading image:', url.substring(0, 60));
     try {
       chrome.runtime.sendMessage({ type: 'fetch-image', url }, (res) => {
         if (res?.success) img.src = res.dataUrl;
+        else console.log('[VN Football] Image load failed for:', url.substring(0, 60));
       });
     } catch { /* extension context invalidated */ }
   });
@@ -447,6 +562,16 @@ function showResults(x, y, foundPlayers, foundMatch) {
 const isWebApp = location.host.includes('localhost:5173') ||
                  location.host.includes('localhost:3000') ||
                  location.host.includes('vnfootballanalytics.vercel.app');
+
+// Listen for toggle changes from popup
+chrome.runtime.onMessage.addListener((msg) => {
+  if (msg.type === 'set-autodetect') {
+    if (!msg.enabled) {
+      removeFloatBtn();
+      removePopup();
+    }
+  }
+});
 
 if (!isWebApp) {
   async function scheduleDetect(attempt = 1) {
