@@ -128,9 +128,6 @@ public class MonthlyPredictionLeaderboardService : IMonthlyPredictionLeaderboard
             .ThenBy(x => x.FullName)
             .ToList();
 
-        // Nếu cả tháng chưa phát sinh điểm nào thì trả bảng trống để FE hiển thị empty state.
-        if (!rankings.Any(r => r.TotalPoints > 0))
-            rankings = [];
 
         for (var i = 0; i < rankings.Count; i++)
             rankings[i].Rank = i + 1;
