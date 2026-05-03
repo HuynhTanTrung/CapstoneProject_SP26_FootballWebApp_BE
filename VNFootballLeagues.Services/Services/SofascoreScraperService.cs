@@ -2,6 +2,7 @@ using PuppeteerSharp;
 using VNFootballLeagues.Services.IServices;
 using Microsoft.Extensions.Logging;
 using System.Text.Json;
+using System.IO;
 
 namespace VNFootballLeagues.Services.Services;
 
@@ -289,20 +290,43 @@ public class SofascoreScraperService : ISofascoreScraperService
             await EnsureBrowserDownloadedAsync();
 
             _logger.LogInformation("Launching headless browser for {Description}", description);
-            browser = await Puppeteer.LaunchAsync(new LaunchOptions
+            var launchArgs = new[]
             {
-                Headless = true,
-                Args = new[]
+                "--no-sandbox",
+                "--disable-setuid-sandbox",
+                "--disable-dev-shm-usage",
+                "--disable-accelerated-2d-canvas",
+                "--disable-gpu",
+                "--disable-blink-features=AutomationControlled",
+                "--disable-features=IsolateOrigins,site-per-process,RendererCodeIntegrity"
+            };
+
+            var azureEdgePaths = new[]
+            {
+                @"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
+                @"C:\Program Files\Microsoft\Edge\Application\msedge.exe",
+            };
+            var edgePath = azureEdgePaths.FirstOrDefault(File.Exists);
+
+            if (edgePath != null)
+            {
+                _logger.LogInformation("Using system Edge at: {Path}", edgePath);
+                browser = await Puppeteer.LaunchAsync(new LaunchOptions
                 {
-                    "--no-sandbox",
-                    "--disable-setuid-sandbox",
-                    "--disable-dev-shm-usage",
-                    "--disable-accelerated-2d-canvas",
-                    "--disable-gpu",
-                    "--disable-blink-features=AutomationControlled",
-                    "--disable-features=IsolateOrigins,site-per-process"
-                }
-            });
+                    Headless = true,
+                    ExecutablePath = edgePath,
+                    Args = launchArgs
+                });
+            }
+            else
+            {
+                await EnsureBrowserDownloadedAsync();
+                browser = await Puppeteer.LaunchAsync(new LaunchOptions
+                {
+                    Headless = true,
+                    Args = launchArgs
+                });
+            }
 
             page = await browser.NewPageAsync();
 

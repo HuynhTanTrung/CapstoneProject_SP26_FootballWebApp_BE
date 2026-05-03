@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using PuppeteerSharp;
 using System.Net;
 using System.Text.Json;
+using System.IO;
 using VNFootballLeagues.Repositories.Models;
 using VNFootballLeagues.Services.Dtos;
 using VNFootballLeagues.Services.IServices;
@@ -51,6 +52,12 @@ namespace VNFootballLeagues.Services.Services
             _logger.LogInformation($"Browser downloaded successfully to: {revision.GetExecutablePath()}");
         }
 
+        private static readonly string[] _azureEdgePaths = new[]
+        {
+            @"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
+            @"C:\Program Files\Microsoft\Edge\Application\msedge.exe",
+        };
+
         private async Task InitBrowser()
         {
             if (_initialized) return;
@@ -62,31 +69,48 @@ namespace VNFootballLeagues.Services.Services
 
                 _logger.LogInformation("Launching browser...");
 
-                await EnsureBrowserExistsAsync();
-
-                var options = new LaunchOptions
+                var args = new[]
                 {
-                    Headless = true,
-                    Timeout = 60000,
-                    Args = new[]
-                    {
-                "--no-sandbox",
-                "--disable-setuid-sandbox",
-                "--disable-dev-shm-usage",
-                "--disable-gpu",
-                "--window-size=1920,1080",
-                "--disable-extensions",
-                "--disable-sync",
-                "--no-first-run",
-                "--no-zygote",
-                "--single-process"
-            }
+                    "--no-sandbox",
+                    "--disable-setuid-sandbox",
+                    "--disable-dev-shm-usage",
+                    "--disable-gpu",
+                    "--window-size=1920,1080",
+                    "--disable-extensions",
+                    "--disable-sync",
+                    "--no-first-run",
+                    "--no-zygote",
+                    "--single-process",
+                    "--disable-features=RendererCodeIntegrity"
                 };
 
-                _browser = await Puppeteer.LaunchAsync(options);
+                // Try system Edge first (always available on Azure App Service Windows)
+                var edgePath = _azureEdgePaths.FirstOrDefault(File.Exists);
+                if (edgePath != null)
+                {
+                    _logger.LogInformation("Using system Edge at: {Path}", edgePath);
+                    _browser = await Puppeteer.LaunchAsync(new LaunchOptions
+                    {
+                        Headless = true,
+                        Timeout = 60000,
+                        ExecutablePath = edgePath,
+                        Args = args
+                    });
+                }
+                else
+                {
+                    // Fallback: download Chromium
+                    _logger.LogInformation("Edge not found, downloading Chromium...");
+                    await EnsureBrowserExistsAsync();
+                    _browser = await Puppeteer.LaunchAsync(new LaunchOptions
+                    {
+                        Headless = true,
+                        Timeout = 60000,
+                        Args = args
+                    });
+                }
 
                 _initialized = true;
-
                 _logger.LogInformation("Browser initialized successfully");
             }
             catch (Exception ex)

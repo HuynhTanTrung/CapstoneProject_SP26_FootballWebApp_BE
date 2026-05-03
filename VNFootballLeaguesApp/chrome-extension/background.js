@@ -20,7 +20,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
   // Analyze article — runs in background to avoid popup throttling
   if (request.type === 'analyze-article') {
-    fetch(`${API_BASE}/api/ArticleAnalysis/analyze`, {
+    fetch(`${API_BASE}/api/article-analysis/analyze`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -33,7 +33,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       }),
     })
     .then(async res => {
-      const data = await res.json();
+      let data;
+      try {
+        data = await res.json();
+      } catch {
+        sendResponse({ error: `Lỗi server (${res.status}): Không thể đọc phản hồi.` });
+        return;
+      }
       if (!res.ok) {
         sendResponse({ error: data.message || 'Lỗi server', httpStatus: res.status, code: data.code, ...data });
       } else {
