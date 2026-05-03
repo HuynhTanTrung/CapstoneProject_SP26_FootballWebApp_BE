@@ -32,31 +32,27 @@ namespace VNFootballLeagues.Services.Services
             _notificationService = notificationService;
         }
 
-        private async Task EnsureBrowserExistsAsync()
-        {
-            var browserFetcher = new BrowserFetcher();
+        //private async Task EnsureBrowserExistsAsync()
+        //{
+        //    var browserFetcher = new BrowserFetcher();
 
-            var installedBrowsers = browserFetcher.GetInstalledBrowsers();
+        //    await browserFetcher.DownloadAsync();
 
-            if (installedBrowsers.Any())
-            {
-                var browserInfo = installedBrowsers.First();
-                _logger.LogInformation($"Browser already installed at: {browserInfo.GetExecutablePath()}");
-                return;
-            }
+        //    var installed = browserFetcher.GetInstalledBrowsers();
 
-            _logger.LogInformation("Downloading browser...");
+        //    foreach (var browser in installed)
+        //    {
+        //        _logger.LogInformation(
+        //            "Installed browser: {Path}",
+        //            browser.GetExecutablePath());
+        //    }
+        //}
 
-            var revision = await browserFetcher.DownloadAsync();
-
-            _logger.LogInformation($"Browser downloaded successfully to: {revision.GetExecutablePath()}");
-        }
-
-        private static readonly string[] _azureEdgePaths = new[]
-        {
-            @"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
-            @"C:\Program Files\Microsoft\Edge\Application\msedge.exe",
-        };
+        //private static readonly string[] _azureEdgePaths = new[]
+        //{
+        //    @"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
+        //    @"C:\Program Files\Microsoft\Edge\Application\msedge.exe",
+        //};
 
         private async Task InitBrowser()
         {
@@ -89,29 +85,30 @@ namespace VNFootballLeagues.Services.Services
 
                 _logger.LogInformation("Launching browser...");
 
+                var executablePath =
+                    Environment.GetEnvironmentVariable(
+                        "PUPPETEER_EXECUTABLE_PATH");
+
+                _logger.LogInformation(
+                    "Chromium executable path: {Path}",
+                    executablePath);
+
                 var args = new[]
                 {
             "--no-sandbox",
             "--disable-setuid-sandbox",
             "--disable-dev-shm-usage",
             "--disable-gpu",
-            "--window-size=1920,1080",
-            "--disable-extensions",
-            "--disable-sync",
             "--no-first-run",
-            "--disable-features=RendererCodeIntegrity"
+            "--no-zygote",
+            "--single-process"
         };
-
-                var edgePath = _azureEdgePaths.FirstOrDefault(File.Exists);
-
-                if (edgePath == null)
-                    throw new Exception("Edge not found");
 
                 _browser = await Puppeteer.LaunchAsync(new LaunchOptions
                 {
                     Headless = true,
+                    ExecutablePath = executablePath,
                     Timeout = 60000,
-                    ExecutablePath = edgePath,
                     Args = args
                 });
 
@@ -127,13 +124,23 @@ namespace VNFootballLeagues.Services.Services
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogError(ex, "Failed to recover browser");
+                        _logger.LogError(ex,
+                            "Failed to recover browser");
                     }
                 };
 
                 _initialized = true;
 
                 _logger.LogInformation("Browser initialized");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex,
+                    "Failed to initialize browser");
+
+                _initialized = false;
+
+                throw;
             }
             finally
             {
