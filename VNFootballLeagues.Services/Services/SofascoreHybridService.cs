@@ -154,7 +154,17 @@ namespace VNFootballLeagues.Services.Services
 
         private async Task<string> FetchJson(string url, int retryCount = 2)
         {
-            // Use Puppeteer browser to bypass Sofascore bot detection
+            // Try direct HTTP first (no browser needed, faster)
+            try
+            {
+                return await FetchJsonWithHttpClient(url);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "HTTP fetch failed for {Url}, falling back to Puppeteer", url);
+            }
+
+            // Fallback to Puppeteer if HTTP is blocked
             return await FetchJsonWithPuppeteer(url, retryCount);
         }
 
@@ -171,6 +181,10 @@ namespace VNFootballLeagues.Services.Services
             request.Headers.TryAddWithoutValidation("Sec-Fetch-Dest", "empty");
             request.Headers.TryAddWithoutValidation("Sec-Fetch-Mode", "cors");
             request.Headers.TryAddWithoutValidation("Sec-Fetch-Site", "same-origin");
+            request.Headers.TryAddWithoutValidation("Sec-Ch-Ua", "\"Chromium\";v=\"124\", \"Google Chrome\";v=\"124\", \"Not-A.Brand\";v=\"99\"");
+            request.Headers.TryAddWithoutValidation("Sec-Ch-Ua-Mobile", "?0");
+            request.Headers.TryAddWithoutValidation("Sec-Ch-Ua-Platform", "\"Windows\"");
+            request.Headers.TryAddWithoutValidation("X-Requested-With", "XMLHttpRequest");
 
             var response = await _httpClient.SendAsync(request);
 
