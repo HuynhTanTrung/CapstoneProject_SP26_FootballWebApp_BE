@@ -79,9 +79,10 @@ namespace VNFootballLeagues.Services.Services
                     "--disable-extensions",
                     "--disable-sync",
                     "--no-first-run",
-                    "--no-zygote",
-                    "--single-process",
-                    "--disable-features=RendererCodeIntegrity"
+                    "--disable-blink-features=AutomationControlled",
+                    "--disable-features=IsolateOrigins,site-per-process",
+                    "--disable-web-security",
+                    "--disable-features=VizDisplayCompositor"
                 };
 
                 // Try system Edge first (always available on Azure App Service Windows)
@@ -135,16 +136,40 @@ namespace VNFootballLeagues.Services.Services
             Timeout = TimeSpan.FromSeconds(30)
         };
 
-        private async Task<string> FetchJson(string url, int retryCount = 2)
+        private async Task<string> FetchJson(string url, int retryCount = 3)
         {
             // Try direct HTTP first (no browser needed, faster)
-            try
+            for (int attempt = 0; attempt < retryCount; attempt++)
             {
-                return await FetchJsonWithHttpClient(url);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "HTTP fetch failed for {Url}, falling back to Puppeteer", url);
+                try
+                {
+                    return await FetchJsonWithHttpClient(url);
+                }
+                catch (HttpRequestException ex) when (ex.Message.Contains("403") || ex.Message.Contains("Forbidden"))
+                {
+                    _logger.LogWarning("HTTP 403 on attempt {Attempt} for {Url}, retrying with longer delay...", attempt + 1, url);
+                    
+                    if (attempt < retryCount - 1)
+                    {
+                        // Exponential backoff
+                        await Task.Delay((attempt + 1) * 2000);
+                    }
+                    else
+                    {
+                        _logger.LogWarning("All HTTP attempts failed, falling back to Puppeteer for {Url}", url);
+                        break;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "HTTP fetch failed for {Url} on attempt {Attempt}", url, attempt + 1);
+                    if (attempt == retryCount - 1)
+                    {
+                        _logger.LogWarning("All HTTP attempts failed, falling back to Puppeteer for {Url}", url);
+                        break;
+                    }
+                    await Task.Delay(1000);
+                }
             }
 
             // Fallback to Puppeteer if HTTP is blocked
@@ -153,21 +178,30 @@ namespace VNFootballLeagues.Services.Services
 
         private async Task<string> FetchJsonWithHttpClient(string url)
         {
+            // Add delay to avoid rate limiting
+            await Task.Delay(Random.Shared.Next(500, 1500));
+
             using var request = new HttpRequestMessage(HttpMethod.Get, url);
-            request.Headers.TryAddWithoutValidation("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36");
-            request.Headers.TryAddWithoutValidation("Accept", "application/json, text/plain, */*");
-            request.Headers.TryAddWithoutValidation("Accept-Language", "en-US,en;q=0.9,vi;q=0.8");
-            request.Headers.TryAddWithoutValidation("Accept-Encoding", "gzip, deflate, br");
+            
+            // Updated headers to match latest Chrome browser
+            request.Headers.TryAddWithoutValidation("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36");
+            request.Headers.TryAddWithoutValidation("Accept", "*/*");
+            request.Headers.TryAddWithoutValidation("Accept-Language", "en-US,en;q=0.9");
+            request.Headers.TryAddWithoutValidation("Accept-Encoding", "gzip, deflate, br, zstd");
             request.Headers.TryAddWithoutValidation("Referer", "https://www.sofascore.com/");
-            request.Headers.TryAddWithoutValidation("Origin", "https://www.sofascore.com");
-            request.Headers.TryAddWithoutValidation("Cache-Control", "no-cache");
+            
+            // Critical headers for bypassing detection
+            request.Headers.TryAddWithoutValidation("Sec-Ch-Ua", "\"Chromium\";v=\"131\", \"Not_A Brand\";v=\"24\"");
+            request.Headers.TryAddWithoutValidation("Sec-Ch-Ua-Mobile", "?0");
+            request.Headers.TryAddWithoutValidation("Sec-Ch-Ua-Platform", "\"Windows\"");
             request.Headers.TryAddWithoutValidation("Sec-Fetch-Dest", "empty");
             request.Headers.TryAddWithoutValidation("Sec-Fetch-Mode", "cors");
             request.Headers.TryAddWithoutValidation("Sec-Fetch-Site", "same-origin");
-            request.Headers.TryAddWithoutValidation("Sec-Ch-Ua", "\"Chromium\";v=\"124\", \"Google Chrome\";v=\"124\", \"Not-A.Brand\";v=\"99\"");
-            request.Headers.TryAddWithoutValidation("Sec-Ch-Ua-Mobile", "?0");
-            request.Headers.TryAddWithoutValidation("Sec-Ch-Ua-Platform", "\"Windows\"");
-            request.Headers.TryAddWithoutValidation("X-Requested-With", "XMLHttpRequest");
+            
+            // Additional headers that real browsers send
+            request.Headers.TryAddWithoutValidation("Priority", "u=1, i");
+            request.Headers.TryAddWithoutValidation("Cache-Control", "no-cache");
+            request.Headers.TryAddWithoutValidation("Pragma", "no-cache");
 
             var response = await _httpClient.SendAsync(request);
 
@@ -175,7 +209,7 @@ namespace VNFootballLeagues.Services.Services
                 throw new HttpRequestException($"HTTP Error: NotFound");
 
             if (!response.IsSuccessStatusCode)
-                throw new HttpRequestException($"HTTP Error: {response.StatusCode}");
+                throw new HttpRequestException($"HTTP Error: {response.StatusCode} - {response.ReasonPhrase}");
 
             var content = await response.Content.ReadAsStringAsync();
 
@@ -188,64 +222,117 @@ namespace VNFootballLeagues.Services.Services
 
         private async Task<string> FetchJsonWithPuppeteer(string url, int retryCount = 2)
         {
-            await InitBrowser();
-
             IPage page = null;
-            try
+            
+            for (int attempt = 0; attempt <= retryCount; attempt++)
             {
-                lock (_pageCountLock)
+                try
                 {
-                    if (_activePages >= 5)
-                        throw new InvalidOperationException("Too many concurrent requests");
-                    _activePages++;
+                    // Reinitialize browser if it crashed
+                    if (_browser == null || !_browser.IsConnected)
+                    {
+                        _logger.LogWarning("Browser not connected, reinitializing...");
+                        _initialized = false;
+                        await InitBrowser();
+                    }
+
+                    lock (_pageCountLock)
+                    {
+                        if (_activePages >= 3)
+                            throw new InvalidOperationException("Too many concurrent requests");
+                        _activePages++;
+                    }
+
+                    page = await _browser.NewPageAsync();
+                    page.DefaultTimeout = 45000;
+                    page.DefaultNavigationTimeout = 45000;
+
+                    await page.SetUserAgentAsync("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36");
+                    await page.SetCacheEnabledAsync(false);
+                    
+                    // Enhanced anti-detection measures
+                    await page.EvaluateExpressionOnNewDocumentAsync(@"
+                        Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+                        Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
+                        Object.defineProperty(navigator, 'languages', { get: () => ['en-US', 'en'] });
+                        window.chrome = { runtime: {} };
+                    ");
+                    
+                    // Set additional headers
+                    await page.SetExtraHttpHeadersAsync(new Dictionary<string, string>
+                    {
+                        { "Accept-Language", "en-US,en;q=0.9" },
+                        { "Accept-Encoding", "gzip, deflate, br, zstd" },
+                        { "Sec-Ch-Ua", "\"Chromium\";v=\"131\", \"Not_A Brand\";v=\"24\"" },
+                        { "Sec-Ch-Ua-Mobile", "?0" },
+                        { "Sec-Ch-Ua-Platform", "\"Windows\"" }
+                    });
+
+                    var response = await page.GoToAsync(url, new NavigationOptions
+                    {
+                        WaitUntil = new[] { WaitUntilNavigation.Networkidle0 },
+                        Timeout = 45000
+                    });
+
+                    if (response.Status == HttpStatusCode.NotFound)
+                        throw new HttpRequestException($"HTTP Error: {response.Status}");
+
+                    if (response.Status != HttpStatusCode.OK && response.Status != HttpStatusCode.NotModified)
+                        throw new HttpRequestException($"HTTP Error: {response.Status}");
+
+                    await Task.Delay(1000);
+
+                    var content = await page.EvaluateExpressionAsync<string>("document.body.innerText");
+
+                    if (string.IsNullOrWhiteSpace(content))
+                        throw new InvalidOperationException("Empty response");
+
+                    JsonDocument.Parse(content);
+                    
+                    await page.CloseAsync();
+                    lock (_pageCountLock) { _activePages--; }
+                    
+                    return content;
                 }
-
-                page = await _browser.NewPageAsync();
-                page.DefaultTimeout = 30000;
-                page.DefaultNavigationTimeout = 30000;
-
-                await page.SetUserAgentAsync("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
-                await page.SetCacheEnabledAsync(false);
-                await page.EvaluateExpressionOnNewDocumentAsync("Object.defineProperty(navigator, 'webdriver', { get: () => undefined });");
-
-                var response = await page.GoToAsync(url, new NavigationOptions
+                catch (Exception ex) when (attempt < retryCount && !(ex is HttpRequestException h && h.Message.Contains("NotFound")))
                 {
-                    WaitUntil = new[] { WaitUntilNavigation.Networkidle2 },
-                    Timeout = 30000
-                });
-
-                if (response.Status == HttpStatusCode.NotFound)
-                    throw new HttpRequestException($"HTTP Error: {response.Status}");
-
-                if (response.Status != HttpStatusCode.OK && response.Status != HttpStatusCode.NotModified)
-                    throw new HttpRequestException($"HTTP Error: {response.Status}");
-
-                await Task.Delay(500);
-
-                var content = await page.EvaluateExpressionAsync<string>("document.body.innerText");
-
-                if (string.IsNullOrWhiteSpace(content))
-                    throw new InvalidOperationException("Empty response");
-
-                JsonDocument.Parse(content);
-                return content;
+                    _logger.LogWarning(ex, "Puppeteer attempt {Attempt}/{Total} failed for {Url}", attempt + 1, retryCount + 1, url);
+                    
+                    if (page != null)
+                    {
+                        try { await page.CloseAsync(); } catch { }
+                    }
+                    lock (_pageCountLock) { if (_activePages > 0) _activePages--; }
+                    
+                    // If browser crashed, mark for reinitialization
+                    if (ex is TargetClosedException || ex.Message.Contains("Target closed") || ex.Message.Contains("WebSocket"))
+                    {
+                        _logger.LogWarning("Browser connection lost, will reinitialize on next attempt");
+                        _initialized = false;
+                        if (_browser != null)
+                        {
+                            try { await _browser.CloseAsync(); } catch { }
+                            _browser = null;
+                        }
+                    }
+                    
+                    await Task.Delay((attempt + 1) * 2000);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Puppeteer failed for {Url}", url);
+                    
+                    if (page != null)
+                    {
+                        try { await page.CloseAsync(); } catch { }
+                    }
+                    lock (_pageCountLock) { if (_activePages > 0) _activePages--; }
+                    
+                    throw;
+                }
             }
-            catch (Exception ex) when (retryCount > 0 && !(ex is HttpRequestException h && h.Message.Contains("NotFound")))
-            {
-                _logger.LogWarning(ex, "Puppeteer failed for {Url}, retrying...", url);
-                await Task.Delay(1000);
-                return await FetchJsonWithPuppeteer(url, retryCount - 1);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Puppeteer failed for {Url}", url);
-                throw;
-            }
-            finally
-            {
-                if (page != null) await page.CloseAsync();
-                lock (_pageCountLock) { _activePages--; }
-            }
+            
+            throw new Exception($"Failed to fetch {url} after {retryCount + 1} attempts");
         }
 
         public async Task<object> SyncMatchesByRoundAsync(int apiTournamentId, int apiSeasonId)
