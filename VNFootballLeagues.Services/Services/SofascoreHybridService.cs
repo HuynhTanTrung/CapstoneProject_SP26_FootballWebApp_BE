@@ -60,63 +60,80 @@ namespace VNFootballLeagues.Services.Services
 
         private async Task InitBrowser()
         {
-            if (_initialized) return;
+            if (_initialized && _browser?.IsConnected == true)
+                return;
 
             await _lock.WaitAsync();
+
             try
             {
-                if (_initialized) return;
+                if (_initialized && _browser?.IsConnected == true)
+                    return;
+
+                if (_browser != null)
+                {
+                    try
+                    {
+                        await _browser.CloseAsync();
+                    }
+                    catch { }
+
+                    try
+                    {
+                        _browser.Dispose();
+                    }
+                    catch { }
+
+                    _browser = null;
+                }
 
                 _logger.LogInformation("Launching browser...");
 
                 var args = new[]
                 {
-                    "--no-sandbox",
-                    "--disable-setuid-sandbox",
-                    "--disable-dev-shm-usage",
-                    "--disable-gpu",
-                    "--window-size=1920,1080",
-                    "--disable-extensions",
-                    "--disable-sync",
-                    "--no-first-run",
-                    "--no-zygote",
-                    "--single-process",
-                    "--disable-features=RendererCodeIntegrity"
+            "--no-sandbox",
+            "--disable-setuid-sandbox",
+            "--disable-dev-shm-usage",
+            "--disable-gpu",
+            "--window-size=1920,1080",
+            "--disable-extensions",
+            "--disable-sync",
+            "--no-first-run",
+            "--disable-features=RendererCodeIntegrity"
+        };
+
+                var edgePath = _azureEdgePaths.FirstOrDefault(File.Exists);
+
+                if (edgePath == null)
+                    throw new Exception("Edge not found");
+
+                _browser = await Puppeteer.LaunchAsync(new LaunchOptions
+                {
+                    Headless = true,
+                    Timeout = 60000,
+                    ExecutablePath = edgePath,
+                    Args = args
+                });
+
+                _browser.Disconnected += async (_, _) =>
+                {
+                    _logger.LogWarning("Browser disconnected!");
+
+                    _initialized = false;
+
+                    try
+                    {
+                        await InitBrowser();
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Failed to recover browser");
+                    }
                 };
 
-                // Try system Edge first (always available on Azure App Service Windows)
-                var edgePath = _azureEdgePaths.FirstOrDefault(File.Exists);
-                if (edgePath != null)
-                {
-                    _logger.LogInformation("Using system Edge at: {Path}", edgePath);
-                    _browser = await Puppeteer.LaunchAsync(new LaunchOptions
-                    {
-                        Headless = true,
-                        Timeout = 60000,
-                        ExecutablePath = edgePath,
-                        Args = args
-                    });
-                }
-                else
-                {
-                    // Fallback: download Chromium
-                    _logger.LogInformation("Edge not found, downloading Chromium...");
-                    await EnsureBrowserExistsAsync();
-                    _browser = await Puppeteer.LaunchAsync(new LaunchOptions
-                    {
-                        Headless = true,
-                        Timeout = 60000,
-                        Args = args
-                    });
-                }
-
                 _initialized = true;
-                _logger.LogInformation("Browser initialized successfully");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to initialize browser");
-                throw;
+
+                _logger.LogInformation("Browser initialized");
             }
             finally
             {
@@ -174,64 +191,194 @@ namespace VNFootballLeagues.Services.Services
 
         private async Task<string> FetchJsonWithPuppeteer(string url, int retryCount = 2)
         {
-            await InitBrowser();
+            Exception? lastEx = null;
 
-            IPage page = null;
-            try
+            for (int attempt = 0; attempt <= retryCount; attempt++)
             {
-                lock (_pageCountLock)
+                IPage? page = null;
+
+                try
                 {
-                    if (_activePages >= 5)
-                        throw new InvalidOperationException("Too many concurrent requests");
-                    _activePages++;
-                }
+                    await InitBrowser();
 
-                page = await _browser.NewPageAsync();
-                page.DefaultTimeout = 30000;
-                page.DefaultNavigationTimeout = 30000;
+                    lock (_pageCountLock)
+                    {
+                        if (_activePages >= 5)
+                            throw new InvalidOperationException("Too many concurrent requests");
 
-                await page.SetUserAgentAsync("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
-                await page.SetCacheEnabledAsync(false);
-                await page.EvaluateExpressionOnNewDocumentAsync("Object.defineProperty(navigator, 'webdriver', { get: () => undefined });");
+                        _activePages++;
+                    }
 
-                var response = await page.GoToAsync(url, new NavigationOptions
-                {
-                    WaitUntil = new[] { WaitUntilNavigation.Networkidle2 },
-                    Timeout = 30000
+                    // Browser recovery
+                    if (_browser == null || !_browser.IsConnected)
+                    {
+                        _logger.LogWarning("Browser disconnected. Reinitializing...");
+
+                        _initialized = false;
+
+                        await InitBrowser();
+                    }
+
+                    // Create page
+                    try
+                    {
+                        page = await _browser!.NewPageAsync();
+                    }
+                    catch (TargetClosedException)
+                    {
+                        _logger.LogWarning(
+                            "Browser crashed while creating page. Restarting browser...");
+
+                        _initialized = false;
+
+                        await InitBrowser();
+
+                        page = await _browser!.NewPageAsync();
+                    }
+
+                    if (page == null)
+                        throw new Exception("Failed to create Puppeteer page");
+
+                    page.DefaultTimeout = 30000;
+                    page.DefaultNavigationTimeout = 30000;
+
+                    await page.SetUserAgentAsync(
+                        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
+
+                    await page.SetCacheEnabledAsync(false);
+
+                    await page.EvaluateExpressionOnNewDocumentAsync(@"
+                Object.defineProperty(navigator, 'webdriver', {
+                    get: () => undefined
                 });
+            ");
 
-                if (response.Status == HttpStatusCode.NotFound)
-                    throw new HttpRequestException($"HTTP Error: {response.Status}");
+                    // Request interception
+                    await page.SetRequestInterceptionAsync(true);
 
-                if (response.Status != HttpStatusCode.OK && response.Status != HttpStatusCode.NotModified)
-                    throw new HttpRequestException($"HTTP Error: {response.Status}");
+                    page.Request += async (_, e) =>
+                    {
+                        try
+                        {
+                            var type = e.Request.ResourceType;
 
-                await Task.Delay(500);
+                            if (type == ResourceType.Image ||
+                                type == ResourceType.Font ||
+                                type == ResourceType.Media)
+                            {
+                                await e.Request.AbortAsync();
+                            }
+                            else
+                            {
+                                await e.Request.ContinueAsync();
+                            }
+                        }
+                        catch
+                        {
+                            // ignore interception errors
+                        }
+                    };
 
-                var content = await page.EvaluateExpressionAsync<string>("document.body.innerText");
+                    // Navigate
+                    var response = await page.GoToAsync(url, new NavigationOptions
+                    {
+                        WaitUntil = new[] { WaitUntilNavigation.DOMContentLoaded },
+                        Timeout = 30000
+                    });
 
-                if (string.IsNullOrWhiteSpace(content))
-                    throw new InvalidOperationException("Empty response");
+                    if (response == null)
+                        throw new Exception("No response received");
 
-                JsonDocument.Parse(content);
-                return content;
+                    if (response.Status == HttpStatusCode.NotFound)
+                        throw new HttpRequestException($"HTTP Error: {response.Status}");
+
+                    if (response.Status != HttpStatusCode.OK &&
+                        response.Status != HttpStatusCode.NotModified)
+                    {
+                        throw new HttpRequestException($"HTTP Error: {response.Status}");
+                    }
+
+                    await Task.Delay(300);
+
+                    // Read JSON directly
+                    var content = await response.TextAsync();
+
+                    if (string.IsNullOrWhiteSpace(content))
+                        throw new InvalidOperationException("Empty response");
+
+                    // Validate JSON
+                    JsonDocument.Parse(content);
+
+                    return content;
+                }
+                catch (Exception ex)
+                {
+                    lastEx = ex;
+
+                    _logger.LogWarning(ex,
+                        "Attempt {Attempt}/{MaxAttempts} failed for {Url}",
+                        attempt + 1,
+                        retryCount + 1,
+                        url);
+
+                    bool isNotFound =
+                        ex is HttpRequestException h &&
+                        h.Message.Contains("NotFound");
+
+                    if (attempt >= retryCount || isNotFound)
+                    {
+                        break;
+                    }
+
+                    // Browser may be dead
+                    if (_browser == null || !_browser.IsConnected)
+                    {
+                        _logger.LogWarning("Browser is dead. Resetting...");
+
+                        _initialized = false;
+
+                        try
+                        {
+                            if (_browser != null)
+                            {
+                                await _browser.CloseAsync();
+                                _browser.Dispose();
+                            }
+                        }
+                        catch
+                        {
+                        }
+
+                        _browser = null;
+                    }
+
+                    await Task.Delay(1000 * (attempt + 1));
+                }
+                finally
+                {
+                    if (page != null)
+                    {
+                        try
+                        {
+                            await page.CloseAsync();
+                        }
+                        catch
+                        {
+                        }
+                    }
+
+                    lock (_pageCountLock)
+                    {
+                        _activePages--;
+                    }
+                }
             }
-            catch (Exception ex) when (retryCount > 0 && !(ex is HttpRequestException h && h.Message.Contains("NotFound")))
-            {
-                _logger.LogWarning(ex, "Puppeteer failed for {Url}, retrying...", url);
-                await Task.Delay(1000);
-                return await FetchJsonWithPuppeteer(url, retryCount - 1);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Puppeteer failed for {Url}", url);
-                throw;
-            }
-            finally
-            {
-                if (page != null) await page.CloseAsync();
-                lock (_pageCountLock) { _activePages--; }
-            }
+
+            _logger.LogError(lastEx,
+                "Puppeteer failed permanently for {Url}",
+                url);
+
+            throw lastEx!;
         }
 
         public async Task<object> SyncMatchesByRoundAsync(int apiTournamentId, int apiSeasonId)
