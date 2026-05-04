@@ -66,6 +66,27 @@ public class SofascoreController : ControllerBase
         });
     }
 
+    // ==================== MATCH DETAILS ====================
+
+    /// <summary>
+    /// Get match details (teams, score, status) for any event by ID — fallback for matches not in DB
+    /// </summary>
+    [HttpGet("match-details")]
+    public async Task<IActionResult> GetMatchDetails([FromQuery] int eventId)
+    {
+        if (eventId <= 0) return BadRequest(new { error = "Invalid eventId" });
+        try
+        {
+            string jsonResponse = await _sofascoreScraperService.GetMatchDetailsAsync(eventId);
+            return Content(jsonResponse, "application/json");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to fetch match details for event {EventId}", eventId);
+            return StatusCode(500, new { error = "Failed to retrieve match details", details = ex.Message });
+        }
+    }
+
     // ==================== LIVE MATCHES ====================
 
     /// <summary>

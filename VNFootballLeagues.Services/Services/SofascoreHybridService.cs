@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Internal;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using PuppeteerSharp;
 using System.Net;
@@ -16,6 +17,7 @@ namespace VNFootballLeagues.Services.Services
         private readonly VNFootballLeaguesDBContext _context;
         private readonly ILogger<SofascoreHybridService> _logger;
         private readonly NotificationService? _notificationService;
+        private readonly string _scraperApiKey;
         private static IBrowser? _browser;
         private static bool _initialized = false;
         private static readonly SemaphoreSlim _lock = new(1, 1);
@@ -25,11 +27,13 @@ namespace VNFootballLeagues.Services.Services
         public SofascoreHybridService(
             VNFootballLeaguesDBContext context,
             ILogger<SofascoreHybridService> logger,
+            IConfiguration configuration,
             NotificationService? notificationService = null)
         {
             _context = context;
             _logger = logger;
             _notificationService = notificationService;
+            _scraperApiKey = configuration["SofascoreSettings:ScraperApiKey"] ?? string.Empty;
         }
 
         private async Task EnsureBrowserExistsAsync()
@@ -138,7 +142,37 @@ namespace VNFootballLeagues.Services.Services
 
         private async Task<string> FetchJson(string url, int retryCount = 3)
         {
-            // Try direct HTTP first (no browser needed, faster)
+            // Route through ScraperAPI if key is configured
+            if (!string.IsNullOrEmpty(_scraperApiKey))
+            {
+                var encodedUrl = Uri.EscapeDataString(url);
+                var scraperUrl = $"https://api.scraperapi.com?api_key={_scraperApiKey}&url={encodedUrl}";
+
+                for (int attempt = 0; attempt < retryCount; attempt++)
+                {
+                    try
+                    {
+                        using var request = new HttpRequestMessage(HttpMethod.Get, scraperUrl);
+                        request.Headers.TryAddWithoutValidation("Accept", "application/json");
+                        var response = await _httpClient.SendAsync(request);
+                        if (!response.IsSuccessStatusCode)
+                        {
+                            if (attempt < retryCount - 1) { await Task.Delay((attempt + 1) * 2000); continue; }
+                            throw new HttpRequestException($"ScraperAPI returned {response.StatusCode}");
+                        }
+                        var content = await response.Content.ReadAsStringAsync();
+                        JsonDocument.Parse(content);
+                        return content;
+                    }
+                    catch (Exception ex) when (attempt < retryCount - 1)
+                    {
+                        _logger.LogWarning(ex, "ScraperAPI attempt {Attempt} failed for {Url}, retrying...", attempt + 1, url);
+                        await Task.Delay((attempt + 1) * 2000);
+                    }
+                }
+            }
+
+            // Fallback: direct HTTP
             for (int attempt = 0; attempt < retryCount; attempt++)
             {
                 try
@@ -148,31 +182,18 @@ namespace VNFootballLeagues.Services.Services
                 catch (HttpRequestException ex) when (ex.Message.Contains("403") || ex.Message.Contains("Forbidden"))
                 {
                     _logger.LogWarning("HTTP 403 on attempt {Attempt} for {Url}, retrying with longer delay...", attempt + 1, url);
-                    
-                    if (attempt < retryCount - 1)
-                    {
-                        // Exponential backoff
-                        await Task.Delay((attempt + 1) * 2000);
-                    }
-                    else
-                    {
-                        _logger.LogWarning("All HTTP attempts failed, falling back to Puppeteer for {Url}", url);
-                        break;
-                    }
+                    if (attempt < retryCount - 1) { await Task.Delay((attempt + 1) * 2000); }
+                    else { _logger.LogWarning("All HTTP attempts failed, falling back to Puppeteer for {Url}", url); break; }
                 }
                 catch (Exception ex)
                 {
                     _logger.LogWarning(ex, "HTTP fetch failed for {Url} on attempt {Attempt}", url, attempt + 1);
-                    if (attempt == retryCount - 1)
-                    {
-                        _logger.LogWarning("All HTTP attempts failed, falling back to Puppeteer for {Url}", url);
-                        break;
-                    }
+                    if (attempt == retryCount - 1) { _logger.LogWarning("All HTTP attempts failed, falling back to Puppeteer for {Url}", url); break; }
                     await Task.Delay(1000);
                 }
             }
 
-            // Fallback to Puppeteer if HTTP is blocked
+            // Last resort: Puppeteer
             return await FetchJsonWithPuppeteer(url, retryCount);
         }
 

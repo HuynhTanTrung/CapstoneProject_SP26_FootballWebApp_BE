@@ -108,8 +108,9 @@ builder.Services.AddScoped<ISofascoreScraperService, SofascoreScraperService>();
 // Register SignalR
 builder.Services.AddSignalR();
 
-// Register Live Match Polling Service
-builder.Services.AddHostedService<LiveMatchPollingService>();
+// Register Live Match Polling Service (controlled by config)
+if (builder.Configuration.GetValue<bool>("LiveMatchPolling:Enabled"))
+    builder.Services.AddHostedService<LiveMatchPollingService>();
 builder.Services.AddScoped<ISofascoreHybridService, SofascoreHybridService>();
 
 // Register Hangfire
