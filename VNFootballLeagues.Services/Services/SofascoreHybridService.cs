@@ -32,28 +32,6 @@ namespace VNFootballLeagues.Services.Services
             _notificationService = notificationService;
         }
 
-        //private async Task EnsureBrowserExistsAsync()
-        //{
-        //    var browserFetcher = new BrowserFetcher();
-
-        //    await browserFetcher.DownloadAsync();
-
-        //    var installed = browserFetcher.GetInstalledBrowsers();
-
-        //    foreach (var browser in installed)
-        //    {
-        //        _logger.LogInformation(
-        //            "Installed browser: {Path}",
-        //            browser.GetExecutablePath());
-        //    }
-        //}
-
-        //private static readonly string[] _azureEdgePaths = new[]
-        //{
-        //    @"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
-        //    @"C:\Program Files\Microsoft\Edge\Application\msedge.exe",
-        //};
-
         private async Task InitBrowser()
         {
             if (_initialized && _browser?.IsConnected == true)
@@ -83,14 +61,26 @@ namespace VNFootballLeagues.Services.Services
                     _browser = null;
                 }
 
-                _logger.LogInformation("Launching browser...");
+                _logger.LogInformation("Initializing Puppeteer browser...");
 
-                var executablePath =
-                    Environment.GetEnvironmentVariable(
-                        "PUPPETEER_EXECUTABLE_PATH");
+                // IMPORTANT:
+                // Download Chromium automatically
+                var browserFetcher = new BrowserFetcher();
+
+                await browserFetcher.DownloadAsync();
+
+                var installedBrowser =
+                    browserFetcher
+                        .GetInstalledBrowsers()
+                        .FirstOrDefault();
+
+                if (installedBrowser == null)
+                    throw new Exception("Chromium download failed");
+
+                var executablePath = installedBrowser.GetExecutablePath();
 
                 _logger.LogInformation(
-                    "Chromium executable path: {Path}",
+                    "Using Chromium executable: {Path}",
                     executablePath);
 
                 var args = new[]
@@ -99,22 +89,26 @@ namespace VNFootballLeagues.Services.Services
             "--disable-setuid-sandbox",
             "--disable-dev-shm-usage",
             "--disable-gpu",
-            "--no-first-run",
             "--no-zygote",
-            "--single-process"
+            "--single-process",
+            "--disable-extensions",
+            "--disable-background-networking",
+            "--disable-dev-tools",
+            "--disable-sync",
+            "--mute-audio"
         };
 
                 _browser = await Puppeteer.LaunchAsync(new LaunchOptions
                 {
                     Headless = true,
                     ExecutablePath = executablePath,
-                    Timeout = 60000,
-                    Args = args
+                    Args = args,
+                    Timeout = 60000
                 });
 
                 _browser.Disconnected += async (_, _) =>
                 {
-                    _logger.LogWarning("Browser disconnected!");
+                    _logger.LogWarning("Browser disconnected");
 
                     _initialized = false;
 
@@ -131,14 +125,14 @@ namespace VNFootballLeagues.Services.Services
 
                 _initialized = true;
 
-                _logger.LogInformation("Browser initialized");
+                _logger.LogInformation("Browser initialized successfully");
             }
             catch (Exception ex)
             {
+                _initialized = false;
+
                 _logger.LogError(ex,
                     "Failed to initialize browser");
-
-                _initialized = false;
 
                 throw;
             }
