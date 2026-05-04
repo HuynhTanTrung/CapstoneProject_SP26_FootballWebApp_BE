@@ -46,6 +46,37 @@ public class LeaderboardController : ControllerBase
     }
 
     /// <summary>
+    /// Kiểm tra trạng thái trao thưởng của một tháng cụ thể.
+    /// </summary>
+    [HttpGet("/api/admin/leaderboard/predictions/monthly/reward-status")]
+    [Authorize(Policy = "AdminOnly")]
+    public async Task<IActionResult> GetRewardStatus([FromQuery] int? year, [FromQuery] int? month, CancellationToken ct)
+    {
+        var vnNow = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow,
+            TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time"));
+        var y = year ?? vnNow.Year;
+        var m = month ?? vnNow.Month;
+
+        if (m is < 1 or > 12)
+            return BadRequest(new ApiResponseDto<object> { Success = false, Message = "Tháng phải trong khoảng 1..12." });
+
+        var (isRewarded, rewardedAt) = await _monthlyLeaderboardService.GetRewardStatusAsync(y, m, ct);
+
+        return Ok(new ApiResponseDto<object>
+        {
+            Success = true,
+            Message = "OK",
+            Data = new
+            {
+                year = y,
+                month = m,
+                isRewarded,
+                rewardedAt
+            }
+        });
+    }
+
+    /// <summary>
     /// Chạy thưởng top 1-3 của tháng trước (Top1 +200, Top2 +150, Top3 +100).
     /// Endpoint hỗ trợ admin trigger thủ công khi cần.
     /// </summary>
