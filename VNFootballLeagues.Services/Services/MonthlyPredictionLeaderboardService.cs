@@ -190,10 +190,6 @@ public class MonthlyPredictionLeaderboardService : IMonthlyPredictionLeaderboard
             [3] = 100
         };
 
-        var nextUserRewardId = await _db.UserRewards.AnyAsync(ct)
-            ? await _db.UserRewards.MaxAsync(x => x.UserRewardId, ct) + 1
-            : 1;
-
         var rewardedUsers = 0;
 
         foreach (var user in topUsers)
@@ -241,7 +237,6 @@ public class MonthlyPredictionLeaderboardService : IMonthlyPredictionLeaderboard
 
             _db.UserRewards.Add(new UserReward
             {
-                UserRewardId = nextUserRewardId++,
                 UserId = user.UserId,
                 RewardId = reward.RewardId,
                 AwardedAt = DateTime.UtcNow

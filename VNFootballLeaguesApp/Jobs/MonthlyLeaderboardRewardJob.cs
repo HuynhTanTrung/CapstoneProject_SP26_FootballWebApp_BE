@@ -38,6 +38,7 @@ public class MonthlyLeaderboardRewardJob
         catch (Exception ex)
         {
             _logger.LogError(ex, "[MonthlyLeaderboardReward] Lỗi khi trao thưởng top tháng.");
+            throw;
         }
     }
 }
