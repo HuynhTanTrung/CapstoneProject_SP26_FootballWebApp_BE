@@ -157,8 +157,15 @@ namespace VNFootballLeagues.Services.Services
                         var response = await _httpClient.SendAsync(request);
                         if (!response.IsSuccessStatusCode)
                         {
+                            // 403 = out of credits or invalid key — no point retrying, fall through to direct HTTP
+                            if (response.StatusCode == System.Net.HttpStatusCode.Forbidden)
+                            {
+                                _logger.LogWarning("ScraperAPI returned Forbidden for {Url} — falling back to direct HTTP/Puppeteer", url);
+                                break;
+                            }
                             if (attempt < retryCount - 1) { await Task.Delay((attempt + 1) * 2000); continue; }
-                            throw new HttpRequestException($"ScraperAPI returned {response.StatusCode}");
+                            _logger.LogWarning("ScraperAPI returned {StatusCode} for {Url} after all retries — falling back", response.StatusCode, url);
+                            break;
                         }
                         var content = await response.Content.ReadAsStringAsync();
                         JsonDocument.Parse(content);
@@ -168,6 +175,11 @@ namespace VNFootballLeagues.Services.Services
                     {
                         _logger.LogWarning(ex, "ScraperAPI attempt {Attempt} failed for {Url}, retrying...", attempt + 1, url);
                         await Task.Delay((attempt + 1) * 2000);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "ScraperAPI all attempts failed for {Url} — falling back", url);
+                        break;
                     }
                 }
             }
