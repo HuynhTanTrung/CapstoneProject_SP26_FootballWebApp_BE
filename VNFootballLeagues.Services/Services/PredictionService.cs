@@ -434,10 +434,6 @@ public class PredictionService : IPredictionService
     /// <summary>Khi <b>tổng điểm</b> đạt ngưỡng 1 / 100 / 150, ghi nhận UserReward (mỗi danh hiệu một lần).</summary>
     private async Task TryAwardPredictionBadgesAsync(Guid userId, int totalPoints, CancellationToken cancellationToken)
     {
-        var nextUserRewardId = await _db.UserRewards.AnyAsync(cancellationToken)
-            ? await _db.UserRewards.MaxAsync(ur => ur.UserRewardId, cancellationToken) + 1
-            : 1;
-
         foreach (var (name, _, requiredPoints, _) in PredictionBadgeTiers)
         {
             if (totalPoints < requiredPoints)
@@ -455,7 +451,6 @@ public class PredictionService : IPredictionService
 
             _db.UserRewards.Add(new UserReward
             {
-                UserRewardId = nextUserRewardId++,
                 UserId = userId,
                 RewardId = reward.RewardId,
                 AwardedAt = DateTime.UtcNow

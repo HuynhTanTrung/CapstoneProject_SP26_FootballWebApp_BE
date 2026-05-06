@@ -190,10 +190,6 @@ public class MonthlyPredictionLeaderboardService : IMonthlyPredictionLeaderboard
             [3] = 100
         };
 
-        var nextUserRewardId = await _db.UserRewards.AnyAsync(ct)
-            ? await _db.UserRewards.MaxAsync(x => x.UserRewardId, ct) + 1
-            : 1;
-
         var rewardedUsers = 0;
 
         foreach (var user in topUsers)
@@ -241,7 +237,6 @@ public class MonthlyPredictionLeaderboardService : IMonthlyPredictionLeaderboard
 
             _db.UserRewards.Add(new UserReward
             {
-                UserRewardId = nextUserRewardId++,
                 UserId = user.UserId,
                 RewardId = reward.RewardId,
                 AwardedAt = DateTime.UtcNow
@@ -345,5 +340,23 @@ public class MonthlyPredictionLeaderboardService : IMonthlyPredictionLeaderboard
         }
 
         return result;
+    }
+
+    public async Task<(bool IsRewarded, DateTime? RewardedAt)> GetRewardStatusAsync(int year, int month, CancellationToken ct = default)
+    {
+        var monthKey = $"{year:D4}-{month:D2}";
+        var top1RewardName = BuildRewardName(1, monthKey);
+
+        var userReward = await _db.UserRewards
+            .AsNoTracking()
+            .Include(ur => ur.Reward)
+            .Where(ur => ur.Reward != null && ur.Reward.RewardName == top1RewardName)
+            .OrderByDescending(ur => ur.AwardedAt)
+            .FirstOrDefaultAsync(ct);
+
+        if (userReward != null)
+            return (true, userReward.AwardedAt);
+
+        return (false, null);
     }
 }

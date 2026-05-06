@@ -178,6 +178,7 @@ app.MapControllers();
 
 // Hangfire dashboard (chỉ dev) + recurring jobs
 app.UseHangfireDashboard("/hangfire");
+var vnTimeZone = TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time");
 
 // Cron: mỗi ngày lúc 2:00 sáng UTC+7 = 19:00 UTC
 // Matches + standings
@@ -220,7 +221,11 @@ RecurringJob.AddOrUpdate<PredictionSettlementJob>(
 RecurringJob.AddOrUpdate<MonthlyLeaderboardRewardJob>(
     "monthly-leaderboard-reward",
     job => job.RewardPreviousMonthTopUsersAsync(),
-    "10 17 * * *");
+    "10 0 * * *",
+    new RecurringJobOptions
+    {
+        TimeZone = vnTimeZone
+    });
 
 // Auto-close support tickets (mỗi 1 phút)
 RecurringJob.AddOrUpdate<SupportAutoCloseJob>(
