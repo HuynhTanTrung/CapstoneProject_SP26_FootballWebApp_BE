@@ -153,6 +153,12 @@ public class SofascoreScraperService : ISofascoreScraperService
         return await ScrapeApiEndpointAsync(url, $"event {eventId} player {playerId} statistics");
     }
 
+    public async Task<string> GetMatchStatisticsAsync(int eventId)
+    {
+        string url = $"https://www.sofascore.com/api/v1/event/{eventId}/statistics";
+        return await ScrapeApiEndpointAsync(url, $"event {eventId} statistics");
+    }
+
     // ─── Core fetch logic ────────────────────────────────────────────────────
 
     private async Task<string> ScrapeApiEndpointAsync(string apiUrl, string description)

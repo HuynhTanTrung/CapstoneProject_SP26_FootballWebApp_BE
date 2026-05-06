@@ -364,6 +364,16 @@ public class LiveMatchPollingService : BackgroundService
                             update.CurrentMinute = periodOffset + elapsed;
                         }
                     }
+
+                    // Detect halftime/pause from statusCode
+                    // statusCode: 6=1H, 7=2H, 31=ET1, 32=ET2, 60=HT, 61=ET pause
+                    if (eventData.TryGetProperty("statusCode", out var sc))
+                    {
+                        var code = sc.GetInt32();
+                        _logger.LogInformation("Match {EventId} statusCode={Code}, currentMinute={Min}", eventId, code, update.CurrentMinute);
+                        if (code == 60) { update.Status = "halftime"; update.CurrentMinute = null; }
+                        else if (code == 61) { update.Status = "pause"; update.CurrentMinute = null; }
+                    }
                 }
             }
             catch (Exception ex)

@@ -108,4 +108,9 @@ public interface ISofascoreScraperService
     /// Fetches player match statistics for a specific event
     /// </summary>
     Task<string> GetPlayerMatchStatisticsAsync(int eventId, int playerId);
+
+    /// <summary>
+    /// Fetches match statistics (possession, shots, etc.) for a specific event
+    /// </summary>
+    Task<string> GetMatchStatisticsAsync(int eventId);
 }

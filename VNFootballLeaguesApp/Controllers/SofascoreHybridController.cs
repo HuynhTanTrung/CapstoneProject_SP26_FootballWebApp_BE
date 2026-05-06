@@ -121,6 +121,23 @@ namespace VNFootballLeagues.API.Controllers
 
         // ── Match Cache (Lineups + Incidents) ────────────────────────────────────
 
+        /// <summary>Fetch match statistics live từ Sofascore (possession, shots, etc.) với cache 2 phút.</summary>
+        [HttpGet("match-statistics-live")]
+        public async Task<IActionResult> GetMatchStatisticsLive([FromQuery] int apiFixtureId)
+        {
+            if (apiFixtureId <= 0) return BadRequest();
+            try
+            {
+                var json = await _sofascoreScraperService.GetMatchStatisticsAsync(apiFixtureId);
+                return Content(json, "application/json");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to fetch live statistics for {FixtureId}", apiFixtureId);
+                return NotFound(new { message = "Statistics not available." });
+            }
+        }
+
         /// <summary>Đọc lineups từ DB cache, fallback fetch từ Sofascore nếu chưa có cache.</summary>
         [HttpGet("match-lineups")]
         public async Task<IActionResult> GetMatchLineups([FromQuery] int apiFixtureId)
