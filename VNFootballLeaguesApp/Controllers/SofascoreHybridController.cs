@@ -121,24 +121,46 @@ namespace VNFootballLeagues.API.Controllers
 
         // ── Match Cache (Lineups + Incidents) ────────────────────────────────────
 
-        /// <summary>Đọc lineups từ DB cache (không gọi Sofascore).</summary>
+        /// <summary>Đọc lineups từ DB cache, fallback fetch từ Sofascore nếu chưa có cache.</summary>
         [HttpGet("match-lineups")]
         public async Task<IActionResult> GetMatchLineups([FromQuery] int apiFixtureId)
         {
             if (apiFixtureId <= 0) return BadRequest();
             var cache = await _context.MatchCacheData.FindAsync(apiFixtureId);
-            if (cache?.LineupsJson == null) return NotFound(new { message = "Lineups not cached. Run sync first." });
-            return Content(cache.LineupsJson, "application/json");
+            if (cache?.LineupsJson != null) return Content(cache.LineupsJson, "application/json");
+
+            // Fallback: fetch live from Sofascore via ScraperAPI
+            try
+            {
+                var json = await _sofascoreScraperService.GetMatchLineupsAsync(apiFixtureId);
+                return Content(json, "application/json");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to fetch lineups for {FixtureId} from Sofascore", apiFixtureId);
+                return NotFound(new { message = "Lineups not available." });
+            }
         }
 
-        /// <summary>Đọc incidents từ DB cache (không gọi Sofascore).</summary>
+        /// <summary>Đọc incidents từ DB cache, fallback fetch từ Sofascore nếu chưa có cache.</summary>
         [HttpGet("match-incidents")]
         public async Task<IActionResult> GetMatchIncidents([FromQuery] int apiFixtureId)
         {
             if (apiFixtureId <= 0) return BadRequest();
             var cache = await _context.MatchCacheData.FindAsync(apiFixtureId);
-            if (cache?.IncidentsJson == null) return NotFound(new { message = "Incidents not cached. Run sync first." });
-            return Content(cache.IncidentsJson, "application/json");
+            if (cache?.IncidentsJson != null) return Content(cache.IncidentsJson, "application/json");
+
+            // Fallback: fetch live from Sofascore via ScraperAPI
+            try
+            {
+                var json = await _sofascoreScraperService.GetMatchIncidentsAsync(apiFixtureId);
+                return Content(json, "application/json");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to fetch incidents for {FixtureId} from Sofascore", apiFixtureId);
+                return NotFound(new { message = "Incidents not available." });
+            }
         }
 
         /// <summary>Upload lineups + incidents JSON trực tiếp (dùng khi scraper bị block).</summary>

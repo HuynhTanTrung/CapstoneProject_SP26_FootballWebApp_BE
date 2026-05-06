@@ -1,10 +1,12 @@
 using Hangfire;
 using Microsoft.AspNetCore.HttpsPolicy;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Microsoft.OpenApi.Models;
 using VNFootballLeagues.Repositories.Models;
 using VNFootballLeagues.Services.IServices;
 using VNFootballLeagues.Services.Services;
+using VNFootballLeagues.Services.Settings;
 using VNFootballLeaguesApp.Extensions;
 using VNFootballLeaguesApp.Hubs;
 using VNFootballLeaguesApp.Jobs;
@@ -108,8 +110,9 @@ builder.Services.AddScoped<ISofascoreScraperService, SofascoreScraperService>();
 // Register SignalR
 builder.Services.AddSignalR();
 
-// Register Live Match Polling Service
-builder.Services.AddHostedService<LiveMatchPollingService>();
+// Register Live Match Polling Service (controlled by config)
+if (builder.Configuration.GetValue<bool>("LiveMatchPolling:Enabled"))
+    builder.Services.AddHostedService<LiveMatchPollingService>();
 builder.Services.AddScoped<ISofascoreHybridService, SofascoreHybridService>();
 
 // Register Hangfire
@@ -128,7 +131,10 @@ builder.Services.AddScoped<PredictionSettlementJob>();
 builder.Services.AddScoped<MonthlyLeaderboardRewardJob>();
 builder.Services.AddScoped<SupportAutoCloseJob>();
 builder.Services.AddScoped<NotificationService>();
-
+builder.Services.Configure<SofascoreSettings>(
+    builder.Configuration.GetSection("SofascoreSettings"));
+builder.Services.AddSingleton(resolver =>
+    resolver.GetRequiredService<IOptions<SofascoreSettings>>().Value);
 
 var app = builder.Build();
 

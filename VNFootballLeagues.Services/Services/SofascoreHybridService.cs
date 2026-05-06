@@ -1,13 +1,16 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Internal;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using PuppeteerSharp;
+using System.IO;
 using System.Net;
 using System.Text.Json;
-using System.IO;
 using VNFootballLeagues.Repositories.Models;
 using VNFootballLeagues.Services.Dtos;
 using VNFootballLeagues.Services.IServices;
+using VNFootballLeagues.Services.Settings;
 
 namespace VNFootballLeagues.Services.Services
 {
@@ -16,124 +19,114 @@ namespace VNFootballLeagues.Services.Services
         private readonly VNFootballLeaguesDBContext _context;
         private readonly ILogger<SofascoreHybridService> _logger;
         private readonly NotificationService? _notificationService;
+        private readonly string _scraperApiKey;
+        private readonly SofascoreSettings _sofascoreSettings;
         private static IBrowser? _browser;
         private static bool _initialized = false;
         private static readonly SemaphoreSlim _lock = new(1, 1);
         private static int _activePages = 0;
         private static readonly object _pageCountLock = new();
 
+
         public SofascoreHybridService(
             VNFootballLeaguesDBContext context,
             ILogger<SofascoreHybridService> logger,
+            IConfiguration configuration,
+            IOptions<SofascoreSettings> sofascoreSettings,
             NotificationService? notificationService = null)
         {
             _context = context;
             _logger = logger;
+            _sofascoreSettings = sofascoreSettings.Value;
             _notificationService = notificationService;
+            _scraperApiKey = configuration["SofascoreSettings:ScraperApiKey"] ?? string.Empty;
         }
+
+        private async Task EnsureBrowserExistsAsync()
+        {
+            var browserFetcher = new BrowserFetcher();
+
+            var installedBrowsers = browserFetcher.GetInstalledBrowsers();
+
+            if (installedBrowsers.Any())
+            {
+                var browserInfo = installedBrowsers.First();
+                _logger.LogInformation($"Browser already installed at: {browserInfo.GetExecutablePath()}");
+                return;
+            }
+
+            _logger.LogInformation("Downloading browser...");
+
+            var revision = await browserFetcher.DownloadAsync();
+
+            _logger.LogInformation($"Browser downloaded successfully to: {revision.GetExecutablePath()}");
+        }
+
+        private static readonly string[] _azureEdgePaths = new[]
+        {
+            @"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
+            @"C:\Program Files\Microsoft\Edge\Application\msedge.exe",
+        };
 
         private async Task InitBrowser()
         {
-            if (_initialized && _browser?.IsConnected == true)
-                return;
+            if (_initialized) return;
 
             await _lock.WaitAsync();
-
             try
             {
-                if (_initialized && _browser?.IsConnected == true)
-                    return;
+                if (_initialized) return;
 
-                if (_browser != null)
-                {
-                    try
-                    {
-                        await _browser.CloseAsync();
-                    }
-                    catch { }
-
-                    try
-                    {
-                        _browser.Dispose();
-                    }
-                    catch { }
-
-                    _browser = null;
-                }
-
-                _logger.LogInformation("Initializing Puppeteer browser...");
-
-                // IMPORTANT:
-                // Download Chromium automatically
-                var browserFetcher = new BrowserFetcher();
-
-                await browserFetcher.DownloadAsync();
-
-                var installedBrowser =
-                    browserFetcher
-                        .GetInstalledBrowsers()
-                        .FirstOrDefault();
-
-                if (installedBrowser == null)
-                    throw new Exception("Chromium download failed");
-
-                var executablePath = installedBrowser.GetExecutablePath();
-
-                _logger.LogInformation(
-                    "Using Chromium executable: {Path}",
-                    executablePath);
+                _logger.LogInformation("Launching browser...");
 
                 var args = new[]
                 {
-            "--no-sandbox",
-            "--disable-setuid-sandbox",
-            "--disable-dev-shm-usage",
-            "--disable-gpu",
-            "--no-zygote",
-            "--single-process",
-            "--disable-extensions",
-            "--disable-background-networking",
-            "--disable-dev-tools",
-            "--disable-sync",
-            "--mute-audio"
-        };
-
-                _browser = await Puppeteer.LaunchAsync(new LaunchOptions
-                {
-                    Headless = true,
-                    ExecutablePath = executablePath,
-                    Args = args,
-                    Timeout = 60000
-                });
-
-                _browser.Disconnected += async (_, _) =>
-                {
-                    _logger.LogWarning("Browser disconnected");
-
-                    _initialized = false;
-
-                    try
-                    {
-                        await InitBrowser();
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError(ex,
-                            "Failed to recover browser");
-                    }
+                    "--no-sandbox",
+                    "--disable-setuid-sandbox",
+                    "--disable-dev-shm-usage",
+                    "--disable-gpu",
+                    "--window-size=1920,1080",
+                    "--disable-extensions",
+                    "--disable-sync",
+                    "--no-first-run",
+                    "--disable-blink-features=AutomationControlled",
+                    "--disable-features=IsolateOrigins,site-per-process",
+                    "--disable-web-security",
+                    "--disable-features=VizDisplayCompositor"
                 };
 
-                _initialized = true;
+                // Try system Edge first (always available on Azure App Service Windows)
+                var edgePath = _azureEdgePaths.FirstOrDefault(File.Exists);
+                if (edgePath != null)
+                {
+                    _logger.LogInformation("Using system Edge at: {Path}", edgePath);
+                    _browser = await Puppeteer.LaunchAsync(new LaunchOptions
+                    {
+                        Headless = true,
+                        Timeout = 60000,
+                        ExecutablePath = edgePath,
+                        Args = args
+                    });
+                }
+                else
+                {
+                    // Fallback: download Chromium
+                    _logger.LogInformation("Edge not found, downloading Chromium...");
+                    await EnsureBrowserExistsAsync();
+                    _browser = await Puppeteer.LaunchAsync(new LaunchOptions
+                    {
+                        Headless = true,
+                        Timeout = 60000,
+                        Args = args
+                    });
+                }
 
+                _initialized = true;
                 _logger.LogInformation("Browser initialized successfully");
             }
             catch (Exception ex)
             {
-                _initialized = false;
-
-                _logger.LogError(ex,
-                    "Failed to initialize browser");
-
+                _logger.LogError(ex, "Failed to initialize browser");
                 throw;
             }
             finally
@@ -153,39 +146,102 @@ namespace VNFootballLeagues.Services.Services
             Timeout = TimeSpan.FromSeconds(30)
         };
 
-        private async Task<string> FetchJson(string url, int retryCount = 2)
+        private async Task<string> FetchJson(string url, int retryCount = 3)
         {
-            // Try direct HTTP first (no browser needed, faster)
-            try
+            if (retryCount == 3) retryCount = _sofascoreSettings.MaxRetries;
+            // Route through ScraperAPI if key is configured
+            if (!string.IsNullOrEmpty(_scraperApiKey))
             {
-                return await FetchJsonWithHttpClient(url);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "HTTP fetch failed for {Url}, falling back to Puppeteer", url);
+                var encodedUrl = Uri.EscapeDataString(url);
+                var scraperUrl = $"https://api.scraperapi.com?api_key={_scraperApiKey}&url={encodedUrl}";
+
+                for (int attempt = 0; attempt < retryCount; attempt++)
+                {
+                    try
+                    {
+                        using var request = new HttpRequestMessage(HttpMethod.Get, scraperUrl);
+                        request.Headers.TryAddWithoutValidation("Accept", "application/json");
+                        var response = await _httpClient.SendAsync(request);
+                        if (!response.IsSuccessStatusCode)
+                        {
+                            // 403 = out of credits or invalid key — no point retrying, fall through to direct HTTP
+                            if (response.StatusCode == System.Net.HttpStatusCode.Forbidden)
+                            {
+                                _logger.LogWarning("ScraperAPI returned Forbidden for {Url} — falling back to direct HTTP/Puppeteer", url);
+                                break;
+                            }
+                            if (attempt < retryCount - 1) { await Task.Delay((attempt + 1) * 2000); continue; }
+                            _logger.LogWarning("ScraperAPI returned {StatusCode} for {Url} after all retries — falling back", response.StatusCode, url);
+                            break;
+                        }
+                        var content = await response.Content.ReadAsStringAsync();
+                        JsonDocument.Parse(content);
+                        return content;
+                    }
+                    catch (Exception ex) when (attempt < retryCount - 1)
+                    {
+                        _logger.LogWarning(ex, "ScraperAPI attempt {Attempt} failed for {Url}, retrying...", attempt + 1, url);
+                        await Task.Delay((attempt + 1) * 2000);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "ScraperAPI all attempts failed for {Url} — falling back", url);
+                        break;
+                    }
+                }
             }
 
-            // Fallback to Puppeteer if HTTP is blocked
+            // Fallback: direct HTTP
+            for (int attempt = 0; attempt < retryCount; attempt++)
+            {
+                try
+                {
+                    return await FetchJsonWithHttpClient(url);
+                }
+                catch (HttpRequestException ex) when (ex.Message.Contains("403") || ex.Message.Contains("Forbidden"))
+                {
+                    _logger.LogWarning("HTTP 403 on attempt {Attempt} for {Url}, retrying with longer delay...", attempt + 1, url);
+                    if (attempt < retryCount - 1) { await Task.Delay((attempt + 1) * 2000); }
+                    else { _logger.LogWarning("All HTTP attempts failed, falling back to Puppeteer for {Url}", url); break; }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "HTTP fetch failed for {Url} on attempt {Attempt}", url, attempt + 1);
+                    if (attempt == retryCount - 1) { _logger.LogWarning("All HTTP attempts failed, falling back to Puppeteer for {Url}", url); break; }
+                    await Task.Delay(1000);
+                }
+            }
+
+            // Last resort: Puppeteer
             return await FetchJsonWithPuppeteer(url, retryCount);
         }
 
         private async Task<string> FetchJsonWithHttpClient(string url)
         {
+            // Add delay to avoid rate limiting
+            await Task.Delay(Random.Shared.Next(500, _sofascoreSettings.RequestDelayMs));
+
             using var request = new HttpRequestMessage(HttpMethod.Get, url);
-            request.Headers.TryAddWithoutValidation("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36");
-            request.Headers.TryAddWithoutValidation("Accept", "application/json, text/plain, */*");
-            request.Headers.TryAddWithoutValidation("Accept-Language", "en-US,en;q=0.9,vi;q=0.8");
-            request.Headers.TryAddWithoutValidation("Accept-Encoding", "gzip, deflate, br");
+
+            // Updated headers to match latest Chrome browser
+            request.Headers.TryAddWithoutValidation("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36");
+            request.Headers.TryAddWithoutValidation("Accept", "*/*");
+            request.Headers.TryAddWithoutValidation("Accept-Language", "en-US,en;q=0.9");
+            request.Headers.TryAddWithoutValidation("Accept-Encoding", "gzip, deflate, br, zstd");
             request.Headers.TryAddWithoutValidation("Referer", "https://www.sofascore.com/");
-            request.Headers.TryAddWithoutValidation("Origin", "https://www.sofascore.com");
-            request.Headers.TryAddWithoutValidation("Cache-Control", "no-cache");
+
+            // Critical headers for bypassing detection
+            request.Headers.TryAddWithoutValidation("Sec-Ch-Ua", "\"Chromium\";v=\"131\", \"Not_A Brand\";v=\"24\"");
+            request.Headers.TryAddWithoutValidation("Sec-Ch-Ua-Mobile", "?0");
+            request.Headers.TryAddWithoutValidation("Sec-Ch-Ua-Platform", "\"Windows\"");
             request.Headers.TryAddWithoutValidation("Sec-Fetch-Dest", "empty");
             request.Headers.TryAddWithoutValidation("Sec-Fetch-Mode", "cors");
             request.Headers.TryAddWithoutValidation("Sec-Fetch-Site", "same-origin");
-            request.Headers.TryAddWithoutValidation("Sec-Ch-Ua", "\"Chromium\";v=\"124\", \"Google Chrome\";v=\"124\", \"Not-A.Brand\";v=\"99\"");
-            request.Headers.TryAddWithoutValidation("Sec-Ch-Ua-Mobile", "?0");
-            request.Headers.TryAddWithoutValidation("Sec-Ch-Ua-Platform", "\"Windows\"");
-            request.Headers.TryAddWithoutValidation("X-Requested-With", "XMLHttpRequest");
+
+            // Additional headers that real browsers send
+            request.Headers.TryAddWithoutValidation("Priority", "u=1, i");
+            request.Headers.TryAddWithoutValidation("Cache-Control", "no-cache");
+            request.Headers.TryAddWithoutValidation("Pragma", "no-cache");
 
             var response = await _httpClient.SendAsync(request);
 
@@ -193,7 +249,7 @@ namespace VNFootballLeagues.Services.Services
                 throw new HttpRequestException($"HTTP Error: NotFound");
 
             if (!response.IsSuccessStatusCode)
-                throw new HttpRequestException($"HTTP Error: {response.StatusCode}");
+                throw new HttpRequestException($"HTTP Error: {response.StatusCode} - {response.ReasonPhrase}");
 
             var content = await response.Content.ReadAsStringAsync();
 
@@ -206,196 +262,288 @@ namespace VNFootballLeagues.Services.Services
 
         private async Task<string> FetchJsonWithPuppeteer(string url, int retryCount = 2)
         {
-            Exception? lastEx = null;
+            IPage page = null;
 
             for (int attempt = 0; attempt <= retryCount; attempt++)
             {
-                IPage? page = null;
-
                 try
                 {
-                    await InitBrowser();
+                    // Reinitialize browser if it crashed
+                    if (_browser == null || !_browser.IsConnected)
+                    {
+                        _logger.LogWarning("Browser not connected, reinitializing...");
+                        _initialized = false;
+                        await InitBrowser();
+                    }
 
                     lock (_pageCountLock)
                     {
-                        if (_activePages >= 5)
+                        if (_activePages >= 3)
                             throw new InvalidOperationException("Too many concurrent requests");
-
                         _activePages++;
                     }
 
-                    // Browser recovery
-                    if (_browser == null || !_browser.IsConnected)
-                    {
-                        _logger.LogWarning("Browser disconnected. Reinitializing...");
+                    page = await _browser.NewPageAsync();
+                    page.DefaultTimeout = 45000;
+                    page.DefaultNavigationTimeout = 45000;
 
-                        _initialized = false;
-
-                        await InitBrowser();
-                    }
-
-                    // Create page
-                    try
-                    {
-                        page = await _browser!.NewPageAsync();
-                    }
-                    catch (TargetClosedException)
-                    {
-                        _logger.LogWarning(
-                            "Browser crashed while creating page. Restarting browser...");
-
-                        _initialized = false;
-
-                        await InitBrowser();
-
-                        page = await _browser!.NewPageAsync();
-                    }
-
-                    if (page == null)
-                        throw new Exception("Failed to create Puppeteer page");
-
-                    page.DefaultTimeout = 30000;
-                    page.DefaultNavigationTimeout = 30000;
-
-                    await page.SetUserAgentAsync(
-                        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
-
+                    await page.SetUserAgentAsync("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36");
                     await page.SetCacheEnabledAsync(false);
 
+                    // Enhanced anti-detection measures
                     await page.EvaluateExpressionOnNewDocumentAsync(@"
-                Object.defineProperty(navigator, 'webdriver', {
-                    get: () => undefined
-                });
-            ");
+                        Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+                        Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
+                        Object.defineProperty(navigator, 'languages', { get: () => ['en-US', 'en'] });
+                        window.chrome = { runtime: {} };
+                    ");
 
-                    // Request interception
-                    await page.SetRequestInterceptionAsync(true);
-
-                    page.Request += async (_, e) =>
+                    // Set additional headers
+                    await page.SetExtraHttpHeadersAsync(new Dictionary<string, string>
                     {
-                        try
-                        {
-                            var type = e.Request.ResourceType;
-
-                            if (type == ResourceType.Image ||
-                                type == ResourceType.Font ||
-                                type == ResourceType.Media)
-                            {
-                                await e.Request.AbortAsync();
-                            }
-                            else
-                            {
-                                await e.Request.ContinueAsync();
-                            }
-                        }
-                        catch
-                        {
-                            // ignore interception errors
-                        }
-                    };
-
-                    // Navigate
-                    var response = await page.GoToAsync(url, new NavigationOptions
-                    {
-                        WaitUntil = new[] { WaitUntilNavigation.DOMContentLoaded },
-                        Timeout = 30000
+                        { "Accept-Language", "en-US,en;q=0.9" },
+                        { "Accept-Encoding", "gzip, deflate, br, zstd" },
+                        { "Sec-Ch-Ua", "\"Chromium\";v=\"131\", \"Not_A Brand\";v=\"24\"" },
+                        { "Sec-Ch-Ua-Mobile", "?0" },
+                        { "Sec-Ch-Ua-Platform", "\"Windows\"" }
                     });
 
-                    if (response == null)
-                        throw new Exception("No response received");
+                    var response = await page.GoToAsync(url, new NavigationOptions
+                    {
+                        WaitUntil = new[] { WaitUntilNavigation.Networkidle0 },
+                        Timeout = 45000
+                    });
 
                     if (response.Status == HttpStatusCode.NotFound)
                         throw new HttpRequestException($"HTTP Error: {response.Status}");
 
-                    if (response.Status != HttpStatusCode.OK &&
-                        response.Status != HttpStatusCode.NotModified)
-                    {
+                    if (response.Status != HttpStatusCode.OK && response.Status != HttpStatusCode.NotModified)
                         throw new HttpRequestException($"HTTP Error: {response.Status}");
-                    }
 
-                    await Task.Delay(300);
+                    await Task.Delay(1000);
 
-                    // Read JSON directly
-                    var content = await response.TextAsync();
+                    var content = await page.EvaluateExpressionAsync<string>("document.body.innerText");
 
                     if (string.IsNullOrWhiteSpace(content))
                         throw new InvalidOperationException("Empty response");
 
-                    // Validate JSON
                     JsonDocument.Parse(content);
+
+                    await page.CloseAsync();
+                    lock (_pageCountLock) { _activePages--; }
 
                     return content;
                 }
-                catch (Exception ex)
+                catch (Exception ex) when (attempt < retryCount && !(ex is HttpRequestException h && h.Message.Contains("NotFound")))
                 {
-                    lastEx = ex;
+                    _logger.LogWarning(ex, "Puppeteer attempt {Attempt}/{Total} failed for {Url}", attempt + 1, retryCount + 1, url);
 
-                    _logger.LogWarning(ex,
-                        "Attempt {Attempt}/{MaxAttempts} failed for {Url}",
-                        attempt + 1,
-                        retryCount + 1,
-                        url);
-
-                    bool isNotFound =
-                        ex is HttpRequestException h &&
-                        h.Message.Contains("NotFound");
-
-                    if (attempt >= retryCount || isNotFound)
-                    {
-                        break;
-                    }
-
-                    // Browser may be dead
-                    if (_browser == null || !_browser.IsConnected)
-                    {
-                        _logger.LogWarning("Browser is dead. Resetting...");
-
-                        _initialized = false;
-
-                        try
-                        {
-                            if (_browser != null)
-                            {
-                                await _browser.CloseAsync();
-                                _browser.Dispose();
-                            }
-                        }
-                        catch
-                        {
-                        }
-
-                        _browser = null;
-                    }
-
-                    await Task.Delay(1000 * (attempt + 1));
-                }
-                finally
-                {
                     if (page != null)
                     {
-                        try
+                        try { await page.CloseAsync(); } catch { }
+                    }
+                    lock (_pageCountLock) { if (_activePages > 0) _activePages--; }
+
+                    // If browser crashed, mark for reinitialization
+                    if (ex is TargetClosedException || ex.Message.Contains("Target closed") || ex.Message.Contains("WebSocket"))
+                    {
+                        _logger.LogWarning("Browser connection lost, will reinitialize on next attempt");
+                        _initialized = false;
+                        if (_browser != null)
                         {
-                            await page.CloseAsync();
-                        }
-                        catch
-                        {
+                            try { await _browser.CloseAsync(); } catch { }
+                            _browser = null;
                         }
                     }
 
-                    lock (_pageCountLock)
+                    await Task.Delay((attempt + 1) * 2000);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Puppeteer failed for {Url}", url);
+
+                    if (page != null)
                     {
-                        _activePages--;
+                        try { await page.CloseAsync(); } catch { }
                     }
+                    lock (_pageCountLock) { if (_activePages > 0) _activePages--; }
+
+                    throw;
                 }
             }
 
-            _logger.LogError(lastEx,
-                "Puppeteer failed permanently for {Url}",
-                url);
-
-            throw lastEx!;
+            throw new Exception($"Failed to fetch {url} after {retryCount + 1} attempts");
         }
 
+        private string BuildUrl(string endpointTemplate, Dictionary<string, object> parameters)
+        {
+            var url = endpointTemplate;
+            foreach (var param in parameters)
+            {
+                url = url.Replace($"{{{param.Key}}}", param.Value?.ToString() ?? string.Empty);
+            }
+
+            if (!url.StartsWith("http", StringComparison.OrdinalIgnoreCase))
+            {
+                url = $"{_sofascoreSettings.ApiBaseUrl}{url}";
+            }
+
+            return url;
+        }
+
+        private string GetRoundsUrl(int tournamentId, int seasonId)
+        {
+            return BuildUrl(_sofascoreSettings.Endpoints.Rounds, new Dictionary<string, object>
+            {
+                ["tournamentId"] = tournamentId,
+                ["seasonId"] = seasonId
+            });
+        }
+
+        private string GetEventsByRoundUrl(int tournamentId, int seasonId, int round)
+        {
+            return BuildUrl(_sofascoreSettings.Endpoints.EventsByRound, new Dictionary<string, object>
+            {
+                ["tournamentId"] = tournamentId,
+                ["seasonId"] = seasonId,
+                ["round"] = round
+            });
+        }
+
+        private string GetStatisticsUrl(int fixtureId)
+        {
+            return BuildUrl(_sofascoreSettings.Endpoints.Statistics, new Dictionary<string, object>
+            {
+                ["fixtureId"] = fixtureId
+            });
+        }
+
+        private string GetStandingsUrl(int tournamentId, int seasonId)
+        {
+            return BuildUrl(_sofascoreSettings.Endpoints.Standings, new Dictionary<string, object>
+            {
+                ["tournamentId"] = tournamentId,
+                ["seasonId"] = seasonId
+            });
+        }
+
+        private string GetSeasonsUrl(int tournamentId)
+        {
+            return BuildUrl(_sofascoreSettings.Endpoints.Seasons, new Dictionary<string, object>
+            {
+                ["tournamentId"] = tournamentId
+            });
+        }
+
+        private string GetTeamPlayersUrl(int teamId)
+        {
+            return BuildUrl(_sofascoreSettings.Endpoints.TeamPlayers, new Dictionary<string, object>
+            {
+                ["teamId"] = teamId
+            });
+        }
+
+        private string GetTeamDetailUrl(int teamId)
+        {
+            return BuildUrl(_sofascoreSettings.Endpoints.TeamDetail, new Dictionary<string, object>
+            {
+                ["teamId"] = teamId
+            });
+        }
+
+        private string GetPlayerStatsUrl(int playerId, int tournamentId, int seasonId)
+        {
+            return BuildUrl(_sofascoreSettings.Endpoints.PlayerStats, new Dictionary<string, object>
+            {
+                ["playerId"] = playerId,
+                ["tournamentId"] = tournamentId,
+                ["seasonId"] = seasonId
+            });
+        }
+
+        private string GetPlayerMatchStatsUrl(int fixtureId, int playerId)
+        {
+            return BuildUrl(_sofascoreSettings.Endpoints.PlayerMatchStats, new Dictionary<string, object>
+            {
+                ["fixtureId"] = fixtureId,
+                ["playerId"] = playerId
+            });
+        }
+
+        private string GetIncidentsUrl(int fixtureId)
+        {
+            return BuildUrl(_sofascoreSettings.Endpoints.Incidents, new Dictionary<string, object>
+            {
+                ["fixtureId"] = fixtureId
+            });
+        }
+
+        private string GetLineupsUrl(int fixtureId)
+        {
+            return BuildUrl(_sofascoreSettings.Endpoints.Lineups, new Dictionary<string, object>
+            {
+                ["fixtureId"] = fixtureId
+            });
+        }
+
+        private string GetShotmapUrl(int fixtureId)
+        {
+            return BuildUrl(_sofascoreSettings.Endpoints.Shotmap, new Dictionary<string, object>
+            {
+                ["fixtureId"] = fixtureId
+            });
+        }
+
+        private string GetTransferHistoryUrl(int playerId)
+        {
+            return BuildUrl(_sofascoreSettings.Endpoints.TransferHistory, new Dictionary<string, object>
+            {
+                ["playerId"] = playerId
+            });
+        }
+
+        private string GetUniqueTournamentUrl(int tournamentId)
+        {
+            return BuildUrl(_sofascoreSettings.Endpoints.UniqueTournament, new Dictionary<string, object>
+            {
+                ["tournamentId"] = tournamentId
+            });
+        }
+
+        private string GetEventsLastUrl(int tournamentId, int seasonId, int page)
+        {
+            return BuildUrl(_sofascoreSettings.Endpoints.EventsLast, new Dictionary<string, object>
+            {
+                ["tournamentId"] = tournamentId,
+                ["seasonId"] = seasonId,
+                ["page"] = page
+            });
+        }
+
+        private string GetEventsNextUrl(int tournamentId, int seasonId, int page)
+        {
+            return BuildUrl(_sofascoreSettings.Endpoints.EventsNext, new Dictionary<string, object>
+            {
+                ["tournamentId"] = tournamentId,
+                ["seasonId"] = seasonId,
+                ["page"] = page
+            });
+        }
+
+        private string GetTeamImageUrl(int teamId)
+        {
+            return $"{_sofascoreSettings.ImageBaseUrl}/api/v1/team/{teamId}/image";
+        }
+
+        private string GetPlayerImageUrl(int playerId)
+        {
+            return $"{_sofascoreSettings.ImageBaseUrl}/api/v1/player/{playerId}/image";
+        }
+
+        private string GetTournamentImageUrl(int tournamentId)
+        {
+            return $"{_sofascoreSettings.ImageBaseUrl}/api/v1/unique-tournament/{tournamentId}/image";
+        }
         public async Task<object> SyncMatchesByRoundAsync(int apiTournamentId, int apiSeasonId)
         {
             try
@@ -426,7 +574,7 @@ namespace VNFootballLeagues.Services.Services
                     };
                 }
 
-                var roundsUrl = $"https://www.sofascore.com/api/v1/unique-tournament/{apiTournamentId}/season/{apiSeasonId}/rounds";
+                var roundsUrl = GetRoundsUrl(apiTournamentId, apiSeasonId);
                 var roundsJson = await FetchJson(roundsUrl);
                 using var roundsDoc = JsonDocument.Parse(roundsJson);
 
@@ -459,7 +607,7 @@ namespace VNFootballLeagues.Services.Services
                     {
                         try
                         {
-                            var lastUrl = $"https://www.sofascore.com/api/v1/unique-tournament/{apiTournamentId}/season/{apiSeasonId}/events/last/{page}";
+                            var lastUrl = GetEventsLastUrl(apiTournamentId, apiSeasonId, page);
                             var lastJson = await FetchJson(lastUrl);
                             using var lastDoc = JsonDocument.Parse(lastJson);
                             if (lastDoc.RootElement.TryGetProperty("events", out var evs))
@@ -472,7 +620,7 @@ namespace VNFootballLeagues.Services.Services
                     {
                         try
                         {
-                            var nextUrl = $"https://www.sofascore.com/api/v1/unique-tournament/{apiTournamentId}/season/{apiSeasonId}/events/next/{page}";
+                            var nextUrl = GetEventsNextUrl(apiTournamentId, apiSeasonId, page);
                             var nextJson = await FetchJson(nextUrl);
                             using var nextDoc = JsonDocument.Parse(nextJson);
                             if (nextDoc.RootElement.TryGetProperty("events", out var evs))
@@ -496,150 +644,150 @@ namespace VNFootballLeagues.Services.Services
                 {
                     foreach (var r in rounds.EnumerateArray())
                     {
-                    int round = r.TryGetProperty("round", out var rp) ? rp.GetInt32() : 0;
-                    if (round == 0) { skipped++; continue; }
+                        int round = r.TryGetProperty("round", out var rp) ? rp.GetInt32() : 0;
+                        if (round == 0) { skipped++; continue; }
 
-                    var url = $"https://www.sofascore.com/api/v1/unique-tournament/{apiTournamentId}/season/{apiSeasonId}/events/round/{round}";
+                        var url = GetEventsByRoundUrl(apiTournamentId, apiSeasonId, round);
 
-                    string json;
-                    try
-                    {
-                        json = await FetchJson(url);
-                    }
-                    catch (HttpRequestException ex) when (ex.Message.Contains("NotFound") || ex.Message.Contains("404"))
-                    {
-                        _logger.LogWarning("Round {Round} not found for tournament {TournamentId} season {SeasonId}",
-                            round, apiTournamentId, apiSeasonId);
-                        skipped++;
-                        continue;
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogWarning("Failed to fetch round {Round}: {Message}", round, ex.Message);
-                        skipped++;
-                        continue;
-                    }
+                        string json;
+                        try
+                        {
+                            json = await FetchJson(url);
+                        }
+                        catch (HttpRequestException ex) when (ex.Message.Contains("NotFound") || ex.Message.Contains("404"))
+                        {
+                            _logger.LogWarning("Round {Round} not found for tournament {TournamentId} season {SeasonId}",
+                                round, apiTournamentId, apiSeasonId);
+                            skipped++;
+                            continue;
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogWarning("Failed to fetch round {Round}: {Message}", round, ex.Message);
+                            skipped++;
+                            continue;
+                        }
 
-                    using var doc = JsonDocument.Parse(json);
+                        using var doc = JsonDocument.Parse(json);
 
-                    if (!doc.RootElement.TryGetProperty("events", out var events))
-                        continue;
-
-                    foreach (var ev in events.EnumerateArray())
-                    {
-                        var apiId = ev.GetProperty("id").GetInt32();
-
-                        if (processedMatches.Contains(apiId))
+                        if (!doc.RootElement.TryGetProperty("events", out var events))
                             continue;
 
-                        processedMatches.Add(apiId);
-
-                        var existingMatch = await _context.Matches
-                            .FirstOrDefaultAsync(x => x.ApiFixtureId == apiId);
-
-                        var matchDate = DateTimeOffset
-                            .FromUnixTimeSeconds(ev.GetProperty("startTimestamp").GetInt64())
-                            .DateTime;
-
-                        int? homeApiTeamId = null;
-                        int? awayApiTeamId = null;
-                        int? homeTeamId = null;
-                        int? awayTeamId = null;
-
-                        if (ev.TryGetProperty("homeTeam", out var homeTeam))
+                        foreach (var ev in events.EnumerateArray())
                         {
-                            homeApiTeamId = homeTeam.GetProperty("id").GetInt32();
-                        }
+                            var apiId = ev.GetProperty("id").GetInt32();
 
-                        if (ev.TryGetProperty("awayTeam", out var awayTeam))
-                        {
-                            awayApiTeamId = awayTeam.GetProperty("id").GetInt32();
-                        }
-
-                        if (homeApiTeamId.HasValue)
-                        {
-                            var hTeam = await _context.Teams
-                                .FirstOrDefaultAsync(t => t.ApiTeamId == homeApiTeamId);
-
-                            if (hTeam == null)
-                            {
-                                _logger.LogWarning("Home team with API ID {ApiTeamId} not found", homeApiTeamId);
+                            if (processedMatches.Contains(apiId))
                                 continue;
-                            }
-                            homeTeamId = hTeam.TeamId;
-                        }
 
-                        if (awayApiTeamId.HasValue)
-                        {
-                            var aTeam = await _context.Teams
-                                .FirstOrDefaultAsync(t => t.ApiTeamId == awayApiTeamId);
+                            processedMatches.Add(apiId);
 
-                            if (aTeam == null)
+                            var existingMatch = await _context.Matches
+                                .FirstOrDefaultAsync(x => x.ApiFixtureId == apiId);
+
+                            var matchDate = DateTimeOffset
+                                .FromUnixTimeSeconds(ev.GetProperty("startTimestamp").GetInt64())
+                                .DateTime;
+
+                            int? homeApiTeamId = null;
+                            int? awayApiTeamId = null;
+                            int? homeTeamId = null;
+                            int? awayTeamId = null;
+
+                            if (ev.TryGetProperty("homeTeam", out var homeTeam))
                             {
-                                _logger.LogWarning("Away team with API ID {ApiTeamId} not found", awayApiTeamId);
-                                continue;
+                                homeApiTeamId = homeTeam.GetProperty("id").GetInt32();
                             }
-                            awayTeamId = aTeam.TeamId;
-                        }
 
-                        if (existingMatch == null)
-                        {
-                            _context.Matches.Add(new Match
+                            if (ev.TryGetProperty("awayTeam", out var awayTeam))
                             {
-                                ApiFixtureId = apiId,
-                                LeagueId = league.LeagueId,
-                                SeasonId = season.SeasonId,
-                                MatchDate = matchDate,
-                                KickOffTime = TimeOnly.FromDateTime(matchDate),
-                                ApiTimestamp = (int)ev.GetProperty("startTimestamp").GetInt64(),
-                                HomeGoals = SafeScore(ev, "homeScore"),
-                                AwayGoals = SafeScore(ev, "awayScore"),
-                                HomeTeamId = homeTeamId,
-                                AwayTeamId = awayTeamId,
-                                Status = ev.GetProperty("status").GetProperty("type").GetString(),
-                                Round = ev.GetProperty("roundInfo").GetProperty("round").GetInt32().ToString(),
-                                Venue = ev.TryGetProperty("venue", out var venue) &&
-                                        venue.TryGetProperty("stadium", out var stadium)
-                                        ? stadium.GetProperty("name").GetString()
-                                        : null,
-                                ApiVenueId = ev.TryGetProperty("venue", out var v2) &&
-                                             v2.TryGetProperty("id", out var vid)
-                                            ? vid.GetInt32()
-                                            : null,
-                                RefereeName = ev.TryGetProperty("referee", out var refEl)
-                                            ? refEl.GetProperty("name").GetString()
-                                            : null,
-                                Attendance = ev.TryGetProperty("attendance", out var att)
-                                            ? att.GetInt32()
-                                            : null
-                            });
-                            added++;
-                        }
-                        else
-                        {
-                            existingMatch.MatchDate = matchDate;
-                            existingMatch.KickOffTime = TimeOnly.FromDateTime(matchDate);
-                            existingMatch.ApiTimestamp = (int)ev.GetProperty("startTimestamp").GetInt64();
-                            existingMatch.HomeGoals = SafeScore(ev, "homeScore");
-                            existingMatch.AwayGoals = SafeScore(ev, "awayScore");
-                            existingMatch.Status = ev.GetProperty("status").GetProperty("type").GetString();
-                            existingMatch.HomeTeamId = homeTeamId ?? existingMatch.HomeTeamId;
-                            existingMatch.AwayTeamId = awayTeamId ?? existingMatch.AwayTeamId;
-                            existingMatch.Venue = ev.TryGetProperty("venue", out var venue) &&
-                                                  venue.TryGetProperty("stadium", out var stadium)
-                                                  ? stadium.GetProperty("name").GetString()
-                                                  : existingMatch.Venue;
-                            existingMatch.RefereeName = ev.TryGetProperty("referee", out var refEl)
-                                                      ? refEl.GetProperty("name").GetString()
-                                                      : existingMatch.RefereeName;
-                            existingMatch.Attendance = ev.TryGetProperty("attendance", out var att)
-                                                      ? att.GetInt32()
-                                                      : existingMatch.Attendance;
+                                awayApiTeamId = awayTeam.GetProperty("id").GetInt32();
+                            }
 
-                            _context.Matches.Update(existingMatch);
-                            updated++;
+                            if (homeApiTeamId.HasValue)
+                            {
+                                var hTeam = await _context.Teams
+                                    .FirstOrDefaultAsync(t => t.ApiTeamId == homeApiTeamId);
+
+                                if (hTeam == null)
+                                {
+                                    _logger.LogWarning("Home team with API ID {ApiTeamId} not found", homeApiTeamId);
+                                    continue;
+                                }
+                                homeTeamId = hTeam.TeamId;
+                            }
+
+                            if (awayApiTeamId.HasValue)
+                            {
+                                var aTeam = await _context.Teams
+                                    .FirstOrDefaultAsync(t => t.ApiTeamId == awayApiTeamId);
+
+                                if (aTeam == null)
+                                {
+                                    _logger.LogWarning("Away team with API ID {ApiTeamId} not found", awayApiTeamId);
+                                    continue;
+                                }
+                                awayTeamId = aTeam.TeamId;
+                            }
+
+                            if (existingMatch == null)
+                            {
+                                _context.Matches.Add(new Match
+                                {
+                                    ApiFixtureId = apiId,
+                                    LeagueId = league.LeagueId,
+                                    SeasonId = season.SeasonId,
+                                    MatchDate = matchDate,
+                                    KickOffTime = TimeOnly.FromDateTime(matchDate),
+                                    ApiTimestamp = (int)ev.GetProperty("startTimestamp").GetInt64(),
+                                    HomeGoals = SafeScore(ev, "homeScore"),
+                                    AwayGoals = SafeScore(ev, "awayScore"),
+                                    HomeTeamId = homeTeamId,
+                                    AwayTeamId = awayTeamId,
+                                    Status = ev.GetProperty("status").GetProperty("type").GetString(),
+                                    Round = ev.GetProperty("roundInfo").GetProperty("round").GetInt32().ToString(),
+                                    Venue = ev.TryGetProperty("venue", out var venue) &&
+                                            venue.TryGetProperty("stadium", out var stadium)
+                                            ? stadium.GetProperty("name").GetString()
+                                            : null,
+                                    ApiVenueId = ev.TryGetProperty("venue", out var v2) &&
+                                                 v2.TryGetProperty("id", out var vid)
+                                                ? vid.GetInt32()
+                                                : null,
+                                    RefereeName = ev.TryGetProperty("referee", out var refEl)
+                                                ? refEl.GetProperty("name").GetString()
+                                                : null,
+                                    Attendance = ev.TryGetProperty("attendance", out var att)
+                                                ? att.GetInt32()
+                                                : null
+                                });
+                                added++;
+                            }
+                            else
+                            {
+                                existingMatch.MatchDate = matchDate;
+                                existingMatch.KickOffTime = TimeOnly.FromDateTime(matchDate);
+                                existingMatch.ApiTimestamp = (int)ev.GetProperty("startTimestamp").GetInt64();
+                                existingMatch.HomeGoals = SafeScore(ev, "homeScore");
+                                existingMatch.AwayGoals = SafeScore(ev, "awayScore");
+                                existingMatch.Status = ev.GetProperty("status").GetProperty("type").GetString();
+                                existingMatch.HomeTeamId = homeTeamId ?? existingMatch.HomeTeamId;
+                                existingMatch.AwayTeamId = awayTeamId ?? existingMatch.AwayTeamId;
+                                existingMatch.Venue = ev.TryGetProperty("venue", out var venue) &&
+                                                      venue.TryGetProperty("stadium", out var stadium)
+                                                      ? stadium.GetProperty("name").GetString()
+                                                      : existingMatch.Venue;
+                                existingMatch.RefereeName = ev.TryGetProperty("referee", out var refEl)
+                                                          ? refEl.GetProperty("name").GetString()
+                                                          : existingMatch.RefereeName;
+                                existingMatch.Attendance = ev.TryGetProperty("attendance", out var att)
+                                                          ? att.GetInt32()
+                                                          : existingMatch.Attendance;
+
+                                _context.Matches.Update(existingMatch);
+                                updated++;
+                            }
                         }
-                    }
                     } // end foreach round
                 } // end else
 
@@ -681,7 +829,7 @@ namespace VNFootballLeagues.Services.Services
                     };
                 }
 
-                var statisticsUrl = $"https://www.sofascore.com/api/v1/event/{apiFixtureId}/statistics";
+                var statisticsUrl = GetStatisticsUrl(apiFixtureId);
                 var json = await FetchJson(statisticsUrl);
 
                 using var doc = JsonDocument.Parse(json);
@@ -701,7 +849,7 @@ namespace VNFootballLeagues.Services.Services
 
                 if (statistics.ValueKind == JsonValueKind.Array)
                 {
-                // Only process the "ALL" period (first period) - merge all groups into one row per team
+                    // Only process the "ALL" period (first period) - merge all groups into one row per team
                     var allPeriod = statistics.EnumerateArray()
                         .FirstOrDefault(p => p.TryGetProperty("period", out var per) && per.GetString() == "ALL");
 
@@ -822,33 +970,33 @@ namespace VNFootballLeagues.Services.Services
             hasData = true;
             switch (statName.ToLower())
             {
-                case "ball possession":       stats.Possession = ParseIntPercentage(value); break;
-                case "expected goals":        stats.ExpectedGoals = ParseDecimal(value); break;
-                case "total shots":           stats.Shots = ParseInt(value); break;
-                case "shots on target":       stats.ShotsOnTarget = ParseInt(value); break;
-                case "corner kicks":          stats.Corners = ParseInt(value); break;
-                case "fouls":                 stats.Fouls = ParseInt(value); break;
-                case "yellow cards":          stats.YellowCards = ParseInt(value); break;
-                case "red cards":             stats.RedCards = ParseInt(value); break;
-                case "offsides":              stats.Offsides = ParseInt(value); break;
-                case "blocked shots":         stats.ShotsBlocked = ParseInt(value); break;
-                case "shots inside box":      stats.ShotsInsideBox = ParseInt(value); break;
-                case "shots outside box":     stats.ShotsOutsideBox = ParseInt(value); break;
+                case "ball possession": stats.Possession = ParseIntPercentage(value); break;
+                case "expected goals": stats.ExpectedGoals = ParseDecimal(value); break;
+                case "total shots": stats.Shots = ParseInt(value); break;
+                case "shots on target": stats.ShotsOnTarget = ParseInt(value); break;
+                case "corner kicks": stats.Corners = ParseInt(value); break;
+                case "fouls": stats.Fouls = ParseInt(value); break;
+                case "yellow cards": stats.YellowCards = ParseInt(value); break;
+                case "red cards": stats.RedCards = ParseInt(value); break;
+                case "offsides": stats.Offsides = ParseInt(value); break;
+                case "blocked shots": stats.ShotsBlocked = ParseInt(value); break;
+                case "shots inside box": stats.ShotsInsideBox = ParseInt(value); break;
+                case "shots outside box": stats.ShotsOutsideBox = ParseInt(value); break;
                 case "total saves":
-                case "goalkeeper saves":      stats.Saves = ParseInt(value); break;
-                case "interceptions":         stats.Interceptions = ParseInt(value); break;
-                case "clearances":            stats.Clearances = ParseInt(value); break;
-                case "total tackles":         stats.TacklesWon = ParseInt(value); break;
+                case "goalkeeper saves": stats.Saves = ParseInt(value); break;
+                case "interceptions": stats.Interceptions = ParseInt(value); break;
+                case "clearances": stats.Clearances = ParseInt(value); break;
+                case "total tackles": stats.TacklesWon = ParseInt(value); break;
                 case "passes":
-                case "total passes":          if (stats.PassesAccuracy == null) stats.PassesAccuracy = ParseInt(value); break;
-                case "accurate passes":       stats.PassesAccuracy = ParseInt(value); break;
-                case "key passes":            stats.PassesKey = ParseInt(value); break;
+                case "total passes": if (stats.PassesAccuracy == null) stats.PassesAccuracy = ParseInt(value); break;
+                case "accurate passes": stats.PassesAccuracy = ParseInt(value); break;
+                case "key passes": stats.PassesKey = ParseInt(value); break;
                 case "dribbles":
-                case "successful dribbles":   stats.DribblesSuccess = ParseInt(value); break;
-                case "dribble attempts":      stats.DribblesAttempted = ParseInt(value); break;
-                case "duels won":             stats.DuelsWon = ParseInt(value); break;
+                case "successful dribbles": stats.DribblesSuccess = ParseInt(value); break;
+                case "dribble attempts": stats.DribblesAttempted = ParseInt(value); break;
+                case "duels won": stats.DuelsWon = ParseInt(value); break;
                 case "duels":
-                case "total duels":           stats.DuelsTotal = ParseInt(value); break;
+                case "total duels": stats.DuelsTotal = ParseInt(value); break;
             }
         }
 
@@ -1170,7 +1318,7 @@ namespace VNFootballLeagues.Services.Services
                         try
                         {
                             matchesJson = await FetchJson(
-                                $"https://www.sofascore.com/api/v1/unique-tournament/{apiTournamentId}/season/{apiSeasonId}/events/last/{page}");
+                                GetEventsLastUrl(apiTournamentId, apiSeasonId, page));
                         }
                         catch { break; }
 
@@ -1207,14 +1355,14 @@ namespace VNFootballLeagues.Services.Services
 
                 foreach (var teamData in teamsList)
                 {
-                    var logoUrl = teamData.logoUrl ?? $"https://api.sofascore.app/api/v1/team/{teamData.id}/image";
+                    var logoUrl = teamData.logoUrl ?? GetTeamImageUrl(teamData.id);
                     var existingTeam = await _context.Teams.FirstOrDefaultAsync(t => t.ApiTeamId == teamData.id);
 
                     int? stadiumId = existingTeam?.StadiumId;
                     int? founded = existingTeam?.Founded;
                     try
                     {
-                        var detailJson = await FetchJson($"https://www.sofascore.com/api/v1/team/{teamData.id}");
+                        var detailJson = await FetchJson(GetTeamDetailUrl(teamData.id));
                         using var dd = JsonDocument.Parse(detailJson);
                         if (dd.RootElement.TryGetProperty("team", out var te))
                         {
@@ -1333,7 +1481,7 @@ namespace VNFootballLeagues.Services.Services
 
                 int teamId = team.TeamId;
 
-                string playersJson = await FetchJson($"https://www.sofascore.com/api/v1/team/{sofascoreTeamId}/players");
+                string playersJson = await FetchJson(GetTeamPlayersUrl(sofascoreTeamId));
                 using var doc = JsonDocument.Parse(playersJson);
 
                 if (!doc.RootElement.TryGetProperty("players", out var playersEl))
@@ -1353,8 +1501,8 @@ namespace VNFootballLeagues.Services.Services
                     var position = p.TryGetProperty("position", out var pos) ? pos.GetString() : null;
                     var number = p.TryGetProperty("shirtNumber", out var num) ? (int?)num.GetInt32() : null;
                     var nationality = p.TryGetProperty("country", out var country) && country.TryGetProperty("name", out var cn) ? cn.GetString() : null;
-                    var birthCountry = nationality; // same source from Sofascore
-                    var photoUrl = $"https://api.sofascore.app/api/v1/player/{apiId}/image";
+                    var birthCountry = nationality;
+                    var photoUrl = GetPlayerImageUrl(apiId);
                     int? age = p.TryGetProperty("age", out var ageEl) ? (int?)ageEl.GetInt32() : null;
                     DateOnly? dob = null;
                     if (p.TryGetProperty("dateOfBirthTimestamp", out var dobTs))
@@ -1565,7 +1713,7 @@ namespace VNFootballLeagues.Services.Services
                         try
                         {
                             var statsJson = await FetchJson(
-                                $"https://www.sofascore.com/api/v1/player/{player.ApiPlayerId}/unique-tournament/{apiTournamentId}/season/{apiSeasonId}/statistics/overall");
+                                GetPlayerStatsUrl(player.ApiPlayerId.Value, apiTournamentId, apiSeasonId));
                             using var doc = JsonDocument.Parse(statsJson);
 
                             if (!doc.RootElement.TryGetProperty("statistics", out var s))
@@ -1780,7 +1928,7 @@ namespace VNFootballLeagues.Services.Services
 
                     try
                     {
-                        var statisticsUrl = $"https://www.sofascore.com/api/v1/event/{apiFixtureId}/statistics";
+                        var statisticsUrl = GetStatisticsUrl(apiFixtureId);
                         var json = await FetchJson(statisticsUrl);
 
                         using var doc = JsonDocument.Parse(json);
@@ -1791,7 +1939,7 @@ namespace VNFootballLeagues.Services.Services
                             int matchAdded = 0;
                             int matchUpdated = 0;
 
-                // Only process "ALL" period - merge all groups into one row per team
+                            // Only process "ALL" period - merge all groups into one row per team
                             var allPeriod = statistics.EnumerateArray()
                                 .FirstOrDefault(p => p.TryGetProperty("period", out var per) && per.GetString() == "ALL");
                             if (allPeriod.ValueKind == JsonValueKind.Undefined)
@@ -1947,11 +2095,11 @@ namespace VNFootballLeagues.Services.Services
 
                 foreach (var (apiId, name, type) in leaguesToSync)
                 {
-                    string logoUrl = $"https://api.sofascore.app/api/v1/unique-tournament/{apiId}/image";
+                    string logoUrl = GetTournamentImageUrl(apiId);
 
                     try
                     {
-                        var detailsUrl = $"https://www.sofascore.com/api/v1/unique-tournament/{apiId}";
+                        var detailsUrl = GetUniqueTournamentUrl(apiId);
                         var leagueDetailsJson = await FetchJson(detailsUrl);
 
                         using var doc = JsonDocument.Parse(leagueDetailsJson);
@@ -2047,7 +2195,7 @@ namespace VNFootballLeagues.Services.Services
                     };
                 }
 
-                var seasonsUrl = $"https://www.sofascore.com/api/v1/unique-tournament/{apiTournamentId}/seasons";
+                var seasonsUrl = GetSeasonsUrl(apiTournamentId);
                 var seasonsJson = await FetchJson(seasonsUrl);
 
                 using var doc = JsonDocument.Parse(seasonsJson);
@@ -2171,7 +2319,7 @@ namespace VNFootballLeagues.Services.Services
                     };
                 }
 
-                string url = $"https://www.sofascore.com/api/v1/event/{apiFixtureId}/incidents";
+                string url = GetIncidentsUrl(apiFixtureId);
                 _logger.LogInformation("Fetching incidents for event {EventId}", apiFixtureId);
 
                 var json = await FetchJson(url);
@@ -2194,222 +2342,222 @@ namespace VNFootballLeagues.Services.Services
 
                 foreach (var incident in incidents.EnumerateArray())
                 {
-                            if (!incident.TryGetProperty("id", out var idEl))
+                    if (!incident.TryGetProperty("id", out var idEl))
+                    {
+                        skipped++;
+                        continue;
+                    }
+
+                    int apiEventId = idEl.GetInt32();
+
+                    var existingEvent = await _context.MatchEvents
+                        .FirstOrDefaultAsync(e => e.ApiEventId == apiEventId);
+
+                    string incidentType = incident.TryGetProperty("incidentType", out var typeEl)
+                        ? typeEl.GetString()
+                        : null;
+
+                    if (incidentType == "period")
+                    {
+                        _logger.LogDebug("Skipping period event {ApiEventId}", apiEventId);
+                        continue;
+                    }
+
+                    if (incidentType == "injuryTime")
+                    {
+                        _logger.LogDebug("Skipping injury time event {ApiEventId}", apiEventId);
+                        continue;
+                    }
+
+                    var matchEvent = new MatchEvent
+                    {
+                        ApiEventId = apiEventId,
+                        MatchId = match.MatchId,
+                        EventType = incidentType,
+                        Detail = incident.TryGetProperty("incidentClass", out var classEl)
+                            ? classEl.GetString()
+                            : null,
+                        EventTime = incident.TryGetProperty("time", out var timeEl)
+                            ? timeEl.GetInt32()
+                            : null,
+                        ExtraTime = incident.TryGetProperty("addedTime", out var addedTimeEl)
+                            ? addedTimeEl.GetInt32()
+                            : null,
+                        Period = incident.TryGetProperty("period", out var periodEl2) && periodEl2.TryGetProperty("code", out var periodCodeEl)
+                            ? (periodCodeEl.GetString() == "1ST" ? "1st Half" : periodCodeEl.GetString() == "2ND" ? "2nd Half" : "REGULAR")
+                            : incident.TryGetProperty("time", out var periodTimeEl)
+                                ? (periodTimeEl.GetInt32() <= 45 ? "1st Half" : "2nd Half")
+                                : "REGULAR",
+                        Comments = incident.TryGetProperty("text", out var textEl)
+                            ? textEl.GetString()
+                            : null
+                    };
+
+                    if (incident.TryGetProperty("isHome", out var isHomeEl))
+                    {
+                        bool isHome = isHomeEl.GetBoolean();
+                        matchEvent.TeamId = isHome ? match.HomeTeamId : match.AwayTeamId;
+                    }
+
+                    if (incidentType == "substitution")
+                    {
+
+                        if (incident.TryGetProperty("playerOut", out var playerOutEl))
+                        {
+                            if (playerOutEl.TryGetProperty("id", out var playerOutIdEl))
                             {
-                                skipped++;
-                                continue;
-                            }
+                                int apiPlayerOutId = playerOutIdEl.GetInt32();
+                                var playerOut = await _context.Players
+                                    .FirstOrDefaultAsync(p => p.ApiPlayerId == apiPlayerOutId);
 
-                            int apiEventId = idEl.GetInt32();
+                                matchEvent.PlayerId = playerOut?.PlayerId;
 
-                            var existingEvent = await _context.MatchEvents
-                                .FirstOrDefaultAsync(e => e.ApiEventId == apiEventId);
-
-                            string incidentType = incident.TryGetProperty("incidentType", out var typeEl)
-                                ? typeEl.GetString()
-                                : null;
-
-                            if (incidentType == "period")
-                            {
-                                _logger.LogDebug("Skipping period event {ApiEventId}", apiEventId);
-                                continue;
-                            }
-
-                            if (incidentType == "injuryTime")
-                            {
-                                _logger.LogDebug("Skipping injury time event {ApiEventId}", apiEventId);
-                                continue;
-                            }
-
-                            var matchEvent = new MatchEvent
-                            {
-                                ApiEventId = apiEventId,
-                                MatchId = match.MatchId,
-                                EventType = incidentType,
-                                Detail = incident.TryGetProperty("incidentClass", out var classEl)
-                                    ? classEl.GetString()
-                                    : null,
-                                EventTime = incident.TryGetProperty("time", out var timeEl)
-                                    ? timeEl.GetInt32()
-                                    : null,
-                                ExtraTime = incident.TryGetProperty("addedTime", out var addedTimeEl)
-                                    ? addedTimeEl.GetInt32()
-                                    : null,
-                                Period = incident.TryGetProperty("period", out var periodEl2) && periodEl2.TryGetProperty("code", out var periodCodeEl)
-                                    ? (periodCodeEl.GetString() == "1ST" ? "1st Half" : periodCodeEl.GetString() == "2ND" ? "2nd Half" : "REGULAR")
-                                    : incident.TryGetProperty("time", out var periodTimeEl)
-                                        ? (periodTimeEl.GetInt32() <= 45 ? "1st Half" : "2nd Half")
-                                        : "REGULAR",
-                                Comments = incident.TryGetProperty("text", out var textEl)
-                                    ? textEl.GetString()
-                                    : null
-                            };
-
-                            if (incident.TryGetProperty("isHome", out var isHomeEl))
-                            {
-                                bool isHome = isHomeEl.GetBoolean();
-                                matchEvent.TeamId = isHome ? match.HomeTeamId : match.AwayTeamId;
-                            }
-
-                            if (incidentType == "substitution")
-                            {
-
-                                if (incident.TryGetProperty("playerOut", out var playerOutEl))
+                                if (playerOut != null)
                                 {
-                                    if (playerOutEl.TryGetProperty("id", out var playerOutIdEl))
-                                    {
-                                        int apiPlayerOutId = playerOutIdEl.GetInt32();
-                                        var playerOut = await _context.Players
-                                            .FirstOrDefaultAsync(p => p.ApiPlayerId == apiPlayerOutId);
-
-                                        matchEvent.PlayerId = playerOut?.PlayerId;
-
-                                        if (playerOut != null)
-                                        {
-                                            _logger.LogDebug("Player OUT: {PlayerName} (API ID: {ApiId})",
-                                                playerOut.FullName, apiPlayerOutId);
-                                        }
-                                    }
+                                    _logger.LogDebug("Player OUT: {PlayerName} (API ID: {ApiId})",
+                                        playerOut.FullName, apiPlayerOutId);
                                 }
-
-                                if (incident.TryGetProperty("playerIn", out var playerInEl))
-                                {
-                                    if (playerInEl.TryGetProperty("id", out var playerInIdEl))
-                                    {
-                                        int apiPlayerInId = playerInIdEl.GetInt32();
-                                        var playerIn = await _context.Players
-                                            .FirstOrDefaultAsync(p => p.ApiPlayerId == apiPlayerInId);
-
-                                        matchEvent.AssistPlayerId = playerIn?.PlayerId;
-
-                                        if (playerIn != null)
-                                        {
-                                            _logger.LogDebug("Player IN: {PlayerName} (API ID: {ApiId})",
-                                                playerIn.FullName, apiPlayerInId);
-                                        }
-                                    }
-                                }
-
-                                if (matchEvent.PlayerId.HasValue && matchEvent.AssistPlayerId.HasValue)
-                                {
-                                    matchEvent.Comments = $"Substitution: Player out (ID: {matchEvent.PlayerId}) replaced by Player in (ID: {matchEvent.AssistPlayerId})";
-                                }
-                            }
-                            else if (incidentType == "goal")
-                            {
-                                if (incident.TryGetProperty("player", out var scorerEl))
-                                {
-                                    if (scorerEl.TryGetProperty("id", out var scorerIdEl))
-                                    {
-                                        int apiScorerId = scorerIdEl.GetInt32();
-                                        var scorer = await _context.Players
-                                            .FirstOrDefaultAsync(p => p.ApiPlayerId == apiScorerId);
-
-                                        matchEvent.PlayerId = scorer?.PlayerId;
-
-                                        if (scorer != null)
-                                        {
-                                            _logger.LogDebug("Goal scorer: {PlayerName} (API ID: {ApiId})",
-                                                scorer.FullName, apiScorerId);
-                                        }
-                                    }
-                                }
-
-                                if (incident.TryGetProperty("assist", out var assistEl))
-                                {
-                                    if (assistEl.TryGetProperty("id", out var assistIdEl))
-                                    {
-                                        int apiAssistId = assistIdEl.GetInt32();
-                                        var assistPlayer = await _context.Players
-                                            .FirstOrDefaultAsync(p => p.ApiPlayerId == apiAssistId);
-
-                                        matchEvent.AssistPlayerId = assistPlayer?.PlayerId;
-
-                                        if (assistPlayer != null)
-                                        {
-                                            _logger.LogDebug("Goal assist: {PlayerName} (API ID: {ApiId})",
-                                                assistPlayer.FullName, apiAssistId);
-                                        }
-                                    }
-                                }
-
-                                if (incident.TryGetProperty("from", out var fromEl))
-                                {
-                                    string goalType = fromEl.GetString();
-                                    matchEvent.Comments = $"Goal from {goalType}";
-                                }
-                            }
-                            else if (incidentType == "card")
-                            {
-                                if (incident.TryGetProperty("player", out var playerEl))
-                                {
-                                    if (playerEl.TryGetProperty("id", out var playerIdEl))
-                                    {
-                                        int apiPlayerId = playerIdEl.GetInt32();
-                                        var player = await _context.Players
-                                            .FirstOrDefaultAsync(p => p.ApiPlayerId == apiPlayerId);
-
-                                        matchEvent.PlayerId = player?.PlayerId;
-
-                                        if (player != null)
-                                        {
-                                            _logger.LogDebug("Card for player: {PlayerName} (API ID: {ApiId})",
-                                                player.FullName, apiPlayerId);
-                                        }
-                                    }
-                                }
-
-                                if (incident.TryGetProperty("reason", out var reasonEl))
-                                {
-                                    string reason = reasonEl.GetString();
-                                    matchEvent.Comments = $"Reason: {reason}";
-                                }
-                            }
-
-                            if (existingEvent == null)
-                            {
-                                _context.MatchEvents.Add(matchEvent);
-                                added++;
-                                _logger.LogDebug("Added event {ApiEventId} for match {MatchId}: {EventType} at {Time} minute",
-                                    apiEventId, match.MatchId, matchEvent.EventType, matchEvent.EventTime);
-                            }
-                            else
-                            {
-                                existingEvent.MatchId = matchEvent.MatchId;
-                                existingEvent.TeamId = matchEvent.TeamId;
-                                existingEvent.PlayerId = matchEvent.PlayerId;
-                                existingEvent.AssistPlayerId = matchEvent.AssistPlayerId;
-                                existingEvent.EventType = matchEvent.EventType;
-                                existingEvent.Detail = matchEvent.Detail;
-                                existingEvent.EventTime = matchEvent.EventTime;
-                                existingEvent.ExtraTime = matchEvent.ExtraTime;
-                                existingEvent.Period = matchEvent.Period;
-                                existingEvent.Comments = matchEvent.Comments ?? existingEvent.Comments;
-
-                                _context.MatchEvents.Update(existingEvent);
-                                updated++;
-                                _logger.LogDebug("Updated event {ApiEventId} for match {MatchId}",
-                                    apiEventId, match.MatchId);
                             }
                         }
 
-                        await _context.SaveChangesAsync();
-
-                        return new
+                        if (incident.TryGetProperty("playerIn", out var playerInEl))
                         {
-                            status = true,
-                            message = $"Synced events for match {apiFixtureId}: {added} added, {updated} updated, {skipped} skipped",
-                            data = new
+                            if (playerInEl.TryGetProperty("id", out var playerInIdEl))
                             {
-                                added,
-                                updated,
-                                skipped,
-                                matchId = match.MatchId,
-                                apiFixtureId
+                                int apiPlayerInId = playerInIdEl.GetInt32();
+                                var playerIn = await _context.Players
+                                    .FirstOrDefaultAsync(p => p.ApiPlayerId == apiPlayerInId);
+
+                                matchEvent.AssistPlayerId = playerIn?.PlayerId;
+
+                                if (playerIn != null)
+                                {
+                                    _logger.LogDebug("Player IN: {PlayerName} (API ID: {ApiId})",
+                                        playerIn.FullName, apiPlayerInId);
+                                }
                             }
-                        };
+                        }
+
+                        if (matchEvent.PlayerId.HasValue && matchEvent.AssistPlayerId.HasValue)
+                        {
+                            matchEvent.Comments = $"Substitution: Player out (ID: {matchEvent.PlayerId}) replaced by Player in (ID: {matchEvent.AssistPlayerId})";
+                        }
                     }
-                
+                    else if (incidentType == "goal")
+                    {
+                        if (incident.TryGetProperty("player", out var scorerEl))
+                        {
+                            if (scorerEl.TryGetProperty("id", out var scorerIdEl))
+                            {
+                                int apiScorerId = scorerIdEl.GetInt32();
+                                var scorer = await _context.Players
+                                    .FirstOrDefaultAsync(p => p.ApiPlayerId == apiScorerId);
+
+                                matchEvent.PlayerId = scorer?.PlayerId;
+
+                                if (scorer != null)
+                                {
+                                    _logger.LogDebug("Goal scorer: {PlayerName} (API ID: {ApiId})",
+                                        scorer.FullName, apiScorerId);
+                                }
+                            }
+                        }
+
+                        if (incident.TryGetProperty("assist", out var assistEl))
+                        {
+                            if (assistEl.TryGetProperty("id", out var assistIdEl))
+                            {
+                                int apiAssistId = assistIdEl.GetInt32();
+                                var assistPlayer = await _context.Players
+                                    .FirstOrDefaultAsync(p => p.ApiPlayerId == apiAssistId);
+
+                                matchEvent.AssistPlayerId = assistPlayer?.PlayerId;
+
+                                if (assistPlayer != null)
+                                {
+                                    _logger.LogDebug("Goal assist: {PlayerName} (API ID: {ApiId})",
+                                        assistPlayer.FullName, apiAssistId);
+                                }
+                            }
+                        }
+
+                        if (incident.TryGetProperty("from", out var fromEl))
+                        {
+                            string goalType = fromEl.GetString();
+                            matchEvent.Comments = $"Goal from {goalType}";
+                        }
+                    }
+                    else if (incidentType == "card")
+                    {
+                        if (incident.TryGetProperty("player", out var playerEl))
+                        {
+                            if (playerEl.TryGetProperty("id", out var playerIdEl))
+                            {
+                                int apiPlayerId = playerIdEl.GetInt32();
+                                var player = await _context.Players
+                                    .FirstOrDefaultAsync(p => p.ApiPlayerId == apiPlayerId);
+
+                                matchEvent.PlayerId = player?.PlayerId;
+
+                                if (player != null)
+                                {
+                                    _logger.LogDebug("Card for player: {PlayerName} (API ID: {ApiId})",
+                                        player.FullName, apiPlayerId);
+                                }
+                            }
+                        }
+
+                        if (incident.TryGetProperty("reason", out var reasonEl))
+                        {
+                            string reason = reasonEl.GetString();
+                            matchEvent.Comments = $"Reason: {reason}";
+                        }
+                    }
+
+                    if (existingEvent == null)
+                    {
+                        _context.MatchEvents.Add(matchEvent);
+                        added++;
+                        _logger.LogDebug("Added event {ApiEventId} for match {MatchId}: {EventType} at {Time} minute",
+                            apiEventId, match.MatchId, matchEvent.EventType, matchEvent.EventTime);
+                    }
+                    else
+                    {
+                        existingEvent.MatchId = matchEvent.MatchId;
+                        existingEvent.TeamId = matchEvent.TeamId;
+                        existingEvent.PlayerId = matchEvent.PlayerId;
+                        existingEvent.AssistPlayerId = matchEvent.AssistPlayerId;
+                        existingEvent.EventType = matchEvent.EventType;
+                        existingEvent.Detail = matchEvent.Detail;
+                        existingEvent.EventTime = matchEvent.EventTime;
+                        existingEvent.ExtraTime = matchEvent.ExtraTime;
+                        existingEvent.Period = matchEvent.Period;
+                        existingEvent.Comments = matchEvent.Comments ?? existingEvent.Comments;
+
+                        _context.MatchEvents.Update(existingEvent);
+                        updated++;
+                        _logger.LogDebug("Updated event {ApiEventId} for match {MatchId}",
+                            apiEventId, match.MatchId);
+                    }
+                }
+
+                await _context.SaveChangesAsync();
+
+                return new
+                {
+                    status = true,
+                    message = $"Synced events for match {apiFixtureId}: {added} added, {updated} updated, {skipped} skipped",
+                    data = new
+                    {
+                        added,
+                        updated,
+                        skipped,
+                        matchId = match.MatchId,
+                        apiFixtureId
+                    }
+                };
+            }
+
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error syncing match events for fixture {ApiFixtureId}", apiFixtureId);
@@ -2452,7 +2600,7 @@ namespace VNFootballLeagues.Services.Services
                     };
                 }
 
-                string url = $"https://www.sofascore.com/api/v1/unique-tournament/{apiTournamentId}/season/{apiSeasonId}/standings/total";
+                string url = GetStandingsUrl(apiTournamentId, apiSeasonId);
                 _logger.LogInformation("Fetching standings for tournament {TournamentId}, season {SeasonId}",
                     apiTournamentId, apiSeasonId);
 
@@ -2665,7 +2813,7 @@ namespace VNFootballLeagues.Services.Services
                 var matchPositions = new Dictionary<int, string>(); // apiPlayerId -> position in this match
                 try
                 {
-                    var lineupJson = await FetchJson($"https://www.sofascore.com/api/v1/event/{apiFixtureId}/lineups");
+                    var lineupJson = await FetchJson(GetLineupsUrl(apiFixtureId));
                     using var lineupDoc = JsonDocument.Parse(lineupJson);
                     foreach (var side in new[] { "home", "away" })
                     {
@@ -2688,7 +2836,7 @@ namespace VNFootballLeagues.Services.Services
                 var penaltyWon = new Dictionary<int, int>();
                 try
                 {
-                    var shotmapJson = await FetchJson($"https://www.sofascore.com/api/v1/event/{apiFixtureId}/shotmap");
+                    var shotmapJson = await FetchJson(GetShotmapUrl(apiFixtureId));
                     using var shotmapDoc = JsonDocument.Parse(shotmapJson);
                     if (shotmapDoc.RootElement.TryGetProperty("shotmap", out var shots))
                     {
@@ -2725,7 +2873,7 @@ namespace VNFootballLeagues.Services.Services
                 {
                     try
                     {
-                        var statsUrl = $"https://www.sofascore.com/api/v1/event/{apiFixtureId}/player/{player.ApiPlayerId}/statistics";
+                        var statsUrl = GetPlayerMatchStatsUrl(apiFixtureId, player.ApiPlayerId.Value);
                         string statsJson = await FetchJson(statsUrl);
 
                         using var doc = JsonDocument.Parse(statsJson);
@@ -2982,89 +3130,89 @@ namespace VNFootballLeagues.Services.Services
             }
         }
         public async Task<object> FetchPlayerMatchStatsByRoundAsync(int apiTournamentId, int apiSeasonId, string round)
+        {
+            try
+            {
+                var league = await _context.Leagues.FirstOrDefaultAsync(l => l.ApiLeagueId == apiTournamentId);
+                if (league == null)
+                    return new { status = false, message = $"League with API ID {apiTournamentId} not found.", data = (object?)null };
+
+                var season = await _context.Seasons.FirstOrDefaultAsync(s => s.ApiSeasonId == apiSeasonId);
+                if (season == null)
+                    return new { status = false, message = $"Season with API ID {apiSeasonId} not found.", data = (object?)null };
+
+                var matches = await _context.Matches
+                    .Include(m => m.HomeTeam)
+                    .Include(m => m.AwayTeam)
+                    .Where(m => m.LeagueId == league.LeagueId &&
+                                m.SeasonId == season.SeasonId &&
+                                m.Status == "finished" &&
+                                m.ApiFixtureId.HasValue &&
+                                m.Round == round)
+                    .OrderBy(m => m.MatchDate)
+                    .ToListAsync();
+
+                if (!matches.Any())
+                    return new { status = false, message = $"No finished matches found for round '{round}'", data = (object?)null };
+
+                int totalMatchesProcessed = 0, totalSuccess = 0, totalFailed = 0;
+                var matchResults = new List<object>();
+
+                foreach (var match in matches)
                 {
-                    try
+                    var resultObject = await FetchPlayerMatchStatsByApiMatchIdAsync(match.ApiFixtureId!.Value);
+                    var resultType = resultObject.GetType();
+                    var isSuccess = resultType.GetProperty("status") is { } sp && (bool)sp.GetValue(resultObject);
+
+                    if (isSuccess)
                     {
-                        var league = await _context.Leagues.FirstOrDefaultAsync(l => l.ApiLeagueId == apiTournamentId);
-                        if (league == null)
-                            return new { status = false, message = $"League with API ID {apiTournamentId} not found.", data = (object?)null };
-
-                        var season = await _context.Seasons.FirstOrDefaultAsync(s => s.ApiSeasonId == apiSeasonId);
-                        if (season == null)
-                            return new { status = false, message = $"Season with API ID {apiSeasonId} not found.", data = (object?)null };
-
-                        var matches = await _context.Matches
-                            .Include(m => m.HomeTeam)
-                            .Include(m => m.AwayTeam)
-                            .Where(m => m.LeagueId == league.LeagueId &&
-                                        m.SeasonId == season.SeasonId &&
-                                        m.Status == "finished" &&
-                                        m.ApiFixtureId.HasValue &&
-                                        m.Round == round)
-                            .OrderBy(m => m.MatchDate)
-                            .ToListAsync();
-
-                        if (!matches.Any())
-                            return new { status = false, message = $"No finished matches found for round '{round}'", data = (object?)null };
-
-                        int totalMatchesProcessed = 0, totalSuccess = 0, totalFailed = 0;
-                        var matchResults = new List<object>();
-
-                        foreach (var match in matches)
-                        {
-                            var resultObject = await FetchPlayerMatchStatsByApiMatchIdAsync(match.ApiFixtureId!.Value);
-                            var resultType = resultObject.GetType();
-                            var isSuccess = resultType.GetProperty("status") is { } sp && (bool)sp.GetValue(resultObject);
-
-                            if (isSuccess)
-                            {
-                                var data = resultType.GetProperty("data")?.GetValue(resultObject);
-                                var dataType = data?.GetType();
-                                if (dataType?.GetProperty("successCount")?.GetValue(data) is int sc) totalSuccess += sc;
-                                if (dataType?.GetProperty("failCount")?.GetValue(data) is int fc) totalFailed += fc;
-                                totalMatchesProcessed++;
-                            }
-
-                            matchResults.Add(new
-                            {
-                                matchId = match.MatchId,
-                                apiFixtureId = match.ApiFixtureId!.Value,
-                                matchDate = match.MatchDate,
-                                homeTeam = match.HomeTeam?.TeamName,
-                                awayTeam = match.AwayTeam?.TeamName,
-                                success = isSuccess
-                            });
-
-                            await Task.Delay(1000);
-                        }
-
-                        return new
-                        {
-                            status = true,
-                    message = $"Round {round} - {league.LeagueName} {season.Year}: {totalMatchesProcessed} matches, {totalSuccess} stats saved, {totalFailed} failed",
-                            data = new
-                            {
-                                leagueId = league.LeagueId,
-                                leagueName = league.LeagueName,
-                                seasonId = season.SeasonId,
-                                seasonYear = season.Year,
-                                round,
-                                totalMatches = matches.Count,
-                                totalMatchesProcessed,
-                                totalSuccess,
-                                totalFailed,
-                                matchResults
-                            }
-                        };
+                        var data = resultType.GetProperty("data")?.GetValue(resultObject);
+                        var dataType = data?.GetType();
+                        if (dataType?.GetProperty("successCount")?.GetValue(data) is int sc) totalSuccess += sc;
+                        if (dataType?.GetProperty("failCount")?.GetValue(data) is int fc) totalFailed += fc;
+                        totalMatchesProcessed++;
                     }
-                    catch (Exception ex)
+
+                    matchResults.Add(new
                     {
-                        _logger.LogError(ex, "Error fetching player match stats for round {Round}", round);
-                        return new { status = false, message = ex.Message, data = ex.StackTrace };
-                    }
+                        matchId = match.MatchId,
+                        apiFixtureId = match.ApiFixtureId!.Value,
+                        matchDate = match.MatchDate,
+                        homeTeam = match.HomeTeam?.TeamName,
+                        awayTeam = match.AwayTeam?.TeamName,
+                        success = isSuccess
+                    });
+
+                    await Task.Delay(1000);
                 }
 
-                // ==================== GetAll (read from DB) ====================
+                return new
+                {
+                    status = true,
+                    message = $"Round {round} - {league.LeagueName} {season.Year}: {totalMatchesProcessed} matches, {totalSuccess} stats saved, {totalFailed} failed",
+                    data = new
+                    {
+                        leagueId = league.LeagueId,
+                        leagueName = league.LeagueName,
+                        seasonId = season.SeasonId,
+                        seasonYear = season.Year,
+                        round,
+                        totalMatches = matches.Count,
+                        totalMatchesProcessed,
+                        totalSuccess,
+                        totalFailed,
+                        matchResults
+                    }
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error fetching player match stats for round {Round}", round);
+                return new { status = false, message = ex.Message, data = ex.StackTrace };
+            }
+        }
+
+        // ==================== GetAll (read from DB) ====================
 
         public async Task<List<League>> GetAllLeaguesAsync()
         {
@@ -3084,7 +3232,7 @@ namespace VNFootballLeagues.Services.Services
                     resolvedLeagueId = leagueEntity.LeagueId;
             }
 
-                // League not synced but need season: only has ApiTournamentId -> fetch directly from SofaScore
+            // League not synced but need season: only has ApiTournamentId -> fetch directly from SofaScore
             if (tournamentId.HasValue && tournamentId.Value > 0 && leagueEntity == null)
                 return await FetchSeasonListFromSofaAsync(tournamentId.Value, null);
 
@@ -3107,7 +3255,7 @@ namespace VNFootballLeagues.Services.Services
                 }).ToList();
             }
 
-                // League exists in DB but season not synced -> fetch from API
+            // League exists in DB but season not synced -> fetch from API
             if (tournamentId.HasValue && tournamentId.Value > 0)
                 return await FetchSeasonListFromSofaAsync(tournamentId.Value, leagueEntity?.LeagueId);
 
@@ -3116,7 +3264,7 @@ namespace VNFootballLeagues.Services.Services
 
         private async Task<List<SeasonListItemDto>> FetchSeasonListFromSofaAsync(int apiTournamentId, int? leagueIdHint)
         {
-            var seasonsUrl = $"https://www.sofascore.com/api/v1/unique-tournament/{apiTournamentId}/seasons";
+            var seasonsUrl = GetSeasonsUrl(apiTournamentId);
             string seasonsJson;
             try
             {
@@ -3432,27 +3580,27 @@ namespace VNFootballLeagues.Services.Services
                     if (existing == null) continue; // Only update existing rows, don't create new ones
 
                     // Aggregate all stats from match stats that Sofascore season API doesn't provide
-                    existing.Tackles            = g.Sum(s => s.Tackles ?? 0);
-                    existing.Interceptions      = g.Sum(s => s.Interceptions ?? 0);
-                    existing.DuelsWon           = g.Sum(s => s.DuelsWon ?? 0);
-                    existing.DuelsTotal         = g.Sum(s => s.DuelsTotal ?? 0);
-                    existing.DuelsWonRate       = existing.DuelsTotal > 0
+                    existing.Tackles = g.Sum(s => s.Tackles ?? 0);
+                    existing.Interceptions = g.Sum(s => s.Interceptions ?? 0);
+                    existing.DuelsWon = g.Sum(s => s.DuelsWon ?? 0);
+                    existing.DuelsTotal = g.Sum(s => s.DuelsTotal ?? 0);
+                    existing.DuelsWonRate = existing.DuelsTotal > 0
                         ? Math.Round((decimal)existing.DuelsWon.Value / existing.DuelsTotal.Value * 100, 2)
                         : null;
-                    existing.FoulsDrawn         = g.Sum(s => s.FoulsDrawn ?? 0);
-                    existing.DribblesAttempted  = g.Sum(s => s.DribblesAttempted ?? 0);
-                    var dribblesSuccess         = g.Sum(s => s.DribblesSuccess ?? 0);
+                    existing.FoulsDrawn = g.Sum(s => s.FoulsDrawn ?? 0);
+                    existing.DribblesAttempted = g.Sum(s => s.DribblesAttempted ?? 0);
+                    var dribblesSuccess = g.Sum(s => s.DribblesSuccess ?? 0);
                     existing.DribblesSuccessRate = existing.DribblesAttempted > 0
                         ? Math.Round((decimal)dribblesSuccess / existing.DribblesAttempted.Value * 100, 2)
                         : null;
-                    existing.PenaltiesMissed    = g.Sum(s => s.PenaltiesMissed ?? 0);
+                    existing.PenaltiesMissed = g.Sum(s => s.PenaltiesMissed ?? 0);
                     // GK stats from match stats
-                    existing.SavesInsideBox     = g.Sum(s => s.SavesInsideBox ?? 0) > 0 ? g.Sum(s => s.SavesInsideBox ?? 0) : existing.SavesInsideBox;
-                    existing.Punches            = g.Sum(s => s.Punches ?? 0) > 0 ? g.Sum(s => s.Punches ?? 0) : existing.Punches;
-                    existing.RunsOut            = g.Sum(s => s.RunsOut ?? 0) > 0 ? g.Sum(s => s.RunsOut ?? 0) : existing.RunsOut;
-                    existing.RunsOutSuccessful  = g.Sum(s => s.RunsOutSuccessful ?? 0) > 0 ? g.Sum(s => s.RunsOutSuccessful ?? 0) : existing.RunsOutSuccessful;
-                    existing.HighClaims         = g.Sum(s => s.HighClaims ?? 0) > 0 ? g.Sum(s => s.HighClaims ?? 0) : existing.HighClaims;
-                    existing.PenaltiesSaved     = g.Sum(s => s.PenaltiesSaved ?? 0) > 0 ? g.Sum(s => s.PenaltiesSaved ?? 0) : existing.PenaltiesSaved;
+                    existing.SavesInsideBox = g.Sum(s => s.SavesInsideBox ?? 0) > 0 ? g.Sum(s => s.SavesInsideBox ?? 0) : existing.SavesInsideBox;
+                    existing.Punches = g.Sum(s => s.Punches ?? 0) > 0 ? g.Sum(s => s.Punches ?? 0) : existing.Punches;
+                    existing.RunsOut = g.Sum(s => s.RunsOut ?? 0) > 0 ? g.Sum(s => s.RunsOut ?? 0) : existing.RunsOut;
+                    existing.RunsOutSuccessful = g.Sum(s => s.RunsOutSuccessful ?? 0) > 0 ? g.Sum(s => s.RunsOutSuccessful ?? 0) : existing.RunsOutSuccessful;
+                    existing.HighClaims = g.Sum(s => s.HighClaims ?? 0) > 0 ? g.Sum(s => s.HighClaims ?? 0) : existing.HighClaims;
+                    existing.PenaltiesSaved = g.Sum(s => s.PenaltiesSaved ?? 0) > 0 ? g.Sum(s => s.PenaltiesSaved ?? 0) : existing.PenaltiesSaved;
 
                     _context.PlayerSeasonStatistics.Update(existing);
                     updated++;
@@ -3481,10 +3629,12 @@ namespace VNFootballLeagues.Services.Services
                 var leagueSeasons = await _context.Seasons
                     .Include(s => s.League)
                     .Where(s => s.League != null && s.League.ApiLeagueId > 0 && s.ApiSeasonId > 0)
-                    .Select(s => new { 
-                        ApiLeagueId = s.League.ApiLeagueId ?? 0, 
-                        ApiSeasonId = s.ApiSeasonId ?? 0, 
-                        s.SeasonId, s.LeagueId, s.Year 
+                    .Select(s => new {
+                        ApiLeagueId = s.League.ApiLeagueId ?? 0,
+                        ApiSeasonId = s.ApiSeasonId ?? 0,
+                        s.SeasonId,
+                        s.LeagueId,
+                        s.Year
                     })
                     .Where(s => s.ApiLeagueId > 0 && s.ApiSeasonId > 0)
                     .ToListAsync();
@@ -3507,31 +3657,31 @@ namespace VNFootballLeagues.Services.Services
                             TeamId = player.TeamId,
                             LeagueId = ls.LeagueId,
                             SeasonId = ls.SeasonId,
-                            Appearances   = s.TryGetProperty("appearances", out var ap) ? ap.GetInt32() : null,
-                            Lineups       = s.TryGetProperty("matchesStarted", out var ms) ? ms.GetInt32() : null,
-                            Minutes       = s.TryGetProperty("minutesPlayed", out var mp) ? mp.GetInt32() : null,
-                            Goals         = s.TryGetProperty("goals", out var g) ? g.GetInt32() : null,
-                            Assists       = s.TryGetProperty("assists", out var a) ? a.GetInt32() : null,
-                            YellowCards   = s.TryGetProperty("yellowCards", out var yc) ? yc.GetInt32() : null,
-                            RedCards      = s.TryGetProperty("redCards", out var rc) ? rc.GetInt32() : null,
-                            Rating        = s.TryGetProperty("rating", out var r) ? (decimal?)r.GetDecimal() : null,
-                            SubstitutionsIn  = s.TryGetProperty("substitutionsIn", out var si) ? si.GetInt32() : null,
+                            Appearances = s.TryGetProperty("appearances", out var ap) ? ap.GetInt32() : null,
+                            Lineups = s.TryGetProperty("matchesStarted", out var ms) ? ms.GetInt32() : null,
+                            Minutes = s.TryGetProperty("minutesPlayed", out var mp) ? mp.GetInt32() : null,
+                            Goals = s.TryGetProperty("goals", out var g) ? g.GetInt32() : null,
+                            Assists = s.TryGetProperty("assists", out var a) ? a.GetInt32() : null,
+                            YellowCards = s.TryGetProperty("yellowCards", out var yc) ? yc.GetInt32() : null,
+                            RedCards = s.TryGetProperty("redCards", out var rc) ? rc.GetInt32() : null,
+                            Rating = s.TryGetProperty("rating", out var r) ? (decimal?)r.GetDecimal() : null,
+                            SubstitutionsIn = s.TryGetProperty("substitutionsIn", out var si) ? si.GetInt32() : null,
                             SubstitutionsOut = s.TryGetProperty("substitutionsOut", out var so) ? so.GetInt32() : null,
-                            ShotsTotal    = s.TryGetProperty("totalShots", out var ts) ? ts.GetInt32() : null,
+                            ShotsTotal = s.TryGetProperty("totalShots", out var ts) ? ts.GetInt32() : null,
                             ShotsOnTarget = s.TryGetProperty("shotsOnTarget", out var sot) ? sot.GetInt32() : null,
-                            PassesTotal   = s.TryGetProperty("totalPasses", out var pt) ? pt.GetInt32() : null,
-                            PassesKey     = s.TryGetProperty("keyPasses", out var kp) ? kp.GetInt32() : null,
+                            PassesTotal = s.TryGetProperty("totalPasses", out var pt) ? pt.GetInt32() : null,
+                            PassesKey = s.TryGetProperty("keyPasses", out var kp) ? kp.GetInt32() : null,
                             PassesAccuracy = s.TryGetProperty("accuratePasses", out var pac) ? (decimal?)pac.GetDecimal() : null,
                             DribblesAttempted = s.TryGetProperty("totalDribbleAttempts", out var da) ? da.GetInt32() : null,
-                            DribblesSuccess   = s.TryGetProperty("successfulDribbles", out var ds) ? ds.GetInt32() : null,
-                            Tackles       = s.TryGetProperty("tackles", out var tk) ? tk.GetInt32() : null,
+                            DribblesSuccess = s.TryGetProperty("successfulDribbles", out var ds) ? ds.GetInt32() : null,
+                            Tackles = s.TryGetProperty("tackles", out var tk) ? tk.GetInt32() : null,
                             Interceptions = s.TryGetProperty("interceptions", out var ic) ? ic.GetInt32() : null,
                             FoulsCommitted = s.TryGetProperty("fouls", out var fc) ? fc.GetInt32() : null,
                             PenaltiesScored = s.TryGetProperty("penaltyGoals", out var pg) ? pg.GetInt32() : null,
                             // GK
-                            Saves         = s.TryGetProperty("saves", out var sv) ? sv.GetInt32() : null,
+                            Saves = s.TryGetProperty("saves", out var sv) ? sv.GetInt32() : null,
                             GoalsConceded = s.TryGetProperty("goalsConceded", out var gc2) ? gc2.GetInt32() : null,
-                            CleanSheets   = s.TryGetProperty("cleanSheet", out var cs) ? cs.GetInt32() : null,
+                            CleanSheets = s.TryGetProperty("cleanSheet", out var cs) ? cs.GetInt32() : null,
                             PenaltiesSaved = s.TryGetProperty("penaltySave", out var ps) ? ps.GetInt32() : null,
                         };
 
@@ -3950,7 +4100,7 @@ namespace VNFootballLeagues.Services.Services
                     };
                 }
 
-                string url = $"https://www.sofascore.com/api/v1/event/{apiFixtureId}/lineups";
+                string url = GetLineupsUrl(apiFixtureId);
                 _logger.LogInformation("Fetching lineups for event {EventId}", apiFixtureId);
 
                 var json = await FetchJson(url);
@@ -4187,7 +4337,7 @@ namespace VNFootballLeagues.Services.Services
                     };
                 }
 
-                string playersUrl = $"https://www.sofascore.com/api/v1/team/{apiTeamId}/players";
+                string playersUrl = GetTeamPlayersUrl(apiTeamId);
                 _logger.LogInformation("Fetching players for team {ApiTeamId}", apiTeamId);
                 var playersJson = await FetchJson(playersUrl);
                 using var playersDoc = JsonDocument.Parse(playersJson);
@@ -4247,7 +4397,7 @@ namespace VNFootballLeagues.Services.Services
 
                     try
                     {
-                        string transfersUrl = $"https://www.sofascore.com/api/v1/player/{apiPlayerId}/transfer-history";
+                        string transfersUrl = GetTransferHistoryUrl(apiPlayerId);
                         var transfersJson = await FetchJson(transfersUrl);
                         using var transfersDoc = JsonDocument.Parse(transfersJson);
 
@@ -4388,7 +4538,7 @@ namespace VNFootballLeagues.Services.Services
                 {
                     try
                     {
-                        string transfersUrl = $"https://www.sofascore.com/api/v1/player/{player.ApiPlayerId}/transfer-history";
+                        string transfersUrl = GetTransferHistoryUrl(player.ApiPlayerId.Value);
                         var transfersJson = await FetchJson(transfersUrl);
                         using var doc = JsonDocument.Parse(transfersJson);
 
@@ -4570,7 +4720,7 @@ namespace VNFootballLeagues.Services.Services
                     };
                 }
 
-                string standingsUrl = $"https://www.sofascore.com/api/v1/unique-tournament/{apiTournamentId}/season/{apiSeasonId}/standings/total";
+                string standingsUrl = GetStandingsUrl(apiTournamentId, apiSeasonId);
                 _logger.LogInformation("Fetching standings for tournament {TournamentId}, season {SeasonId}",
                     apiTournamentId, apiSeasonId);
 
@@ -4779,7 +4929,7 @@ namespace VNFootballLeagues.Services.Services
                     };
                 }
 
-                string standingsUrl = $"https://www.sofascore.com/api/v1/unique-tournament/{apiTournamentId}/season/{apiSeasonId}/standings/total";
+                string standingsUrl = GetStandingsUrl(apiTournamentId, apiSeasonId);
                 _logger.LogInformation("Fetching standings for tournament {TournamentId}, season {SeasonId}",
                     apiTournamentId, apiSeasonId);
 
@@ -5166,7 +5316,8 @@ namespace VNFootballLeagues.Services.Services
                     .ToListAsync();
 
                 if (!teamIds.Any())
-                {                var homeTeamIds = await _context.Matches
+                {
+                    var homeTeamIds = await _context.Matches
                         .Where(m => m.LeagueId == league.LeagueId && m.SeasonId == season.SeasonId && m.HomeTeamId != null)
                         .Select(m => m.HomeTeamId)
                         .Distinct()
@@ -5533,7 +5684,6 @@ namespace VNFootballLeagues.Services.Services
         }
     }
 }
-
 
 
 
