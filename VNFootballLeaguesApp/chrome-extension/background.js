@@ -1,5 +1,5 @@
-// const API_BASE = 'http://localhost:5272';
 const API_BASE = 'https://footballwebappservice-cggdfkhcbsdzfnga.southeastasia-01.azurewebsites.net';
+// const API_BASE = 'http://localhost:5272';
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   // Save JWT token from web app
@@ -97,18 +97,19 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         // Clear match found — return it, skip players/teams
         sendResponse({ success: true, mode: 'match', matchData, playerData: null, teamData: null });
       } else {
-        // No clear match — get teams and players from full text
+        // No clear match — get teams and players from article text (limit to avoid sidebar)
+        const articleText = fullText.substring(0, 800);
         const [playerData, teamData] = await Promise.all([
           fetch(`${API_BASE}/api/Football/identify-players`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ text: fullText })
+            body: JSON.stringify({ text: articleText })
           }).then(r => r.json()).catch(() => null),
 
           fetch(`${API_BASE}/api/Football/identify-team`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ text: fullText })
+            body: JSON.stringify({ text: articleText })
           }).then(r => r.json()).catch(() => null),
         ]);
         sendResponse({ success: true, mode: 'entities', matchData: null, playerData, teamData });
