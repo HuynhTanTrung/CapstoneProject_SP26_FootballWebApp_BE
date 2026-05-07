@@ -352,6 +352,7 @@ Thống kê tổng quan (SeasonId={latestStat.SeasonId}):
         }
 
         [HttpGet("sessions/{sessionId:guid}/messages")]
+        [ResponseCache(Duration = 3, VaryByQueryKeys = new[] { "userId" })]
         public async Task<IActionResult> GetMessages(
             [FromRoute] Guid sessionId,
             [FromQuery] Guid userId,
