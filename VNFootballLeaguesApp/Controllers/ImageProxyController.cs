@@ -15,6 +15,8 @@ public class ImageProxyController : ControllerBase
 
     // In-memory set track những key đã upload Cloudinary thành công trong session BE
     private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, bool> _uploadedKeys = new();
+    // Track những key đã thử fetch Sofascore nhưng thất bại (403/404) — tránh retry liên tục
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, DateTimeOffset> _failedKeys = new();
 
     public ImageProxyController(IHttpClientFactory httpClientFactory, ILogger<ImageProxyController> logger, CloudinaryService cloudinary, IConfiguration configuration)
     {
@@ -95,6 +97,10 @@ public class ImageProxyController : ControllerBase
         if (_uploadedKeys.ContainsKey(cacheKey))
             return Ok(new { queued = false, cached = true });
 
+        // Nếu đã thử fetch Sofascore thất bại gần đây (trong 1 giờ) thì skip
+        if (_failedKeys.TryGetValue(cacheKey, out var failedAt) && DateTimeOffset.UtcNow - failedAt < TimeSpan.FromHours(1))
+            return Ok(new { queued = false, skipped = true });
+
         _ = Task.Run(async () =>
         {
             try
@@ -114,7 +120,11 @@ public class ImageProxyController : ControllerBase
                 client.DefaultRequestHeaders.Add("Origin", "https://www.sofascore.com");
 
                 var response = await client.GetAsync(url);
-                if (!response.IsSuccessStatusCode) return;
+                if (!response.IsSuccessStatusCode)
+                {
+                    _failedKeys[cacheKey] = DateTimeOffset.UtcNow;
+                    return;
+                }
 
                 var imageBytes = await response.Content.ReadAsByteArrayAsync();
                 var contentType = response.Content.Headers.ContentType?.ToString() ?? "image/png";
