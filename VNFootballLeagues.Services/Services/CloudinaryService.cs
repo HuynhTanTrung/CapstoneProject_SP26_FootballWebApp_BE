@@ -76,13 +76,17 @@ public class CloudinaryService
         };
 
         var result = await _cloudinary.UploadAsync(uploadParams);
+        if (result.Error != null)
+            throw new Exception($"Cloudinary upload error: {result.Error.Message}");
         return result.SecureUrl?.ToString();
     }
 
-    /// <summary>Lấy URL Cloudinary nếu ảnh đã được cache (không cần gọi API).</summary>
+    /// <summary>Build URL Cloudinary từ publicId mà không cần gọi API. Trả về null nếu chưa config.</summary>
     public string? GetCachedUrl(string publicId)
     {
         if (!_enabled || _cloudinary == null) return null;
+
+        // Build Cloudinary URL qua SDK — tự xử lý encoding đúng chuẩn
         return _cloudinary.Api.UrlImgUp.BuildUrl($"vnfootball/sofascore/{publicId}");
     }
 

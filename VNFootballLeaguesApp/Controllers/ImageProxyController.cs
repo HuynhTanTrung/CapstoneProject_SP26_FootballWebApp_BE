@@ -29,15 +29,15 @@ public class ImageProxyController : ControllerBase
     ///        /api/ImageProxy/sofascore/tournament/626/dark
     /// </summary>
     [HttpGet("sofascore/team/{id}")]
-    [ResponseCache(Duration = 86400)]
+    [ResponseCache(Duration = 0, NoStore = true)]
     public Task<IActionResult> GetTeamImage(string id) => ProxyImage("team", id, null);
 
     [HttpGet("sofascore/player/{id}")]
-    [ResponseCache(Duration = 86400)]
+    [ResponseCache(Duration = 0, NoStore = true)]
     public Task<IActionResult> GetPlayerImage(string id) => ProxyImage("player", id, null);
 
     [HttpGet("sofascore/tournament/{id}/{theme?}")]
-    [ResponseCache(Duration = 86400)]
+    [ResponseCache(Duration = 0, NoStore = true)]
     public Task<IActionResult> GetTournamentImage(string id, string? theme = "dark") => ProxyImage("tournament", id, theme);
 
     /// <summary>
@@ -88,8 +88,19 @@ public class ImageProxyController : ControllerBase
 
         var cacheKey = req.Theme != null ? $"{req.Type}/{req.Id}/{req.Theme}" : $"{req.Type}/{req.Id}";
 
-        // Nếu đã cache rồi thì bỏ qua
+        // Nếu đã cache rồi thì check HEAD xem có thật sự tồn tại không
         var existing = _cloudinary.GetCachedUrl(cacheKey);
+        if (existing != null)
+        {
+            try
+            {
+                var checkClient = _httpClientFactory.CreateClient();
+                var head = await checkClient.SendAsync(new HttpRequestMessage(HttpMethod.Head, existing));
+                if (head.IsSuccessStatusCode)
+                    return Ok(new { queued = false, cached = true, url = existing });
+            }
+            catch { /* nếu check fail thì vẫn tiếp tục upload */ }
+        }
 
         _ = Task.Run(async () =>
         {
@@ -132,74 +143,56 @@ public class ImageProxyController : ControllerBase
 
     private async Task<IActionResult> ProxyImage(string type, string id, string? theme)
     {
-        // Build a stable Cloudinary public_id for this image
         var cacheKey = theme != null ? $"{type}/{id}/{theme}" : $"{type}/{id}";
 
-        // 1. Try Cloudinary cache first — redirect to CDN URL (fast, no origin fetch)
-        var cachedUrl = _cloudinary.GetCachedUrl(cacheKey);
-        if (cachedUrl != null)
+        var sofascoreUrl = type.ToLower() switch
         {
-            // Verify the asset actually exists by attempting a HEAD — skip if Cloudinary disabled
-            // For simplicity, we optimistically redirect; browser will fallback on 404
-            return Redirect(cachedUrl);
-        }
+            "team"       => $"https://api.sofascore.app/api/v1/team/{id}/image",
+            "player"     => $"https://api.sofascore.app/api/v1/player/{id}/image",
+            "tournament" => $"https://api.sofascore.app/api/v1/unique-tournament/{id}/image/{theme ?? "dark"}",
+            _            => null
+        };
 
-        // 2. Fetch from Sofascore (via ScraperAPI if key available, else direct)
+        if (sofascoreUrl == null)
+            return BadRequest("Invalid image type. Use: team, player, or tournament");
+
         try
         {
-            var sofascoreUrl = type.ToLower() switch
-            {
-                "team"       => $"https://img.sofascore.com/api/v1/team/{id}/image",
-                "player"     => $"https://img.sofascore.com/api/v1/player/{id}/image",
-                "tournament" => $"https://img.sofascore.com/api/v1/unique-tournament/{id}/image/{theme ?? "dark"}",
-                _            => null
-            };
-
-            if (sofascoreUrl == null)
-                return BadRequest("Invalid image type. Use: team, player, or tournament");
-
-            var fetchUrl = !string.IsNullOrEmpty(_scraperApiKey)
-                ? $"https://api.scraperapi.com?api_key={_scraperApiKey}&url={Uri.EscapeDataString(sofascoreUrl)}"
-                : sofascoreUrl;
-
             var client = _httpClientFactory.CreateClient();
-            if (string.IsNullOrEmpty(_scraperApiKey))
-            {
-                client.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36");
-                client.DefaultRequestHeaders.Add("Referer", "https://www.sofascore.com/");
-                client.DefaultRequestHeaders.Add("Origin", "https://www.sofascore.com");
-            }
+            client.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36");
+            client.DefaultRequestHeaders.Add("Referer", "https://www.sofascore.com/");
+            client.DefaultRequestHeaders.Add("Accept", "image/avif,image/webp,image/apng,image/*,*/*;q=0.8");
 
-            var response = await client.GetAsync(fetchUrl);
-
+            var response = await client.GetAsync(sofascoreUrl);
             if (!response.IsSuccessStatusCode)
             {
-                _logger.LogWarning("Sofascore returned {StatusCode} for URL: {Url}", (int)response.StatusCode, sofascoreUrl);
-                return StatusCode((int)response.StatusCode, $"Sofascore returned {(int)response.StatusCode} for {sofascoreUrl}");
+                _logger.LogWarning("Sofascore returned {StatusCode} for {Url}", (int)response.StatusCode, sofascoreUrl);
+                return StatusCode((int)response.StatusCode);
             }
 
             var imageBytes = await response.Content.ReadAsByteArrayAsync();
             var contentType = response.Content.Headers.ContentType?.ToString() ?? "image/png";
 
-            // 3. Upload to Cloudinary cache (fire-and-forget, don't block response)
+            // Upload Cloudinary fire-and-forget
             _ = Task.Run(async () =>
             {
                 try
                 {
                     await _cloudinary.UploadSofascoreImageAsync(imageBytes, contentType, cacheKey);
-                    _logger.LogInformation("Cached Sofascore image to Cloudinary: {Key}", cacheKey);
+                    _logger.LogInformation("Cached to Cloudinary: {Key}", cacheKey);
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, "Failed to cache image to Cloudinary: {Key}", cacheKey);
+                    _logger.LogWarning(ex, "Failed to cache to Cloudinary: {Key}", cacheKey);
                 }
             });
 
+            Response.Headers["Cache-Control"] = "public, max-age=86400";
             return File(imageBytes, contentType);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error proxying Sofascore image: {Type}/{Id}", type, id);
+            _logger.LogError(ex, "Error proxying image: {Type}/{Id}", type, id);
             return StatusCode(500);
         }
     }
