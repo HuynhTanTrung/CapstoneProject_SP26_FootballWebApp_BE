@@ -439,14 +439,38 @@ namespace VNFootballLeaguesApp.Controllers
         }
 
         [HttpGet("players/compare-stats")]
-        public async Task<IActionResult> ComparePlayers([FromQuery] int player1Id, [FromQuery] int player2Id)
+        [ResponseCache(Duration = 300)] // cache 5 phút
+        public async Task<IActionResult> ComparePlayers(
+            [FromQuery] int? player1Id, [FromQuery] int? player2Id,
+            [FromQuery] int? player1, [FromQuery] int? player2)
         {
-            var p1 = await _service.GetPlayerByIdAsync(player1Id);
-            var p2 = await _service.GetPlayerByIdAsync(player2Id);
+            var p1Id = player1Id ?? player1 ?? 0;
+            var p2Id = player2Id ?? player2 ?? 0;
+
+            if (p1Id <= 0 || p2Id <= 0)
+                return BadRequest(new { message = "Vui lòng chọn đủ 2 cầu thủ để so sánh." });
+
+            // Try PlayerId first, then ApiPlayerId (frontend may send either)
+            var players = await _db.Players.AsNoTracking()
+                .Where(p => p.PlayerId == p1Id || p.PlayerId == p2Id
+                         || p.ApiPlayerId == p1Id || p.ApiPlayerId == p2Id)
+                .ToListAsync();
+
+            // Resolve each player: prefer PlayerId match, fallback to ApiPlayerId
+            var p1 = players.FirstOrDefault(p => p.PlayerId == p1Id)
+                  ?? players.FirstOrDefault(p => p.ApiPlayerId == p1Id);
+            var p2 = players.FirstOrDefault(p => p.PlayerId == p2Id)
+                  ?? players.FirstOrDefault(p => p.ApiPlayerId == p2Id);
+
             if (p1 == null || p2 == null) return NotFound(new { message = "One or both players not found" });
 
-            var stats1 = await _service.GetPlayerStatsByPlayerIdAsync(player1Id);
-            var stats2 = await _service.GetPlayerStatsByPlayerIdAsync(player2Id);
+            // Fetch both players' stats in one query using resolved internal PlayerId
+            var allStats = await _db.PlayerSeasonStatistics.AsNoTracking()
+                .Where(s => s.PlayerId == p1.PlayerId || s.PlayerId == p2.PlayerId)
+                .ToListAsync();
+
+            var stats1 = allStats.Where(s => s.PlayerId == p1.PlayerId).ToList();
+            var stats2 = allStats.Where(s => s.PlayerId == p2.PlayerId).ToList();
 
             object MapPlayer(VNFootballLeagues.Repositories.Models.Player p, List<VNFootballLeagues.Repositories.Models.PlayerSeasonStatistic> stats) => new
             {

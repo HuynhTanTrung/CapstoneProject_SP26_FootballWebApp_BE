@@ -164,14 +164,14 @@ namespace VNFootballLeagues.Services.Services
                         var response = await _httpClient.SendAsync(request);
                         if (!response.IsSuccessStatusCode)
                         {
-                            // 403 = out of credits or invalid key — no point retrying, fall through to direct HTTP
+                            // 403 = out of credits or invalid key - no point retrying, fall through to direct HTTP
                             if (response.StatusCode == System.Net.HttpStatusCode.Forbidden)
                             {
-                                _logger.LogWarning("ScraperAPI returned Forbidden for {Url} — falling back to direct HTTP/Puppeteer", url);
+                                _logger.LogWarning("ScraperAPI returned Forbidden for {Url} - falling back to direct HTTP/Puppeteer", url);
                                 break;
                             }
                             if (attempt < retryCount - 1) { await Task.Delay((attempt + 1) * 2000); continue; }
-                            _logger.LogWarning("ScraperAPI returned {StatusCode} for {Url} after all retries — falling back", response.StatusCode, url);
+                            _logger.LogWarning("ScraperAPI returned {StatusCode} for {Url} after all retries - falling back", response.StatusCode, url);
                             break;
                         }
                         var content = await response.Content.ReadAsStringAsync();
@@ -185,7 +185,7 @@ namespace VNFootballLeagues.Services.Services
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogWarning(ex, "ScraperAPI all attempts failed for {Url} — falling back", url);
+                        _logger.LogWarning(ex, "ScraperAPI all attempts failed for {Url} - falling back", url);
                         break;
                     }
                 }
@@ -5670,8 +5670,8 @@ namespace VNFootballLeagues.Services.Services
 
                 if (!userIds.Any()) return;
 
-                var title = $"Favorite player updated";
-                var message = $"{player.FullName ?? player.FirstName} has new {updateType} updated.";
+                var title = $"Cầu thủ yêu thích vừa được cập nhật";
+                var message = $"{player.FullName ?? player.FirstName} vừa có dữ liệu {(updateType == "match stats" ? "thống kê trận đấu" : updateType == "season stats" ? "thống kê mùa giải" : updateType)} mới được cập nhật.";
                 var link = $"/players/{player.ApiPlayerId}";
 
                 await _notificationService.CreateBulkAsync(userIds, "favorite_player_updated", title, message, link, ct);
