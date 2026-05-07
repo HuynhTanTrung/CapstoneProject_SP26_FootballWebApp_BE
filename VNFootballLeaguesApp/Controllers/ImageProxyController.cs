@@ -13,6 +13,9 @@ public class ImageProxyController : ControllerBase
     private readonly CloudinaryService _cloudinary;
     private readonly string _scraperApiKey;
 
+    // In-memory set track những key đã upload Cloudinary thành công trong session BE
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, bool> _uploadedKeys = new();
+
     public ImageProxyController(IHttpClientFactory httpClientFactory, ILogger<ImageProxyController> logger, CloudinaryService cloudinary, IConfiguration configuration)
     {
         _httpClientFactory = httpClientFactory;
@@ -88,19 +91,9 @@ public class ImageProxyController : ControllerBase
 
         var cacheKey = req.Theme != null ? $"{req.Type}/{req.Id}/{req.Theme}" : $"{req.Type}/{req.Id}";
 
-        // Nếu đã cache rồi thì check HEAD xem có thật sự tồn tại không
-        var existing = _cloudinary.GetCachedUrl(cacheKey);
-        if (existing != null)
-        {
-            try
-            {
-                var checkClient = _httpClientFactory.CreateClient();
-                var head = await checkClient.SendAsync(new HttpRequestMessage(HttpMethod.Head, existing));
-                if (head.IsSuccessStatusCode)
-                    return Ok(new { queued = false, cached = true, url = existing });
-            }
-            catch { /* nếu check fail thì vẫn tiếp tục upload */ }
-        }
+        // Nếu đã upload trong session này thì skip luôn
+        if (_uploadedKeys.ContainsKey(cacheKey))
+            return Ok(new { queued = false, cached = true });
 
         _ = Task.Run(async () =>
         {
@@ -126,6 +119,7 @@ public class ImageProxyController : ControllerBase
                 var imageBytes = await response.Content.ReadAsByteArrayAsync();
                 var contentType = response.Content.Headers.ContentType?.ToString() ?? "image/png";
                 await _cloudinary.UploadSofascoreImageAsync(imageBytes, contentType, cacheKey);
+                _uploadedKeys.TryAdd(cacheKey, true);
                 _logger.LogInformation("Cached by-id: {Key}", cacheKey);
             }
             catch (Exception ex)
@@ -182,6 +176,7 @@ public class ImageProxyController : ControllerBase
                 try
                 {
                     await _cloudinary.UploadSofascoreImageAsync(imageBytes, contentType, cacheKey);
+                    _uploadedKeys.TryAdd(cacheKey, true);
                     _logger.LogInformation("Cached to Cloudinary: {Key}", cacheKey);
                 }
                 catch (Exception ex)
