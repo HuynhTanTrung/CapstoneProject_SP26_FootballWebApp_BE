@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "VN Football",
-  "version": "1.2",
+  "version": "1.3",
   "description": "Phân tích bài viết bóng đá Việt Nam bằng AI (V-League 1, V-League 2, Vietnam Cup)",
   "icons": {
     "16": "icon16.png",
