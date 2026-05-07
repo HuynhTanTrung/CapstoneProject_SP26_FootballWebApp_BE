@@ -83,7 +83,6 @@ public class CloudinaryService
     public string? GetCachedUrl(string publicId)
     {
         if (!_enabled || _cloudinary == null) return null;
-        // Build URL trực tiếp từ public_id — không cần round-trip API
         return _cloudinary.Api.UrlImgUp.BuildUrl($"vnfootball/sofascore/{publicId}");
     }
 

@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Configuration;
 using VNFootballLeagues.Services.Services;
 
 namespace VNFootballLeaguesApp.Controllers;
@@ -10,12 +11,14 @@ public class ImageProxyController : ControllerBase
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILogger<ImageProxyController> _logger;
     private readonly CloudinaryService _cloudinary;
+    private readonly string _scraperApiKey;
 
-    public ImageProxyController(IHttpClientFactory httpClientFactory, ILogger<ImageProxyController> logger, CloudinaryService cloudinary)
+    public ImageProxyController(IHttpClientFactory httpClientFactory, ILogger<ImageProxyController> logger, CloudinaryService cloudinary, IConfiguration configuration)
     {
         _httpClientFactory = httpClientFactory;
         _logger = logger;
         _cloudinary = cloudinary;
+        _scraperApiKey = configuration["SofascoreSettings:ScraperApiKey"] ?? string.Empty;
     }
 
     /// <summary>
@@ -141,39 +144,38 @@ public class ImageProxyController : ControllerBase
             return Redirect(cachedUrl);
         }
 
-        // 2. Fetch from Sofascore
+        // 2. Fetch from Sofascore (via ScraperAPI if key available, else direct)
         try
         {
-            var url = type.ToLower() switch
+            var sofascoreUrl = type.ToLower() switch
             {
-                "team"       => $"https://api.sofascore.app/api/v1/team/{id}/image",
-                "player"     => $"https://api.sofascore.app/api/v1/player/{id}/image",
-                "tournament" => $"https://api.sofascore.app/api/v1/unique-tournament/{id}/image/{theme ?? "dark"}",
+                "team"       => $"https://img.sofascore.com/api/v1/team/{id}/image",
+                "player"     => $"https://img.sofascore.com/api/v1/player/{id}/image",
+                "tournament" => $"https://img.sofascore.com/api/v1/unique-tournament/{id}/image/{theme ?? "dark"}",
                 _            => null
             };
 
-            if (url == null)
+            if (sofascoreUrl == null)
                 return BadRequest("Invalid image type. Use: team, player, or tournament");
 
-            var client = _httpClientFactory.CreateClient();
-            client.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36");
-            client.DefaultRequestHeaders.Add("Referer", "https://www.sofascore.com/");
-            client.DefaultRequestHeaders.Add("Origin", "https://www.sofascore.com");
-            client.DefaultRequestHeaders.Add("Accept", "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8");
-            client.DefaultRequestHeaders.Add("Accept-Language", "en-US,en;q=0.9");
-            client.DefaultRequestHeaders.Add("sec-ch-ua", "\"Chromium\";v=\"124\", \"Google Chrome\";v=\"124\", \"Not-A.Brand\";v=\"99\"");
-            client.DefaultRequestHeaders.Add("sec-ch-ua-mobile", "?0");
-            client.DefaultRequestHeaders.Add("sec-ch-ua-platform", "\"Windows\"");
-            client.DefaultRequestHeaders.Add("Sec-Fetch-Dest", "image");
-            client.DefaultRequestHeaders.Add("Sec-Fetch-Mode", "no-cors");
-            client.DefaultRequestHeaders.Add("Sec-Fetch-Site", "same-site");
+            var fetchUrl = !string.IsNullOrEmpty(_scraperApiKey)
+                ? $"https://api.scraperapi.com?api_key={_scraperApiKey}&url={Uri.EscapeDataString(sofascoreUrl)}"
+                : sofascoreUrl;
 
-            var response = await client.GetAsync(url);
+            var client = _httpClientFactory.CreateClient();
+            if (string.IsNullOrEmpty(_scraperApiKey))
+            {
+                client.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36");
+                client.DefaultRequestHeaders.Add("Referer", "https://www.sofascore.com/");
+                client.DefaultRequestHeaders.Add("Origin", "https://www.sofascore.com");
+            }
+
+            var response = await client.GetAsync(fetchUrl);
 
             if (!response.IsSuccessStatusCode)
             {
-                _logger.LogWarning("Sofascore returned {StatusCode} for URL: {Url}", (int)response.StatusCode, url);
-                return StatusCode((int)response.StatusCode, $"Sofascore returned {(int)response.StatusCode} for {url}");
+                _logger.LogWarning("Sofascore returned {StatusCode} for URL: {Url}", (int)response.StatusCode, sofascoreUrl);
+                return StatusCode((int)response.StatusCode, $"Sofascore returned {(int)response.StatusCode} for {sofascoreUrl}");
             }
 
             var imageBytes = await response.Content.ReadAsByteArrayAsync();
