@@ -167,6 +167,9 @@ public class ImageProxyController : ControllerBase
             if (!response.IsSuccessStatusCode)
             {
                 _logger.LogWarning("Sofascore returned {StatusCode} for {Url}", (int)response.StatusCode, sofascoreUrl);
+                // Fallback về Cloudinary nếu đã cache
+                var cachedUrl = _cloudinary.GetCachedUrl(cacheKey);
+                if (cachedUrl != null) return Redirect(cachedUrl);
                 return StatusCode((int)response.StatusCode);
             }
 
