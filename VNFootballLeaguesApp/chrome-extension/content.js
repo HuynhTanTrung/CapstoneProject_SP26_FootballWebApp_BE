@@ -246,7 +246,7 @@ async function identifyPlayer(text, x, y) {
 
     const playerCards = foundPlayers.map(p => `
       <div class="card" data-url="${p.player.profileUrl}">
-        <img src="" data-photo="${p.player.photoUrl || ''}"
+        <img src="" data-photo="${p.player.photoProxyUrl ? API_BASE + p.player.photoProxyUrl : (p.player.photoUrl || '')}"
              style="width:30px;height:30px;border-radius:50%;object-fit:cover;flex-shrink:0;background:#333" />
         <div class="info">
           <div class="name">${p.player.fullName}</div>
@@ -286,6 +286,13 @@ async function identifyPlayer(text, x, y) {
     host.shadowRoot.querySelectorAll('img[data-photo]').forEach(img => {
       const url = img.dataset.photo;
       if (!url) return;
+      // If it's a proxy URL from our backend, set src directly (no CORS issue)
+      if (url.startsWith(API_BASE)) {
+        img.src = url;
+        img.onerror = () => { img.style.display = 'none'; };
+        return;
+      }
+      // Fallback: fetch external URLs via background script
       try {
         chrome.runtime.sendMessage({ type: 'fetch-image', url }, (res) => {
           if (res?.success) img.src = res.dataUrl;
@@ -523,7 +530,7 @@ function showResults(x, y, foundPlayers, foundMatch, foundTeam, mode) {
     if (foundTeam) html += buildTeamCard(foundTeam);
     html += foundPlayers.map(p => `
       <div class="card" data-url="${p.player.profileUrl}">
-        <img src="" data-photo="${p.player.photoUrl || ''}"
+        <img src="" data-photo="${p.player.photoProxyUrl ? API_BASE + p.player.photoProxyUrl : (p.player.photoUrl || '')}"
              style="width:30px;height:30px;border-radius:50%;object-fit:cover;flex-shrink:0;background:#333" />
         <div class="info">
           <div class="name">${p.player.fullName}</div>
@@ -555,6 +562,12 @@ function showResults(x, y, foundPlayers, foundMatch, foundTeam, mode) {
   host.shadowRoot.querySelectorAll('img[data-photo]').forEach(img => {
     const url = img.dataset.photo;
     if (!url) return;
+    // If it's a proxy URL from our backend, set src directly (no CORS issue)
+    if (url.startsWith(API_BASE)) {
+      img.src = url;
+      img.onerror = () => { img.style.display = 'none'; };
+      return;
+    }
     console.log('[VN Football] Loading image:', url.substring(0, 60));
     try {
       chrome.runtime.sendMessage({ type: 'fetch-image', url }, (res) => {

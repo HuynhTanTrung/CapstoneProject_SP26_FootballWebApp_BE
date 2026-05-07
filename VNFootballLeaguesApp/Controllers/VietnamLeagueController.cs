@@ -978,7 +978,7 @@ namespace VNFootballLeaguesApp.Controllers
                         p.Age,
                         p.Number,
                         teamName = p.TeamName,
-                        photoProxyUrl = $"/api/Football/players/{p.PlayerId}/photo",
+                        photoProxyUrl = p.ApiPlayerId.HasValue ? $"/api/ImageProxy/sofascore/player/{p.ApiPlayerId}" : null,
                         profileUrl = $"/players/{p.ApiPlayerId}"
                     }
                 })
@@ -1210,6 +1210,7 @@ namespace VNFootballLeaguesApp.Controllers
             {
                 var http = HttpContext.RequestServices.GetRequiredService<IHttpClientFactory>().CreateClient();
                 http.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0");
+                http.DefaultRequestHeaders.Add("Referer", "https://www.sofascore.com/");
                 var bytes = await http.GetByteArrayAsync(player.PhotoUrl);
                 return File(bytes, "image/jpeg");
             }
