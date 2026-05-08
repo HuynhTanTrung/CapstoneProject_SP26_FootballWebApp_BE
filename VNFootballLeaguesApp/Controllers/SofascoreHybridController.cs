@@ -264,6 +264,54 @@ namespace VNFootballLeagues.API.Controllers
             return Ok(new { status = true, total = matches.Count, success, failed, skipped });
         }
 
+        /// <summary>Sync tất cả matches đã finished trong 1 round của league/season.</summary>
+        [HttpPost("sync-match-cache-by-round")]
+        public async Task<IActionResult> SyncMatchCacheByRound([FromQuery] int tournamentId, [FromQuery] int seasonId, [FromQuery] string round)
+        {
+            if (string.IsNullOrWhiteSpace(round)) return BadRequest(new { message = "round is required" });
+
+            var league = await _context.Leagues.FirstOrDefaultAsync(l => l.ApiLeagueId == tournamentId);
+            var season = await _context.Seasons.FirstOrDefaultAsync(s => s.ApiSeasonId == seasonId);
+            if (league == null || season == null) return NotFound(new { message = "League or season not found" });
+
+            var matches = await _context.Matches
+                .Where(m => m.LeagueId == league.LeagueId
+                    && m.SeasonId == season.SeasonId
+                    && m.Round == round
+                    && m.Status == "finished"
+                    && m.ApiFixtureId != null)
+                .Select(m => m.ApiFixtureId!.Value)
+                .ToListAsync();
+
+            if (matches.Count == 0)
+                return Ok(new { status = true, message = $"No finished matches found for round '{round}'", total = 0, success = 0, failed = 0, skipped = 0 });
+
+            int success = 0, failed = 0, skipped = 0;
+
+            foreach (var fixtureId in matches)
+            {
+                try
+                {
+                    var existing = await _context.MatchCacheData.FindAsync(fixtureId);
+                    if (existing?.LineupsJson != null && existing?.IncidentsJson != null) { skipped++; continue; }
+
+                    var lineupsJson = await _sofascoreScraperService.GetMatchLineupsAsync(fixtureId);
+                    var incidentsJson = await _sofascoreScraperService.GetMatchIncidentsAsync(fixtureId);
+
+                    if (existing == null) { existing = new MatchCacheData { ApiFixtureId = fixtureId }; _context.MatchCacheData.Add(existing); }
+                    existing.LineupsJson = lineupsJson;
+                    existing.IncidentsJson = incidentsJson;
+                    existing.SyncedAt = DateTime.UtcNow;
+                    await _context.SaveChangesAsync();
+                    success++;
+                    await Task.Delay(500);
+                }
+                catch { failed++; }
+            }
+
+            return Ok(new { status = true, round, total = matches.Count, success, failed, skipped });
+        }
+
         [HttpGet("matches-with-teams")]
         public async Task<IActionResult> GetMatchesWithTeams([FromQuery] int? tournamentId = null, [FromQuery] int? seasonId = null)
         {
