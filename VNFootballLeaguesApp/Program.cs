@@ -221,7 +221,7 @@ RecurringJob.AddOrUpdate<PredictionSettlementJob>(
 RecurringJob.AddOrUpdate<MonthlyLeaderboardRewardJob>(
     "monthly-leaderboard-reward",
     job => job.RewardPreviousMonthTopUsersAsync(),
-    "10 0 * * *",
+    "10 0 1 * *",
     new RecurringJobOptions
     {
         TimeZone = vnTimeZone
